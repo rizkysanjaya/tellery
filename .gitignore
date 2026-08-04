@@ -1,0 +1,30 @@
+# Environment & Credentials (NEVER commit real credentials)
+.env
+*.session
+*.session-journal
+.env.local
+
+# Database & SQLite WAL files
+*.db
+*.db-wal
+*.db-shm
+data/
+
+# Cache, Thumbnails & Upload Spool
+.thumbnails/
+temp_downloads/
+cache/
+
+# Node & Frontend build artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+venv/
+.venv/
+env/
