@@ -166,3 +166,19 @@ async def get_media_item(media_id: int):
     if not item:
         raise HTTPException(status_code=404, detail="Media item not found")
     return _to_media_response(item)
+
+
+@router.delete("/{media_id:int}")
+async def delete_media_item(media_id: int):
+    """
+    Permanently deletes a media item from the Telegram vault,
+    removes it from the SQLite catalog, and cleans up local thumbnail cache.
+    """
+    archive_service = ArchiveService()
+    try:
+        result = await archive_service.delete_media_item(media_id)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete media item: {e}")

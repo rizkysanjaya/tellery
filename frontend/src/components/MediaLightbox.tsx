@@ -1,11 +1,13 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/MediaLightbox.tsx
- * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation, and zoom.
+ * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
+ *          zoomable viewport, and permanent deletion controls.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/components/VideoPlayer.tsx
  * Public Members: MediaLightbox
- * Side Effects: Listens for window keydown events (Escape, ArrowLeft, ArrowRight).
+ * Side Effects: Listens for window keydown events (Escape, ArrowLeft, ArrowRight),
+ *               triggers deletion callbacks.
  * =============================================================================
  */
 
@@ -21,6 +23,9 @@ import {
   Maximize2,
   HardDrive,
   FileCode,
+  Trash2,
+  AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { MediaItem } from "../types";
 import { VideoPlayer } from "./VideoPlayer";
@@ -32,6 +37,7 @@ interface MediaLightboxProps {
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  onDelete: (id: number) => Promise<void>;
 }
 
 export const MediaLightbox: React.FC<MediaLightboxProps> = ({
@@ -41,13 +47,17 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   onNext,
   hasPrev,
   hasNext,
+  onDelete,
 }) => {
   const [showInfo, setShowInfo] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const isVideo = item.mime_type.startsWith("video/");
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (showDeleteConfirm) return; // Prevent navigation while confirming delete
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft" && hasPrev) onPrev();
       if (e.key === "ArrowRight" && hasNext) onNext();
@@ -56,7 +66,17 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm]);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(item.id);
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
 
   const formatBytes = (bytes: number) => {
     if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
@@ -84,29 +104,41 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer"
             title="Close (Esc)"
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="truncate max-w-[200px] sm:max-w-md">
+          <div className="truncate max-w-[180px] sm:max-w-md">
             <h3 className="text-sm font-semibold text-white truncate">{item.file_name}</h3>
             <p className="text-xs text-zinc-400">{formatDate(item.date_taken)}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Download Original */}
           <a
             href={item.stream_url}
             download={item.file_name}
-            className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors"
+            className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer"
             title="Download Original"
           >
             <Download className="w-5 h-5" />
           </a>
+
+          {/* Delete Media */}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-2 rounded-full hover:bg-red-500/20 text-zinc-300 hover:text-red-400 transition-colors cursor-pointer"
+            title="Delete Media"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+
+          {/* Toggle EXIF Drawer */}
           <button
             onClick={() => setShowInfo((prev) => !prev)}
-            className={`p-2 rounded-full transition-colors ${
+            className={`p-2 rounded-full transition-colors cursor-pointer ${
               showInfo ? "bg-sky-500 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
             }`}
             title="Toggle Metadata Info (I)"
@@ -122,7 +154,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
         {hasPrev && (
           <button
             onClick={onPrev}
-            className="absolute left-4 z-20 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105"
+            className="absolute left-4 z-20 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 cursor-pointer"
             title="Previous (Left Arrow)"
           >
             <ChevronLeft className="w-6 h-6" />
@@ -131,7 +163,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
         {hasNext && (
           <button
             onClick={onNext}
-            className="absolute right-4 z-20 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105"
+            className="absolute right-4 z-20 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 cursor-pointer"
             title="Next (Right Arrow)"
           >
             <ChevronRight className="w-6 h-6" />
@@ -151,6 +183,40 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           )}
         </div>
 
+        {/* Delete Confirmation Modal Overlay */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="max-w-sm w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-white">Delete Media Item?</h4>
+                <p className="text-xs text-zinc-400 mt-1">
+                  This will permanently delete <span className="text-zinc-200 font-semibold">{item.file_name}</span> from your Telegram Vault storage channel and local database.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+                >
+                  {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* EXIF & Technical Metadata Drawer */}
         {showInfo && (
           <aside className="absolute right-0 top-0 bottom-0 w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-zinc-800 p-6 overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-200">
@@ -161,7 +227,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
               </h4>
               <button
                 onClick={() => setShowInfo(false)}
-                className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white"
+                className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>

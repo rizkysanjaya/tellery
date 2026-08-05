@@ -155,6 +155,17 @@ class MediaRepository:
                 }
 
     @staticmethod
+    async def delete_media(media_id: int) -> bool:
+        """
+        Soft deletes media item from SQLite catalog.
+        """
+        query = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (media_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
     async def log_audit(
         action: str,
         media_id: Optional[int] = None,

@@ -1,10 +1,10 @@
 /**
  * =============================================================================
  * Module: frontend/src/api.ts
- * Purpose: Frontend HTTP API client for TeleGallery REST endpoints and file uploads.
+ * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, and deletions.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
- * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile
+ * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile, deleteMediaItem
  * Side Effects: Executes HTTP requests to backend REST API.
  * =============================================================================
  */
@@ -66,6 +66,17 @@ export async function uploadMediaFile(file: File): Promise<any> {
 
   if (!response.ok) {
     throw new Error(`Upload failed: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function deleteMediaItem(id: number): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/media/${id}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Delete failed: ${response.statusText}`);
   }
   return response.json();
 }

@@ -12,7 +12,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, UploadCloud, CheckCircle2 } from "lucide-react";
-import { fetchStats, fetchTimeline, uploadMediaFile } from "./api";
+import { deleteMediaItem, fetchStats, fetchTimeline, uploadMediaFile } from "./api";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
 import { TimelineGrid } from "./components/TimelineGrid";
@@ -121,6 +121,17 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDeleteMedia = async (id: number) => {
+    try {
+      await deleteMediaItem(id);
+      setSelectedMedia(null);
+      loadData();
+    } catch (err) {
+      console.error("Failed to delete media:", err);
+      alert("Failed to delete media item from Telegram vault.");
+    }
+  };
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -178,6 +189,7 @@ export const App: React.FC = () => {
           onNext={handleNext}
           hasPrev={currentIndex > 0}
           hasNext={currentIndex < flatItems.length - 1}
+          onDelete={handleDeleteMedia}
         />
       )}
     </div>

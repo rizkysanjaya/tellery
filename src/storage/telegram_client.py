@@ -164,6 +164,26 @@ class TelegramStorageClient:
         )
         return buffer.getvalue()
 
+    async def delete_document(
+        self,
+        message_id: int,
+        channel_id: Union[int, str],
+    ) -> bool:
+        """
+        Permanently deletes a message/document from the Telegram storage channel.
+
+        Args:
+            message_id: Message ID to delete.
+            channel_id: Target channel ID or username.
+
+        Returns:
+            bool: True if successfully requested.
+        """
+        await self.start()
+        entity = await self.get_target_entity(channel_id)
+        await self._client.delete_messages(entity, [message_id])
+        return True
+
     async def iter_document_chunks(
         self,
         message_id: int,

@@ -217,3 +217,49 @@ class ArchiveService:
             "is_identical": is_identical,
         }
         return is_identical, report
+
+    async def delete_media_item(self, media_id: int) -> dict[str, Any]:
+        """
+        Deletes media item from Telegram MTProto storage channel, local SQLite catalog,
+        and local disk thumbnail cache.
+        """
+        media = await self.repository.get_by_id(media_id)
+        if not media:
+            raise ValueError(f"Media item with ID {media_id} not found in catalog.")
+
+        # 1. Delete message from Telegram storage channel
+        try:
+            await self.telegram_client.delete_document(
+                message_id=media["telegram_message_id"],
+                channel_id=media["telegram_channel_id"],
+            )
+        except Exception as e:
+            print(f"[Warning] Failed to delete message {media['telegram_message_id']} from Telegram: {e}")
+
+        # 2. Delete local WebP thumbnail from disk if exists
+        thumb_path = media.get("thumbnail_path")
+        if thumb_path:
+            p = Path(thumb_path)
+            if p.exists():
+                try:
+                    p.unlink()
+                except Exception:
+                    pass
+
+        # 3. Soft-delete from SQLite catalog
+        await self.repository.delete_media(media_id)
+
+        # 4. Record audit log
+        await self.repository.log_audit(
+            action="DELETE",
+            media_id=media_id,
+            file_hash=media["file_hash"],
+            details=f"Deleted '{media['file_name']}' (Message ID: {media['telegram_message_id']})",
+        )
+
+        return {
+            "status": "deleted",
+            "media_id": media_id,
+            "file_name": media["file_name"],
+            "message": "Media permanently deleted from Telegram vault and catalog.",
+        }
