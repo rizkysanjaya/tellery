@@ -75,9 +75,11 @@ async def get_timeline(
     limit: int = Query(50, ge=1, le=200),
     type: Optional[str] = Query(None, pattern="^(photo|video|all)$"),
     q: Optional[str] = Query(None, description="Search query by filename or camera model"),
+    folder_id: Optional[int] = Query(None, description="Filter by virtual folder ID"),
 ):
     """
     Retrieves chronological timeline feed grouped by Year and Month.
+    Supports filtering by media type, search keyword, and virtual folder.
     """
     filter_type = type if type in ("photo", "video") else None
     total_count, raw_items = await MediaRepository.get_timeline(
@@ -85,6 +87,7 @@ async def get_timeline(
         limit=limit,
         media_type=filter_type,
         search_query=q,
+        folder_id=folder_id,
     )
 
     # Group items by period_key (e.g. '2026-08')
@@ -182,3 +185,15 @@ async def delete_media_item(media_id: int):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete media item: {e}")
+
+
+@router.get("/{media_id:int}/folders")
+async def get_media_assigned_folders(media_id: int):
+    """
+    Retrieves all folders and albums that contain the specified media item.
+    """
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+    folders = await MediaRepository.get_media_folders(media_id)
+    return folders

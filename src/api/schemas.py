@@ -2,9 +2,10 @@
 =============================================================================
 Module: src.api.schemas
 Purpose: Pydantic schemas and serialization models for TeleGallery REST API.
-Used by: src.api.routes.media, src.api.routes.stream.
+Used by: src.api.routes.media, src.api.routes.stream, src.api.routes.folders.
 Dependencies: pydantic, typing
-Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse
+Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse,
+                FolderResponse, CreateFolderRequest, AddMediaToFolderRequest
 Side Effects: None
 =============================================================================
 """
@@ -56,3 +57,27 @@ class StatsResponse(BaseModel):
     total_videos: int
     total_size_bytes: int
     total_size_formatted: str
+
+
+class FolderResponse(BaseModel):
+    """Folder / Album representation including item count and cover preview."""
+
+    id: int
+    name: str
+    parent_id: Optional[int] = None
+    item_count: int = 0
+    cover_thumbnail_url: Optional[str] = None
+    created_at: str
+
+
+class CreateFolderRequest(BaseModel):
+    """Payload for creating a new virtual folder or album."""
+
+    name: str = Field(min_length=1, max_length=100, description="Folder display name")
+    parent_id: Optional[int] = Field(None, description="Optional parent folder ID")
+
+
+class AddMediaToFolderRequest(BaseModel):
+    """Payload for assigning one or more media items to a folder."""
+
+    media_ids: list[int] = Field(min_length=1, description="List of media IDs to assign")

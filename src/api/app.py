@@ -13,7 +13,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from src.api.routes import media_router, stream_router, thumbnail_router
+from src.api.routes import folders_router, media_router, stream_router, thumbnail_router
 from src.database.connection import init_db
 from src.storage.telegram_client import get_telegram_client
 
@@ -61,6 +61,7 @@ def create_app() -> FastAPI:
     app.include_router(media_router)
     app.include_router(thumbnail_router)
     app.include_router(stream_router)
+    app.include_router(folders_router)
 
     @app.get("/api/health", tags=["Health"])
     async def health_check():

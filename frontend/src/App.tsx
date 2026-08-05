@@ -1,29 +1,49 @@
 /**
  * =============================================================================
  * Module: frontend/src/App.tsx
- * Purpose: Root application component managing gallery state, search, filtering,
- *          lightbox modal, drag-and-drop ingestion, and file upload progress.
+ * Purpose: Root application component managing gallery state, view switching (Timeline vs Albums),
+ *          virtual folders, search, filtering, lightbox modal, drag-and-drop, and uploads.
  * Used by: frontend/src/main.tsx
  * Dependencies: React, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
  * Public Members: App
- * Side Effects: Fetches timeline items and stats over HTTP, uploads multipart files to backend.
+ * Side Effects: Fetches timeline items, folders, and stats over HTTP, executes uploads and deletions.
  * =============================================================================
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, UploadCloud, CheckCircle2 } from "lucide-react";
-import { deleteMediaItem, fetchStats, fetchTimeline, uploadMediaFile } from "./api";
+import { Loader2, UploadCloud, CheckCircle2, ChevronLeft, Folder } from "lucide-react";
+import {
+  createFolder,
+  deleteFolder,
+  deleteMediaItem,
+  fetchFolders,
+  fetchStats,
+  fetchTimeline,
+  uploadMediaFile,
+} from "./api";
+import { FolderGrid } from "./components/FolderGrid";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
 import { TimelineGrid } from "./components/TimelineGrid";
-import { FilterType, MediaItem, StatsResponse, TimelineGroup } from "./types";
+import {
+  FilterType,
+  FolderItem,
+  MainView,
+  MediaItem,
+  StatsResponse,
+  TimelineGroup,
+} from "./types";
 
 export const App: React.FC = () => {
+  const [currentView, setCurrentView] = useState<MainView>("timeline");
   const [groups, setGroups] = useState<TimelineGroup[]>([]);
+  const [folders, setFolders] = useState<FolderItem[]>([]);
+  const [activeFolder, setActiveFolder] = useState<FolderItem | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
   // Upload Progress State
@@ -31,10 +51,26 @@ export const App: React.FC = () => {
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
+  const loadFolders = useCallback(() => {
+    setLoadingFolders(true);
+    fetchFolders()
+      .then((res) => {
+        setFolders(res);
+        setLoadingFolders(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoadingFolders(false);
+      });
+  }, []);
+
   const loadData = useCallback(() => {
     fetchStats().then(setStats).catch(console.error);
+    loadFolders();
     setLoading(true);
-    fetchTimeline(0, 100, activeFilter, searchQuery)
+
+    const folderId = activeFolder ? activeFolder.id : null;
+    fetchTimeline(0, 100, activeFilter, searchQuery, folderId)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -43,11 +79,11 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, searchQuery, activeFolder, loadFolders]);
 
-  // Load stats and timeline on filter/search change
+  // Load stats, folders, and timeline on filter/search/folder change
   useEffect(() => {
-    const timeoutId = setTimeout(loadData, 200);
+    const timeoutId = setTimeout(loadData, 150);
     return () => clearTimeout(timeoutId);
   }, [loadData]);
 
@@ -78,6 +114,20 @@ export const App: React.FC = () => {
     setTimeout(() => {
       setUploadStatus(null);
     }, 4000);
+  };
+
+  // Folder CRUD handlers
+  const handleCreateFolder = async (name: string) => {
+    await createFolder(name);
+    loadFolders();
+  };
+
+  const handleDeleteFolder = async (folderId: number) => {
+    await deleteFolder(folderId);
+    if (activeFolder && activeFolder.id === folderId) {
+      setActiveFolder(null);
+    }
+    loadFolders();
   };
 
   // Drag and drop handlers
@@ -132,6 +182,11 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleViewChange = (view: MainView) => {
+    setCurrentView(view);
+    setActiveFolder(null);
+  };
+
   return (
     <div
       onDragOver={handleDragOver}
@@ -150,6 +205,8 @@ export const App: React.FC = () => {
 
       {/* Top Header & Search Bar */}
       <Header
+        currentView={currentView}
+        onViewChange={handleViewChange}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         activeFilter={activeFilter}
@@ -161,11 +218,42 @@ export const App: React.FC = () => {
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 pt-6">
-        <TimelineGrid
-          groups={groups}
-          onSelectMedia={setSelectedMedia}
-          loading={loading}
-        />
+        {/* Active Folder Breadcrumb Bar */}
+        {activeFolder && (
+          <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setActiveFolder(null)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-semibold border border-zinc-800 transition-all cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>All Albums</span>
+              </button>
+              <div className="h-4 w-px bg-zinc-800" />
+              <div className="flex items-center gap-2">
+                <Folder className="w-4 h-4 text-sky-400" />
+                <h2 className="text-lg font-bold text-white">{activeFolder.name}</h2>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* View Switcher: Albums Grid vs Timeline Grid */}
+        {currentView === "albums" && !activeFolder ? (
+          <FolderGrid
+            folders={folders}
+            onSelectFolder={(folder) => setActiveFolder(folder)}
+            onCreateFolder={handleCreateFolder}
+            onDeleteFolder={handleDeleteFolder}
+            loading={loadingFolders}
+          />
+        ) : (
+          <TimelineGrid
+            groups={groups}
+            onSelectMedia={setSelectedMedia}
+            loading={loading}
+          />
+        )}
       </main>
 
       {/* Floating Upload Progress Toast */}
@@ -184,6 +272,7 @@ export const App: React.FC = () => {
       {selectedMedia && (
         <MediaLightbox
           item={selectedMedia}
+          allFolders={folders}
           onClose={() => setSelectedMedia(null)}
           onPrev={handlePrev}
           onNext={handleNext}

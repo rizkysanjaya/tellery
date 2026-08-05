@@ -1,11 +1,11 @@
 """
 =============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media items catalog, timeline queries, and audit logging.
-Used by: src.services.archive_service, src.cli.verify_pipeline, src.api.routes.media.
+Purpose: Data access layer for media catalog, folders/albums, and audit logging.
+Used by: src.services.archive_service, src.api.routes.media, src.api.routes.folders.
 Dependencies: aiosqlite, src.database.connection
 Public Members: MediaRepository
-Side Effects: Executes SQL SELECT, INSERT, UPDATE statements against SQLite DB.
+Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
 =============================================================================
 """
 
@@ -15,7 +15,7 @@ from src.database.connection import get_db_connection
 
 
 class MediaRepository:
-    """Repository handling all database queries for media catalog, timeline feeds, and audit log."""
+    """Repository handling database queries for media catalog, folders, and audit log."""
 
     @staticmethod
     async def get_by_hash(file_hash: str) -> Optional[dict[str, Any]]:
@@ -83,36 +83,44 @@ class MediaRepository:
         limit: int = 100,
         media_type: Optional[str] = None,
         search_query: Optional[str] = None,
+        folder_id: Optional[int] = None,
     ) -> tuple[int, list[dict[str, Any]]]:
         """
         Retrieves paginated media items ordered chronologically along with the total count.
-        Leverages idx_media_timeline index for minimum latency.
+        Supports filtering by media type, search query, and virtual folder ID.
         """
-        where_clauses = ["is_deleted = 0"]
+        where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
+        join_sql = ""
+
+        if folder_id is not None:
+            join_sql = "JOIN media_folders mf ON mf.media_id = m.id"
+            where_clauses.append("mf.folder_id = ?")
+            params.append(folder_id)
 
         if media_type == "photo":
-            where_clauses.append("mime_type LIKE 'image/%'")
+            where_clauses.append("m.mime_type LIKE 'image/%'")
         elif media_type == "video":
-            where_clauses.append("mime_type LIKE 'video/%'")
+            where_clauses.append("m.mime_type LIKE 'video/%'")
 
         if search_query:
-            where_clauses.append("(file_name LIKE ? OR camera_make LIKE ? OR camera_model LIKE ?)")
+            where_clauses.append("(m.file_name LIKE ? OR m.camera_make LIKE ? OR m.camera_model LIKE ?)")
             pattern = f"%{search_query}%"
             params.extend([pattern, pattern, pattern])
 
         where_sql = " AND ".join(where_clauses)
 
-        count_query = f"SELECT COUNT(*) FROM media_items WHERE {where_sql};"
+        count_query = f"SELECT COUNT(*) FROM media_items m {join_sql} WHERE {where_sql};"
         fetch_query = f"""
-            SELECT id, file_hash, file_name, file_size, mime_type,
-                   telegram_channel_id, telegram_message_id, telegram_file_id,
-                   width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at,
-                   strftime('%Y-%m', COALESCE(date_taken, created_at)) as period_key
-            FROM media_items
+            SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
+                   m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
+                   m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
+                   m.date_taken, m.thumbnail_path, m.created_at,
+                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key
+            FROM media_items m
+            {join_sql}
             WHERE {where_sql}
-            ORDER BY COALESCE(date_taken, created_at) DESC
+            ORDER BY COALESCE(m.date_taken, m.created_at) DESC
             LIMIT ? OFFSET ?;
         """
 
@@ -156,14 +164,112 @@ class MediaRepository:
 
     @staticmethod
     async def delete_media(media_id: int) -> bool:
-        """
-        Soft deletes media item from SQLite catalog.
-        """
+        """Soft deletes media item from SQLite catalog."""
         query = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
         async with get_db_connection() as conn:
             cursor = await conn.execute(query, (media_id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    # =========================================================================
+    # Folder & Album Repository Methods
+    # =========================================================================
+
+    @staticmethod
+    async def create_folder(name: str, parent_id: Optional[int] = None) -> int:
+        """Creates a new folder / album and returns the folder ID."""
+        query = "INSERT INTO folders (name, parent_id) VALUES (?, ?);"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (name.strip(), parent_id))
+            await conn.commit()
+            return cursor.lastrowid or 0
+
+    @staticmethod
+    async def get_folder(folder_id: int) -> Optional[dict[str, Any]]:
+        """Retrieves folder details by ID."""
+        query = "SELECT id, name, parent_id, created_at FROM folders WHERE id = ?;"
+        async with get_db_connection() as conn:
+            async with conn.execute(query, (folder_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    @staticmethod
+    async def list_folders() -> list[dict[str, Any]]:
+        """
+        Retrieves all folders along with their item count and latest cover thumbnail.
+        Single high-performance query utilizing B-tree indices.
+        """
+        query = """
+            SELECT 
+                f.id, f.name, f.parent_id, f.created_at,
+                COUNT(mf.media_id) as item_count,
+                (
+                    SELECT m.thumbnail_path 
+                    FROM media_items m 
+                    JOIN media_folders sub_mf ON sub_mf.media_id = m.id 
+                    WHERE sub_mf.folder_id = f.id AND m.is_deleted = 0 AND m.thumbnail_path IS NOT NULL
+                    ORDER BY sub_mf.added_at DESC LIMIT 1
+                ) as cover_thumbnail_path,
+                (
+                    SELECT m.id 
+                    FROM media_items m 
+                    JOIN media_folders sub_mf ON sub_mf.media_id = m.id 
+                    WHERE sub_mf.folder_id = f.id AND m.is_deleted = 0 AND m.thumbnail_path IS NOT NULL
+                    ORDER BY sub_mf.added_at DESC LIMIT 1
+                ) as cover_media_id
+            FROM folders f
+            LEFT JOIN media_folders mf ON mf.folder_id = f.id
+            LEFT JOIN media_items m ON m.id = mf.media_id AND m.is_deleted = 0
+            GROUP BY f.id, f.name, f.parent_id, f.created_at
+            ORDER BY f.created_at DESC;
+        """
+        async with get_db_connection() as conn:
+            async with conn.execute(query) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
+
+    @staticmethod
+    async def delete_folder(folder_id: int) -> bool:
+        """Deletes a folder; cascading foreign keys automatically remove folder associations."""
+        query = "DELETE FROM folders WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (folder_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def add_media_to_folder(folder_id: int, media_ids: list[int]) -> int:
+        """Batch associates media items with a folder."""
+        query = "INSERT OR IGNORE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
+        params = [(folder_id, mid) for mid in media_ids]
+        async with get_db_connection() as conn:
+            cursor = await conn.executemany(query, params)
+            await conn.commit()
+            return cursor.rowcount
+
+    @staticmethod
+    async def remove_media_from_folder(folder_id: int, media_id: int) -> bool:
+        """Removes a media item association from a folder."""
+        query = "DELETE FROM media_folders WHERE folder_id = ? AND media_id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (folder_id, media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def get_media_folders(media_id: int) -> list[dict[str, Any]]:
+        """Returns all folders that a specific media item is assigned to."""
+        query = """
+            SELECT f.id, f.name, f.parent_id, f.created_at, mf.added_at
+            FROM folders f
+            JOIN media_folders mf ON mf.folder_id = f.id
+            WHERE mf.media_id = ?
+            ORDER BY f.name ASC;
+        """
+        async with get_db_connection() as conn:
+            async with conn.execute(query, (media_id,)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
 
     @staticmethod
     async def log_audit(

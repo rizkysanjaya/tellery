@@ -1,9 +1,9 @@
 -- =============================================================================
 -- File: src/database/schema.sql
--- Purpose: SQLite relational schema definition for TeleGallery catalog.
+-- Purpose: SQLite relational schema definition for TeleGallery catalog & albums/folders.
 -- Used by: src.database.connection.init_db()
 -- Dependencies: SQLite 3.35+
--- Optimizations: WAL mode, normalized layout, selective B-tree indices.
+-- Optimizations: WAL mode, normalized layout, selective B-tree indices, cascading FKs.
 -- Side Effects: Creates tables and indices in target SQLite database.
 -- =============================================================================
 
@@ -44,10 +44,34 @@ CREATE INDEX IF NOT EXISTS idx_media_timeline
 CREATE INDEX IF NOT EXISTS idx_media_channel_msg 
     ON media_items(telegram_channel_id, telegram_message_id);
 
--- 2. Audit and Verification History Table
+-- 2. Virtual Folders & Albums Table
+CREATE TABLE IF NOT EXISTS folders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,                       -- Folder / Album display name
+    parent_id INTEGER,                        -- Nullable parent folder for nested hierarchies
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+
+-- 3. Many-to-Many Media <-> Folders Junction Table
+CREATE TABLE IF NOT EXISTS media_folders (
+    media_id INTEGER NOT NULL,
+    folder_id INTEGER NOT NULL,
+    added_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (media_id, folder_id),
+    FOREIGN KEY (media_id) REFERENCES media_items(id) ON DELETE CASCADE,
+    FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_folders_folder ON media_folders(folder_id, media_id);
+CREATE INDEX IF NOT EXISTS idx_media_folders_media ON media_folders(media_id);
+
+-- 4. Audit and Verification History Table
 CREATE TABLE IF NOT EXISTS audit_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action TEXT NOT NULL,                     -- e.g. 'UPLOAD', 'DEDUP_HIT', 'VERIFY_SUCCESS'
+    action TEXT NOT NULL,                     -- e.g. 'UPLOAD', 'DEDUP_HIT', 'DELETE', 'VERIFY_SUCCESS'
     media_id INTEGER,                         -- Nullable reference to media_items
     file_hash TEXT,
     details TEXT,                             -- Contextual JSON or description

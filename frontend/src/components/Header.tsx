@@ -1,19 +1,32 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Header.tsx
- * Purpose: Top navigation bar containing branding, search bar, filters, upload button, and stats.
+ * Purpose: Top navigation bar containing branding, view switcher (Timeline vs Albums),
+ *          search bar, type filters, upload button, and vault stats.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts
  * Public Members: Header
- * Side Effects: Dispatches search, filter, and upload file events to parent state.
+ * Side Effects: Dispatches view change, search, filter, and upload events to parent state.
  * =============================================================================
  */
 
 import React, { useRef } from "react";
-import { Search, Image as ImageIcon, Video, Layers, HardDrive, Upload, Loader2 } from "lucide-react";
-import { FilterType, StatsResponse } from "../types";
+import {
+  Search,
+  Image as ImageIcon,
+  Video,
+  Layers,
+  HardDrive,
+  Upload,
+  Loader2,
+  Folder,
+  Clock,
+} from "lucide-react";
+import { FilterType, MainView, StatsResponse } from "../types";
 
 interface HeaderProps {
+  currentView: MainView;
+  onViewChange: (view: MainView) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   activeFilter: FilterType;
@@ -24,6 +37,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  currentView,
+  onViewChange,
   searchQuery,
   onSearchChange,
   activeFilter,
@@ -46,8 +61,8 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/80 px-4 lg:px-8 py-3.5 transition-all">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        {/* Brand & Logo */}
-        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+        {/* Brand & View Navigation */}
+        <div className="flex items-center justify-between w-full md:w-auto gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
               <Layers className="w-5 h-5 text-white" />
@@ -60,6 +75,32 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </h1>
             </div>
+          </div>
+
+          {/* Navigation Tabs (Timeline vs Albums) */}
+          <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+            <button
+              onClick={() => onViewChange("timeline")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                currentView === "timeline"
+                  ? "bg-zinc-800 text-sky-400 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Timeline</span>
+            </button>
+            <button
+              onClick={() => onViewChange("albums")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                currentView === "albums"
+                  ? "bg-zinc-800 text-sky-400 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Folder className="w-3.5 h-3.5" />
+              <span>Albums</span>
+            </button>
           </div>
 
           {/* Upload Button (Mobile) */}
@@ -75,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
             >
               {isUploading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -100,7 +141,7 @@ export const Header: React.FC<HeaderProps> = ({
           {searchQuery && (
             <button
               onClick={() => onSearchChange("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-1.5 py-0.5 rounded"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-800 px-1.5 py-0.5 rounded cursor-pointer"
             >
               Clear
             </button>
@@ -109,41 +150,43 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Filter Pills, Upload Button & Stats */}
         <div className="flex items-center justify-between w-full md:w-auto gap-3">
-          <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-            <button
-              onClick={() => onFilterChange("all")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeFilter === "all"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              All
-            </button>
-            <button
-              onClick={() => onFilterChange("photo")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeFilter === "photo"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              Photos
-            </button>
-            <button
-              onClick={() => onFilterChange("video")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                activeFilter === "video"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
-            >
-              <Video className="w-3.5 h-3.5" />
-              Videos
-            </button>
-          </div>
+          {currentView === "timeline" && (
+            <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+              <button
+                onClick={() => onFilterChange("all")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeFilter === "all"
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                All
+              </button>
+              <button
+                onClick={() => onFilterChange("photo")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeFilter === "photo"
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                }`}
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                Photos
+              </button>
+              <button
+                onClick={() => onFilterChange("video")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeFilter === "video"
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                }`}
+              >
+                <Video className="w-3.5 h-3.5" />
+                Videos
+              </button>
+            </div>
+          )}
 
           {/* Upload Button (Desktop) */}
           <div className="hidden md:flex items-center">

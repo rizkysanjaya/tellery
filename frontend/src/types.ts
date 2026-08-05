@@ -1,10 +1,11 @@
 /**
  * =============================================================================
  * Module: frontend/src/types.ts
- * Purpose: TypeScript type definitions for media entities, timeline feeds, and stats.
- * Used by: frontend/src/api.ts, components.
+ * Purpose: TypeScript type definitions for media entities, albums/folders, timeline feeds, and stats.
+ * Used by: frontend/src/api.ts, frontend/src/App.tsx, components.
  * Dependencies: None
- * Public Members: MediaItem, TimelineGroup, TimelineResponse, StatsResponse, FilterType
+ * Public Members: MediaItem, TimelineGroup, TimelineResponse, StatsResponse,
+ *                FilterType, FolderItem, MainView
  * Side Effects: None
  * =============================================================================
  */
@@ -46,4 +47,14 @@ export interface StatsResponse {
   total_size_formatted: string;
 }
 
+export interface FolderItem {
+  id: number;
+  name: string;
+  parent_id: number | null;
+  item_count: number;
+  cover_thumbnail_url: string | null;
+  created_at: string;
+}
+
 export type FilterType = "all" | "photo" | "video";
+export type MainView = "timeline" | "albums";

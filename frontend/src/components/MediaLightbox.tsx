@@ -2,12 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/MediaLightbox.tsx
  * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
- *          zoomable viewport, and permanent deletion controls.
+ *          zoomable viewport, album/folder assignment manager, and permanent deletion controls.
  * Used by: frontend/src/App.tsx
- * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/components/VideoPlayer.tsx
+ * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/api.ts, frontend/src/components/VideoPlayer.tsx
  * Public Members: MediaLightbox
- * Side Effects: Listens for window keydown events (Escape, ArrowLeft, ArrowRight),
- *               triggers deletion callbacks.
+ * Side Effects: Listens for window keydown events, executes folder membership changes and deletion over HTTP.
  * =============================================================================
  */
 
@@ -26,12 +25,16 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  FolderPlus,
+  Check,
 } from "lucide-react";
-import { MediaItem } from "../types";
+import { FolderItem, MediaItem } from "../types";
+import { addMediaToFolder, fetchMediaFolders, removeMediaFromFolder } from "../api";
 import { VideoPlayer } from "./VideoPlayer";
 
 interface MediaLightboxProps {
   item: MediaItem;
+  allFolders: FolderItem[];
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -42,6 +45,7 @@ interface MediaLightboxProps {
 
 export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   item,
+  allFolders,
   onClose,
   onPrev,
   onNext,
@@ -50,14 +54,37 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   onDelete,
 }) => {
   const [showInfo, setShowInfo] = useState(false);
+  const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const [assignedFolderIds, setAssignedFolderIds] = useState<number[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const isVideo = item.mime_type.startsWith("video/");
 
+  // Load assigned folders for current media item
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingFolders(true);
+    fetchMediaFolders(item.id)
+      .then((folders) => {
+        if (isMounted) {
+          setAssignedFolderIds(folders.map((f) => f.id));
+          setLoadingFolders(false);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        if (isMounted) setLoadingFolders(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [item.id]);
+
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showDeleteConfirm) return; // Prevent navigation while confirming delete
+      if (showDeleteConfirm || showFolderMenu) return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft" && hasPrev) onPrev();
       if (e.key === "ArrowRight" && hasNext) onNext();
@@ -66,7 +93,18 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm, showFolderMenu]);
+
+  const handleToggleFolder = async (folderId: number) => {
+    const isAssigned = assignedFolderIds.includes(folderId);
+    if (isAssigned) {
+      setAssignedFolderIds((prev) => prev.filter((id) => id !== folderId));
+      await removeMediaFromFolder(folderId, item.id).catch(console.error);
+    } else {
+      setAssignedFolderIds((prev) => [...prev, folderId]);
+      await addMediaToFolder(folderId, [item.id]).catch(console.error);
+    }
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -115,7 +153,61 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 relative">
+          {/* Add to Album / Folder Menu Button */}
+          <button
+            onClick={() => setShowFolderMenu((prev) => !prev)}
+            className={`p-2 rounded-full transition-colors cursor-pointer ${
+              showFolderMenu ? "bg-sky-500 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
+            }`}
+            title="Organize in Albums"
+          >
+            <FolderPlus className="w-5 h-5" />
+          </button>
+
+          {/* Folder Assignment Dropdown */}
+          {showFolderMenu && (
+            <div className="absolute right-24 top-12 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
+                <span className="text-xs font-bold text-white">Add to Albums</span>
+                <button
+                  onClick={() => setShowFolderMenu(false)}
+                  className="p-1 text-zinc-400 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {loadingFolders ? (
+                <div className="py-4 text-center">
+                  <Loader2 className="w-4 h-4 text-sky-400 animate-spin mx-auto" />
+                </div>
+              ) : allFolders.length === 0 ? (
+                <p className="text-xs text-zinc-500 py-3 text-center">No albums created yet.</p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {allFolders.map((folder) => {
+                    const isChecked = assignedFolderIds.includes(folder.id);
+                    return (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleToggleFolder(folder.id)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
+                          isChecked
+                            ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                            : "text-zinc-300 hover:bg-zinc-800"
+                        }`}
+                      >
+                        <span className="truncate">{folder.name}</span>
+                        {isChecked && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Download Original */}
           <a
             href={item.stream_url}
