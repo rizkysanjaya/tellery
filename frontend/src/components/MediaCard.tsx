@@ -1,24 +1,38 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
- * Purpose: Interactive gallery grid tile displaying WebP thumbnail and badges.
+ * Purpose: Interactive gallery grid tile with WebP thumbnail, selection checkbox,
+ *          context menu forwarding, and HTML5 drag-and-drop support.
  * Used by: frontend/src/components/TimelineGrid.tsx
  * Dependencies: lucide-react, frontend/src/types.ts
  * Public Members: MediaCard
- * Side Effects: Triggers lightbox click event.
+ * Side Effects: Triggers lightbox click, selection toggle, drag start, and context menu events.
  * =============================================================================
  */
 
 import React, { useState } from "react";
-import { Play, Image as ImageIcon, Camera } from "lucide-react";
+import { Play, Image as ImageIcon, Camera, Check } from "lucide-react";
 import { MediaItem } from "../types";
 
 interface MediaCardProps {
   item: MediaItem;
+  isSelected: boolean;
+  isSelectionMode: boolean;
+  selectedIds: Set<number>;
   onClick: () => void;
+  onToggleSelect: (id: number) => void;
+  onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
-export const MediaCard: React.FC<MediaCardProps> = ({ item, onClick }) => {
+export const MediaCard: React.FC<MediaCardProps> = ({
+  item,
+  isSelected,
+  isSelectionMode,
+  selectedIds,
+  onClick,
+  onToggleSelect,
+  onContextMenu,
+}) => {
   const [loaded, setLoaded] = useState(false);
   const isVideo = item.mime_type.startsWith("video/");
 
@@ -29,11 +43,69 @@ export const MediaCard: React.FC<MediaCardProps> = ({ item, onClick }) => {
     return `${m}:${s.toString().padStart(2, "0")}`;
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Ctrl/Cmd+Click always toggles selection
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      onToggleSelect(item.id);
+      return;
+    }
+
+    // In selection mode, clicking the card body toggles selection
+    if (isSelectionMode) {
+      onToggleSelect(item.id);
+      return;
+    }
+
+    // Normal click opens lightbox
+    onClick();
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleSelect(item.id);
+  };
+
+  const handleDragStart = (e: React.DragEvent) => {
+    const payload = isSelected && selectedIds.size > 0
+      ? Array.from(selectedIds)
+      : [item.id];
+    
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "copyMove";
+  };
+
   return (
     <div
-      onClick={onClick}
-      className="group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border border-zinc-800/60 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 transform hover:-translate-y-1"
+      draggable
+      onDragStart={handleDragStart}
+      onClick={handleClick}
+      onContextMenu={(e) => onContextMenu(e, item)}
+      className={`media-card-item group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
+        isSelected
+          ? "border-sky-500 ring-2 ring-sky-500/40 shadow-xl shadow-sky-500/15 scale-[0.97]"
+          : "border-zinc-800/60 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10"
+      }`}
     >
+      {/* Selection Checkbox (top-left) */}
+      <div
+        onClick={handleCheckboxClick}
+        className={`absolute top-2.5 left-2.5 z-10 w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${
+          isSelected
+            ? "bg-sky-500 border-sky-500 shadow-lg shadow-sky-500/30"
+            : isSelectionMode
+              ? "bg-zinc-900/70 border border-zinc-600 backdrop-blur-md hover:border-sky-400"
+              : "bg-zinc-900/70 border border-zinc-600 backdrop-blur-md opacity-0 group-hover:opacity-100 hover:border-sky-400"
+        }`}
+      >
+        {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+      </div>
+
+      {/* Selected Dimming Overlay */}
+      {isSelected && (
+        <div className="absolute inset-0 bg-sky-500/10 z-[1] pointer-events-none" />
+      )}
+
       {/* Thumbnail Image */}
       {item.thumbnail_url ? (
         <img
