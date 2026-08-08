@@ -272,6 +272,15 @@ class MediaRepository:
                 return [dict(r) for r in rows]
 
     @staticmethod
+    async def update_thumbnail_path(media_id: int, thumbnail_path: str) -> bool:
+        """Updates the thumbnail path for a specific media item."""
+        query = "UPDATE media_items SET thumbnail_path = ? WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (thumbnail_path, media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
     async def log_audit(
         action: str,
         media_id: Optional[int] = None,

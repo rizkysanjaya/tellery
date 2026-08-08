@@ -71,6 +71,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       ? Array.from(selectedIds)
       : [item.id];
     
+    e.dataTransfer.setData("application/telegallery-media", JSON.stringify(payload));
     e.dataTransfer.setData("application/json", JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copyMove";
   };
@@ -111,9 +112,10 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         <img
           src={item.thumbnail_url}
           alt={item.file_name}
+          draggable={false}
           loading="lazy"
           onLoad={() => setLoaded(true)}
-          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 pointer-events-none select-none ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
         />

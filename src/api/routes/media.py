@@ -51,7 +51,7 @@ def _format_period_title(period_key: Optional[str]) -> str:
 def _to_media_response(item: dict) -> MediaItemResponse:
     """Maps database row dict to MediaItemResponse with computed API endpoints."""
     item_id = item["id"]
-    thumb_url = f"/api/media/{item_id}/thumbnail" if item.get("thumbnail_path") else None
+    thumb_url = f"/api/media/{item_id}/thumbnail"
     return MediaItemResponse(
         id=item_id,
         file_name=item["file_name"],

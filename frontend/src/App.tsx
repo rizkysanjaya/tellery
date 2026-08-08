@@ -249,8 +249,15 @@ export const App: React.FC = () => {
   // =========================================================================
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
+    // Only show the upload overlay if the user is dragging real files from their computer OS,
+    // and NOT an internal media card being dragged between folders/albums.
+    const isInternalDrag = e.dataTransfer.types.includes("application/telegallery-media");
+    const isExternalFiles = e.dataTransfer.types.includes("Files");
+
+    if (isExternalFiles && !isInternalDrag) {
+      e.preventDefault();
+      setIsDragging(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -261,6 +268,12 @@ export const App: React.FC = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
+
+    // Completely ignore internal media drags to prevent re-uploading thumbnails
+    if (e.dataTransfer.types.includes("application/telegallery-media")) {
+      return;
+    }
+
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleUploadFiles(e.dataTransfer.files);
     }

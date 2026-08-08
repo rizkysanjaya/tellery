@@ -79,8 +79,10 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   };
 
   const handleFolderDragOver = (e: React.DragEvent, folderId: number) => {
-    // Only accept drag if it has application/json data
-    if (e.dataTransfer.types.includes("application/json")) {
+    if (
+      e.dataTransfer.types.includes("application/telegallery-media") ||
+      e.dataTransfer.types.includes("application/json")
+    ) {
       e.preventDefault();
       e.stopPropagation();
       setDragOverFolderId(folderId);

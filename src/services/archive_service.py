@@ -18,7 +18,7 @@ from src.config import get_settings
 from src.database.repository import MediaRepository
 from src.services.hasher import compute_bytes_sha256, compute_file_sha256
 from src.services.metadata_extractor import extract_media_metadata
-from src.services.thumbnail_service import generate_image_thumbnail
+from src.services.thumbnail_service import generate_thumbnail
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
 
 
@@ -90,10 +90,8 @@ class ArchiveService:
         meta = extract_media_metadata(target_path)
         final_mime_type = mime_type or meta.mime_type
 
-        # 4. Generate local WebP thumbnail
-        thumbnail_path = None
-        if final_mime_type.startswith("image/"):
-            thumbnail_path = generate_image_thumbnail(target_path, file_hash)
+        # 4. Generate local WebP thumbnail (photos and videos)
+        thumbnail_path = generate_thumbnail(target_path, file_hash, final_mime_type)
 
         # 5. Upload uncompressed document to Telegram with FloodWait retry safety
         max_retries = 3

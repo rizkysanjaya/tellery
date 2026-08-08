@@ -164,6 +164,31 @@ class TelegramStorageClient:
         )
         return buffer.getvalue()
 
+    async def download_document(
+        self,
+        message_id: int,
+        channel_id: Union[int, str],
+        destination: Union[str, Path],
+        progress_callback: Optional[Callable[[int, int], None]] = None,
+    ) -> Path:
+        """
+        Downloads a document from Telegram directly into a local target file path.
+        """
+        await self.start()
+        entity = await self.get_target_entity(channel_id)
+        message = await self._client.get_messages(entity, ids=message_id)
+        if not message or not message.media:
+            raise ValueError(f"No media document found in message {message_id} in channel {channel_id}")
+
+        dest_path = Path(destination)
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        await self._client.download_media(
+            message.media,
+            file=str(dest_path),
+            progress_callback=progress_callback,
+        )
+        return dest_path
+
     async def delete_document(
         self,
         message_id: int,

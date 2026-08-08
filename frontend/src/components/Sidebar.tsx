@@ -85,7 +85,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const handleDragOver = (e: React.DragEvent, folderId: number) => {
-    if (e.dataTransfer.types.includes("application/json")) {
+    if (
+      e.dataTransfer.types.includes("application/telegallery-media") ||
+      e.dataTransfer.types.includes("application/json")
+    ) {
       e.preventDefault();
       e.stopPropagation();
       setDragOverSidebarFolderId(folderId);
