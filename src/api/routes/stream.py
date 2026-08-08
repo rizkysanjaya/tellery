@@ -1,15 +1,17 @@
 """
 =============================================================================
 Module: src.api.routes.stream
-Purpose: HTTP 206 Partial Content video/audio/photo streaming bridge directly from Telegram MTProto.
+Purpose: HTTP 206 Partial Content video/audio/photo streaming bridge directly from Telegram MTProto
+         with RFC 5987 Unicode Content-Disposition headers.
 Used by: HTML5 <video>, <audio>, Lightbox full-res media viewers.
-Dependencies: fastapi, src.database.repository, src.storage.telegram_client, typing
+Dependencies: fastapi, urllib.parse, src.database.repository, src.storage.telegram_client, typing
 Public Members: router, stream_media_range
 Side Effects: Streams MTProto chunk data across HTTP response.
 =============================================================================
 """
 
 import re
+import urllib.parse
 from typing import AsyncIterator, Optional, Union
 from fastapi import APIRouter, Header, HTTPException, Request, status
 from fastapi.responses import Response, StreamingResponse
@@ -19,6 +21,22 @@ from src.storage.telegram_client import TelegramStorageClient, get_telegram_clie
 router = APIRouter(prefix="/api/media", tags=["Media Streaming"])
 
 RANGE_HEADER_REGEX = re.compile(r"^bytes=(\d+)-(\d*)$")
+
+
+def _encode_content_disposition(file_name: str, disposition: str = "inline") -> str:
+    """
+    Encodes Content-Disposition header conforming to RFC 5987 / RFC 6266.
+    Ensures non-ASCII / Unicode filenames (Korean, Japanese, emojis, accents)
+    never crash the ASGI server with UnicodeEncodeError.
+    """
+    ascii_safe_name = file_name.encode("ascii", "ignore").decode("ascii").strip()
+    if not ascii_safe_name:
+        ascii_safe_name = "media_file"
+    # Remove double quotes and backslashes from ascii fallback
+    ascii_safe_name = ascii_safe_name.replace('"', "").replace("\\", "")
+    
+    encoded_utf8 = urllib.parse.quote(file_name, encoding="utf-8")
+    return f'{disposition}; filename="{ascii_safe_name}"; filename*=UTF-8\'\'{encoded_utf8}'
 
 
 async def stream_media_range(
@@ -86,6 +104,7 @@ async def stream_media(
     mime_type = item["mime_type"] or "application/octet-stream"
     channel_id = item["telegram_channel_id"]
     message_id = item["telegram_message_id"]
+    content_disp = _encode_content_disposition(item["file_name"], disposition="inline")
 
     telegram_client = get_telegram_client()
 
@@ -95,7 +114,7 @@ async def stream_media(
             "Accept-Ranges": "bytes",
             "Content-Length": str(file_size),
             "Content-Type": mime_type,
-            "Content-Disposition": f'inline; filename="{item["file_name"]}"',
+            "Content-Disposition": content_disp,
         }
         return StreamingResponse(
             stream_media_range(
@@ -137,7 +156,7 @@ async def stream_media(
         "Accept-Ranges": "bytes",
         "Content-Length": str(content_length),
         "Content-Type": mime_type,
-        "Content-Disposition": f'inline; filename="{item["file_name"]}"',
+        "Content-Disposition": content_disp,
     }
 
     return StreamingResponse(
