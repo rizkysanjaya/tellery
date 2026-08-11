@@ -17,8 +17,12 @@ import {
   Video,
   Layers,
   Menu,
+  LayoutGrid,
+  Grid3X3,
+  List,
+  Columns3,
 } from "lucide-react";
-import { FilterType, MainView } from "../types";
+import { DisplayLayout, FilterType, MainView } from "../types";
 
 interface HeaderProps {
   currentView: MainView;
@@ -26,6 +30,8 @@ interface HeaderProps {
   onSearchChange: (q: string) => void;
   activeFilter: FilterType;
   onFilterChange: (f: FilterType) => void;
+  displayLayout?: DisplayLayout;
+  onDisplayLayoutChange?: (l: DisplayLayout) => void;
   onToggleMobileSidebar: () => void;
 }
 
@@ -35,6 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   activeFilter,
   onFilterChange,
+  displayLayout = "grid",
+  onDisplayLayoutChange,
   onToggleMobileSidebar,
 }) => {
   return (
@@ -50,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Search Input */}
-        <div className="relative flex-1 max-w-2xl">
+        <div className="relative flex-1 max-w-xl">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input
             type="text"
@@ -69,42 +77,98 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Filter Pills (All / Photos / Videos) */}
+        {/* Controls: Filter Pills & Layout Switcher */}
         {currentView === "timeline" && (
-          <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800 shrink-0">
-            <button
-              onClick={() => onFilterChange("all")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                activeFilter === "all"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">All</span>
-            </button>
-            <button
-              onClick={() => onFilterChange("photo")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                activeFilter === "photo"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
-            >
-              <ImageIcon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Photos</span>
-            </button>
-            <button
-              onClick={() => onFilterChange("video")}
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                activeFilter === "video"
-                  ? "bg-sky-500 text-white shadow-sm"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-              }`}
-            >
-              <Video className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Videos</span>
-            </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Filter Pills (All / Photos / Videos) */}
+            <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+              <button
+                onClick={() => onFilterChange("all")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeFilter === "all"
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                }`}
+                title="Show all media"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">All</span>
+              </button>
+              <button
+                onClick={() => onFilterChange("photo")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeFilter === "photo"
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                }`}
+                title="Filter photos only"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Photos</span>
+              </button>
+              <button
+                onClick={() => onFilterChange("video")}
+                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                  activeFilter === "video"
+                    ? "bg-sky-500 text-white shadow-sm"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                }`}
+                title="Filter videos only"
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Videos</span>
+              </button>
+            </div>
+
+            {/* Display Layout Switcher */}
+            {onDisplayLayoutChange && (
+              <div className="hidden sm:flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+                <button
+                  onClick={() => onDisplayLayoutChange("grid")}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    displayLayout === "grid"
+                      ? "bg-sky-500 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  }`}
+                  title="Standard Grid view"
+                >
+                  <LayoutGrid className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDisplayLayoutChange("dense")}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    displayLayout === "dense"
+                      ? "bg-sky-500 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  }`}
+                  title="Dense Compact Grid view"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDisplayLayoutChange("masonry")}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    displayLayout === "masonry"
+                      ? "bg-sky-500 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  }`}
+                  title="Natural Aspect Ratio Showcase"
+                >
+                  <Columns3 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDisplayLayoutChange("list")}
+                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                    displayLayout === "list"
+                      ? "bg-sky-500 text-white shadow-sm"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
+                  }`}
+                  title="Detailed Table / List view"
+                >
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

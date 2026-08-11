@@ -20,7 +20,7 @@ interface MediaCardProps {
   isSelectionMode: boolean;
   selectedIds: Set<number>;
   onClick: () => void;
-  onToggleSelect: (id: number) => void;
+  onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
@@ -44,16 +44,23 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Ctrl/Cmd+Click always toggles selection
+    // Shift+Click selects a continuous range (Google Drive style)
+    if (e.shiftKey) {
+      e.preventDefault();
+      onToggleSelect(item.id, e);
+      return;
+    }
+
+    // Ctrl/Cmd+Click always toggles single item selection
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      onToggleSelect(item.id);
+      onToggleSelect(item.id, e);
       return;
     }
 
     // In selection mode, clicking the card body toggles selection
     if (isSelectionMode) {
-      onToggleSelect(item.id);
+      onToggleSelect(item.id, e);
       return;
     }
 
@@ -63,7 +70,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleSelect(item.id);
+    onToggleSelect(item.id, e);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
