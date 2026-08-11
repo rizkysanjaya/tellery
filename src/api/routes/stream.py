@@ -1,22 +1,23 @@
 """
 =============================================================================
 Module: src.api.routes.stream
-Purpose: HTTP 206 Partial Content video/audio/photo streaming bridge directly from Telegram MTProto
-         with RFC 5987 Unicode Content-Disposition headers.
+Purpose: High-performance HTTP 206 Partial Content video/media streaming route.
+         Utilizes StreamCacheManager for zero-latency local seekable playback
+         and RFC 5987 Unicode Content-Disposition headers.
 Used by: HTML5 <video>, <audio>, Lightbox full-res media viewers.
-Dependencies: fastapi, urllib.parse, src.database.repository, src.storage.telegram_client, typing
-Public Members: router, stream_media_range
-Side Effects: Streams MTProto chunk data across HTTP response.
+Dependencies: fastapi, urllib.parse, src.database.repository, src.services.stream_cache, typing
+Public Members: router, stream_media()
+Side Effects: Streams byte chunks across HTTP response, caches hot stream files in data/cache/.
 =============================================================================
 """
 
 import re
 import urllib.parse
-from typing import AsyncIterator, Optional, Union
+from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, Request, status
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import StreamingResponse
 from src.database.repository import MediaRepository
-from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
+from src.services.stream_cache import get_stream_cache
 
 router = APIRouter(prefix="/api/media", tags=["Media Streaming"])
 
@@ -32,58 +33,10 @@ def _encode_content_disposition(file_name: str, disposition: str = "inline") -> 
     ascii_safe_name = file_name.encode("ascii", "ignore").decode("ascii").strip()
     if not ascii_safe_name:
         ascii_safe_name = "media_file"
-    # Remove double quotes and backslashes from ascii fallback
     ascii_safe_name = ascii_safe_name.replace('"', "").replace("\\", "")
-    
+
     encoded_utf8 = urllib.parse.quote(file_name, encoding="utf-8")
     return f'{disposition}; filename="{ascii_safe_name}"; filename*=UTF-8\'\'{encoded_utf8}'
-
-
-async def stream_media_range(
-    telegram_client: TelegramStorageClient,
-    message_id: int,
-    channel_id: Union[int, str],
-    start: int,
-    end: int,
-    chunk_size: int = 128 * 1024,
-) -> AsyncIterator[bytes]:
-    """
-    Streams exact [start, end] byte range directly from Telegram MTProto chunks.
-    Aligns MTProto offset to chunk boundaries and accurately slices byte streams.
-    """
-    aligned_offset = (start // chunk_size) * chunk_size
-    bytes_to_skip = start - aligned_offset
-    total_requested_bytes = (end - start) + 1
-    bytes_sent = 0
-
-    async for chunk in telegram_client.iter_document_chunks(
-        message_id=message_id,
-        channel_id=channel_id,
-        offset=aligned_offset,
-        chunk_size=chunk_size,
-    ):
-        if not chunk:
-            break
-
-        # Skip leading unaligned bytes from first chunk
-        if bytes_to_skip > 0:
-            if len(chunk) <= bytes_to_skip:
-                bytes_to_skip -= len(chunk)
-                continue
-            else:
-                chunk = chunk[bytes_to_skip:]
-                bytes_to_skip = 0
-
-        # Trim trailing bytes if exceeding requested range
-        needed = total_requested_bytes - bytes_sent
-        if len(chunk) > needed:
-            chunk = chunk[:needed]
-
-        yield chunk
-        bytes_sent += len(chunk)
-
-        if bytes_sent >= total_requested_bytes:
-            break
 
 
 @router.get("/{media_id:int}/stream")
@@ -93,8 +46,8 @@ async def stream_media(
     range_header: Optional[str] = Header(None, alias="Range"),
 ):
     """
-    Streams full or partial media content with HTTP 206 Range seeking support.
-    Enables instant seeking in web video players without downloading entire files.
+    Streams media content with lightning-fast HTTP 206 Partial Content Range seeking.
+    Backed by local disk cache manager to eliminate network buffering.
     """
     item = await MediaRepository.get_by_id(media_id)
     if not item:
@@ -104,9 +57,21 @@ async def stream_media(
     mime_type = item["mime_type"] or "application/octet-stream"
     channel_id = item["telegram_channel_id"]
     message_id = item["telegram_message_id"]
+    file_hash = item["file_hash"]
     content_disp = _encode_content_disposition(item["file_name"], disposition="inline")
 
-    telegram_client = get_telegram_client()
+    cache_manager = get_stream_cache()
+
+    try:
+        cache_path = await cache_manager.ensure_cached(
+            message_id=message_id,
+            channel_id=channel_id,
+            file_hash=file_hash,
+            file_size=file_size,
+        )
+    except Exception as e:
+        print(f"[Stream] Failed to cache stream for media {media_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve media from storage vault")
 
     # Case 1: No Range header (Full document request)
     if not range_header:
@@ -117,10 +82,8 @@ async def stream_media(
             "Content-Disposition": content_disp,
         }
         return StreamingResponse(
-            stream_media_range(
-                telegram_client=telegram_client,
-                message_id=message_id,
-                channel_id=channel_id,
+            cache_manager.stream_file_range(
+                file_path=cache_path,
                 start=0,
                 end=file_size - 1,
             ),
@@ -160,10 +123,8 @@ async def stream_media(
     }
 
     return StreamingResponse(
-        stream_media_range(
-            telegram_client=telegram_client,
-            message_id=message_id,
-            channel_id=channel_id,
+        cache_manager.stream_file_range(
+            file_path=cache_path,
             start=start,
             end=end,
         ),
