@@ -20,11 +20,13 @@ export async function fetchTimeline(
   limit: number = 50,
   filterType: FilterType = "all",
   searchQuery: string = "",
-  folderId?: number | null
+  folderId?: number | null,
+  sortBy: string = "date_desc"
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
+    sort_by: sortBy,
   });
 
   if (filterType !== "all") {

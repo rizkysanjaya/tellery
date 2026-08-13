@@ -43,6 +43,7 @@ import {
   FolderItem,
   MainView,
   MediaItem,
+  SortOption,
   StatsResponse,
   TimelineGroup,
   UploadTask,
@@ -60,6 +61,10 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem("telegallery_display_layout");
     return (saved as DisplayLayout) || "grid";
   });
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const saved = localStorage.getItem("telegallery_sort_by");
+    return (saved as SortOption) || "date_desc";
+  });
   const [loading, setLoading] = useState(true);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
@@ -68,6 +73,15 @@ export const App: React.FC = () => {
     setDisplayLayout(layout);
     try {
       localStorage.setItem("telegallery_display_layout", layout);
+    } catch {
+      // Ignore quota/private browsing errors
+    }
+  };
+
+  const handleSortChange = (newSort: SortOption) => {
+    setSortBy(newSort);
+    try {
+      localStorage.setItem("telegallery_sort_by", newSort);
     } catch {
       // Ignore quota/private browsing errors
     }
@@ -130,7 +144,7 @@ export const App: React.FC = () => {
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    fetchTimeline(0, 100, activeFilter, searchQuery, folderId)
+    fetchTimeline(0, 100, activeFilter, searchQuery, folderId, sortBy)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -139,7 +153,7 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, searchQuery, activeFolder, loadFolders]);
+  }, [activeFilter, searchQuery, activeFolder, sortBy, loadFolders]);
 
   // Load stats, folders, and timeline on filter/search/folder change
   useEffect(() => {
@@ -735,6 +749,8 @@ export const App: React.FC = () => {
           onFilterChange={setActiveFilter}
           displayLayout={displayLayout}
           onDisplayLayoutChange={handleDisplayLayoutChange}
+          sortBy={sortBy}
+          onSortChange={handleSortChange}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
         />
 
@@ -778,6 +794,8 @@ export const App: React.FC = () => {
               groups={groups}
               selectedIds={selectedIds}
               layout={displayLayout}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
               onSelectMedia={setSelectedMedia}
               onToggleSelect={handleToggleSelect}
               onSelectAllInGroup={handleSelectAllInGroup}

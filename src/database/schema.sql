@@ -41,6 +41,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_media_file_hash
 CREATE INDEX IF NOT EXISTS idx_media_timeline 
     ON media_items(COALESCE(date_taken, created_at) DESC);
 
+CREATE INDEX IF NOT EXISTS idx_media_filename 
+    ON media_items(file_name COLLATE NOCASE) 
+    WHERE is_deleted = 0;
+
+CREATE INDEX IF NOT EXISTS idx_media_filesize 
+    ON media_items(file_size DESC) 
+    WHERE is_deleted = 0;
+
 CREATE INDEX IF NOT EXISTS idx_media_channel_msg 
     ON media_items(telegram_channel_id, telegram_message_id);
 

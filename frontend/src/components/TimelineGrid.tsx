@@ -11,8 +11,15 @@
  */
 
 import React from "react";
-import { Calendar, Image as ImageIcon, CheckSquare, Square } from "lucide-react";
-import { DisplayLayout, MediaItem, TimelineGroup } from "../types";
+import {
+  Calendar,
+  Image as ImageIcon,
+  CheckSquare,
+  Square,
+  ArrowUp,
+  ArrowDown,
+} from "lucide-react";
+import { DisplayLayout, MediaItem, SortOption, TimelineGroup } from "../types";
 import { MediaCard } from "./MediaCard";
 import { MediaListItem } from "./MediaListItem";
 
@@ -20,6 +27,8 @@ interface TimelineGridProps {
   groups: TimelineGroup[];
   selectedIds: Set<number>;
   layout?: DisplayLayout;
+  sortBy?: SortOption;
+  onSortChange?: (sort: SortOption) => void;
   onSelectMedia: (item: MediaItem) => void;
   onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onSelectAllInGroup: (ids: number[]) => void;
@@ -32,6 +41,8 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   groups,
   selectedIds,
   layout = "grid",
+  sortBy = "date_desc",
+  onSortChange,
   onSelectMedia,
   onToggleSelect,
   onSelectAllInGroup,
@@ -40,6 +51,17 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   loading,
 }) => {
   const isSelectionMode = selectedIds.size > 0;
+
+  const toggleSort = (column: "name" | "date" | "size") => {
+    if (!onSortChange) return;
+    if (column === "name") {
+      onSortChange(sortBy === "name_asc" ? "name_desc" : "name_asc");
+    } else if (column === "date") {
+      onSortChange(sortBy === "date_desc" ? "date_asc" : "date_desc");
+    } else if (column === "size") {
+      onSortChange(sortBy === "size_desc" ? "size_asc" : "size_desc");
+    }
+  };
 
   if (!loading && groups.length === 0) {
     return (
@@ -119,13 +141,47 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
             {layout === "list" ? (
               /* Detailed Table/List View */
               <div className="space-y-1.5">
-                {/* Optional List Header */}
-                <div className="hidden sm:flex items-center justify-between px-4 py-1 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-900/60 pb-1">
-                  <span>Name</span>
+                {/* Interactive Clickable List Header */}
+                <div className="hidden sm:flex items-center justify-between px-4 py-1 text-[11px] font-bold text-zinc-500 uppercase tracking-wider border-b border-zinc-900/60 pb-1 select-none">
+                  <button
+                    onClick={() => toggleSort("name")}
+                    className="flex items-center gap-1 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <span>Name</span>
+                    {sortBy.startsWith("name") &&
+                      (sortBy === "name_asc" ? (
+                        <ArrowUp className="w-3 h-3 text-sky-400" />
+                      ) : (
+                        <ArrowDown className="w-3 h-3 text-sky-400" />
+                      ))}
+                  </button>
+
                   <div className="flex items-center gap-8 text-right">
-                    <span className="w-24">Date Taken</span>
+                    <button
+                      onClick={() => toggleSort("date")}
+                      className="w-24 flex items-center justify-end gap-1 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <span>Date Taken</span>
+                      {sortBy.startsWith("date") &&
+                        (sortBy === "date_asc" ? (
+                          <ArrowUp className="w-3 h-3 text-sky-400" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3 text-sky-400" />
+                        ))}
+                    </button>
                     <span className="hidden md:inline w-24">Dimensions</span>
-                    <span className="w-16">Size</span>
+                    <button
+                      onClick={() => toggleSort("size")}
+                      className="w-16 flex items-center justify-end gap-1 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <span>Size</span>
+                      {sortBy.startsWith("size") &&
+                        (sortBy === "size_asc" ? (
+                          <ArrowUp className="w-3 h-3 text-sky-400" />
+                        ) : (
+                          <ArrowDown className="w-3 h-3 text-sky-400" />
+                        ))}
+                    </button>
                     <span className="w-6"></span>
                   </div>
                 </div>
@@ -171,6 +227,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                       isSelected={selectedIds.has(item.id)}
                       isSelectionMode={isSelectionMode}
                       selectedIds={selectedIds}
+                      aspectMode="natural"
                       onClick={() => onSelectMedia(item)}
                       onToggleSelect={onToggleSelect}
                       onContextMenu={onContextMenu}

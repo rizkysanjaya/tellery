@@ -68,6 +68,13 @@ export interface FolderItem {
 export type FilterType = "all" | "photo" | "video";
 export type MainView = "timeline" | "albums";
 export type DisplayLayout = "grid" | "dense" | "list" | "masonry";
+export type SortOption =
+  | "date_desc"
+  | "date_asc"
+  | "name_asc"
+  | "name_desc"
+  | "size_desc"
+  | "size_asc";
 
 export interface UploadTask {
   id: string;

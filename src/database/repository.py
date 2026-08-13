@@ -84,10 +84,11 @@ class MediaRepository:
         media_type: Optional[str] = None,
         search_query: Optional[str] = None,
         folder_id: Optional[int] = None,
+        sort_by: str = "date_desc",
     ) -> tuple[int, list[dict[str, Any]]]:
         """
-        Retrieves paginated media items ordered chronologically along with the total count.
-        Supports filtering by media type, search query, and virtual folder ID.
+        Retrieves paginated media items with flexible sorting and filtering.
+        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
@@ -108,6 +109,17 @@ class MediaRepository:
 
         where_sql = " AND ".join(where_clauses)
 
+        # Map sort option to high-performance indexed ORDER BY expression
+        sort_map = {
+            "date_desc": "COALESCE(m.date_taken, m.created_at) DESC",
+            "date_asc": "COALESCE(m.date_taken, m.created_at) ASC",
+            "name_asc": "m.file_name COLLATE NOCASE ASC",
+            "name_desc": "m.file_name COLLATE NOCASE DESC",
+            "size_desc": "m.file_size DESC",
+            "size_asc": "m.file_size ASC",
+        }
+        order_by_clause = sort_map.get(sort_by, "COALESCE(m.date_taken, m.created_at) DESC")
+
         count_query = f"""
             SELECT COUNT(*) 
             FROM media_items m
@@ -126,7 +138,7 @@ class MediaRepository:
             LEFT JOIN media_folders mf ON mf.media_id = m.id
             LEFT JOIN folders f ON f.id = mf.folder_id
             WHERE {where_sql}
-            ORDER BY COALESCE(m.date_taken, m.created_at) DESC
+            ORDER BY {order_by_clause}
             LIMIT ? OFFSET ?;
         """
 

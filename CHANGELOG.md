@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Dense High-Capacity Grid (`dense`)**: Compact 6 to 10 column view for viewing hundreds of photos without endless scrolling.
   - **Natural Aspect Ratio Showcase (`masonry`)**: Multi-column masonry layout preserving true portrait and landscape aspect ratios without cropping.
   - **Detailed Table / List View (`list`)**: Structured table rows displaying thumbnail preview, filename, folder tags, date taken, dimension/duration specs, file size, and quick actions.
+- **Interactive Sorting Engine (`Header.tsx`, `TimelineGrid.tsx`, `media.py`, `repository.py`)**:
+  - Six sorting modes: Date Newest First, Date Oldest First, Name (A → Z), Name (Z → A), Size (Largest First), and Size (Smallest First).
+  - Dynamic grouping: automatic chronological grouping by month, alphabetical grouping by initial letter, and size tier grouping.
+  - Interactive clickable column headers in Table View (`Name`, `Date Taken`, `Size`) with ascending/descending arrow indicators.
+  - Added B-tree indices on `media_items(file_name COLLATE NOCASE)` and `media_items(file_size DESC)` for instantaneous $O(\log N)$ sorting.
 - **View Mode Switcher**: Quick-toggle icon bar in the top navigation header with persistent `localStorage` user memory.
 - **Canvas Deselection**: Clicking on empty margins, timeline gutters, and background whitespace instantly clears active item selections.
 - **Adaptive Context Submenus**: Dynamic screen-boundary detection flipping submenus leftwards and upwards to prevent viewport cutoff.
