@@ -2,11 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
  * Purpose: Interactive gallery grid tile with WebP thumbnail, selection checkbox,
- *          context menu forwarding, and HTML5 drag-and-drop support.
+ *          context menu forwarding, and drag-start support.
  * Used by: frontend/src/components/TimelineGrid.tsx
  * Dependencies: lucide-react, frontend/src/types.ts
  * Public Members: MediaCard
- * Side Effects: Triggers lightbox click, selection toggle, drag start, and context menu events.
+ * Side Effects: Triggers lightbox click, selection toggle, and context menu events.
  * =============================================================================
  */
 
@@ -18,10 +18,8 @@ interface MediaCardProps {
   item: MediaItem;
   isSelected: boolean;
   isSelectionMode: boolean;
-  selectedIds: Set<number>;
-  aspectMode?: "square" | "natural";
   onClick: () => void;
-  onToggleSelect: (id: number, e?: React.MouseEvent) => void;
+  onToggleSelect: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
@@ -29,8 +27,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   item,
   isSelected,
   isSelectionMode,
-  selectedIds,
-  aspectMode = "square",
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -46,23 +42,16 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Shift+Click selects a continuous range (Google Drive style)
-    if (e.shiftKey) {
-      e.preventDefault();
-      onToggleSelect(item.id, e);
-      return;
-    }
-
-    // Ctrl/Cmd+Click always toggles single item selection
+    // Ctrl/Cmd+Click always toggles selection
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      onToggleSelect(item.id, e);
+      onToggleSelect(item.id);
       return;
     }
 
     // In selection mode, clicking the card body toggles selection
     if (isSelectionMode) {
-      onToggleSelect(item.id, e);
+      onToggleSelect(item.id);
       return;
     }
 
@@ -72,57 +61,14 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleSelect(item.id, e);
+    onToggleSelect(item.id);
   };
-
-  const handleDragStart = (e: React.DragEvent) => {
-    const payload = isSelected && selectedIds.size > 0
-      ? Array.from(selectedIds)
-      : [item.id];
-    
-    e.dataTransfer.setData("application/telegallery-media", JSON.stringify(payload));
-    e.dataTransfer.setData("application/json", JSON.stringify(payload));
-    e.dataTransfer.effectAllowed = "copyMove";
-  };
-
-  // Dynamic aspect ratio calculation for natural masonry layout
-  const aspectRatioStyle =
-    aspectMode === "natural" && item.width && item.height
-      ? { aspectRatio: `${item.width} / ${item.height}` }
-      : undefined;
-
-  const getFileExtension = (fileName: string, mimeType: string) => {
-    const parts = fileName.split(".");
-    if (parts.length > 1) {
-      const ext = parts.pop();
-      if (ext && ext.length <= 5) {
-        return ext.toUpperCase();
-      }
-    }
-    if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "JPG";
-    if (mimeType.includes("png")) return "PNG";
-    if (mimeType.includes("webp")) return "WEBP";
-    if (mimeType.includes("gif")) return "GIF";
-    if (mimeType.includes("heic")) return "HEIC";
-    if (mimeType.includes("mp4")) return "MP4";
-    if (mimeType.includes("quicktime") || mimeType.includes("mov")) return "MOV";
-    if (mimeType.includes("matroska") || mimeType.includes("mkv")) return "MKV";
-    if (mimeType.startsWith("video/")) return "VIDEO";
-    return "IMG";
-  };
-
-  const fileExt = getFileExtension(item.file_name, item.mime_type);
 
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
-      style={aspectRatioStyle}
-      className={`media-card-item group relative bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
-        aspectMode === "natural" ? "w-full min-h-[140px]" : "aspect-square"
-      } ${
+      className={`group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
         isSelected
           ? "border-sky-500 ring-2 ring-sky-500/40 shadow-xl shadow-sky-500/15 scale-[0.97]"
           : "border-zinc-800/60 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10"
@@ -152,10 +98,9 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         <img
           src={item.thumbnail_url}
           alt={item.file_name}
-          draggable={false}
           loading="lazy"
           onLoad={() => setLoaded(true)}
-          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 pointer-events-none select-none ${
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
         />
@@ -168,19 +113,13 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         </div>
       )}
 
-      {/* File Format / Video Duration Pill Badge */}
-      <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-lg flex items-center gap-1.5 text-[10px] font-semibold text-white shadow-sm border border-white/10 select-none">
-        <span className={isVideo ? "font-bold text-sky-400" : "font-bold text-zinc-200"}>
-          {fileExt}
-        </span>
-        {isVideo && item.duration_seconds && (
-          <>
-            <span className="text-zinc-600">•</span>
-            <Play className="w-2.5 h-2.5 fill-white text-white" />
-            <span className="text-zinc-200">{formatDuration(item.duration_seconds)}</span>
-          </>
-        )}
-      </div>
+      {/* Video Indicator / Play Badge */}
+      {isVideo && (
+        <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-medium text-white shadow-sm border border-white/10">
+          <Play className="w-3 h-3 fill-white text-white" />
+          {item.duration_seconds ? <span>{formatDuration(item.duration_seconds)}</span> : null}
+        </div>
+      )}
 
       {/* Overlay details on hover */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">

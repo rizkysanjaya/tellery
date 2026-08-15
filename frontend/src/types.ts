@@ -1,13 +1,12 @@
 /**
  * =============================================================================
  * Module: frontend/src/types.ts
- * Purpose: TypeScript type declarations, API contracts, duplicate conflict interfaces,
- *          and state models for TeleGallery frontend.
- * Used by: frontend/src/App.tsx, frontend/src/api.ts, components/
+ * Purpose: TypeScript type definitions for media entities, albums/folders, timeline feeds, and stats.
+ * Used by: frontend/src/api.ts, frontend/src/App.tsx, components.
  * Dependencies: None
- * Public Members: MediaItem, TimelineGroup, TimelineResponse, StorageStats,
- *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction
- * Side Effects: None (Type declarations only).
+ * Public Members: MediaItem, TimelineGroup, TimelineResponse, StatsResponse,
+ *                FilterType, FolderItem, MainView
+ * Side Effects: None
  * =============================================================================
  */
 
@@ -22,39 +21,31 @@ export interface MediaItem {
   camera_make: string | null;
   camera_model: string | null;
   date_taken: string | null;
-  thumbnail_url: string;
+  thumbnail_url: string | null;
   stream_url: string;
   created_at: string;
-  folder_id?: number | null;
-  folder_name?: string | null;
 }
 
 export interface TimelineGroup {
+  period: string;
   period_key: string;
-  period_title: string;
-  period?: string;
-  count?: number;
+  count: number;
   items: MediaItem[];
 }
 
 export interface TimelineResponse {
-  total: number;
+  total_count: number;
+  has_more: boolean;
   groups: TimelineGroup[];
 }
 
-export interface StorageStats {
-  total_files: number;
-  total_bytes: number;
-  photo_count: number;
-  video_count: number;
-  storage_quota_bytes: number;
-  total_items?: number;
-  total_photos?: number;
-  total_videos?: number;
-  total_size_formatted?: string;
+export interface StatsResponse {
+  total_items: number;
+  total_photos: number;
+  total_videos: number;
+  total_size_bytes: number;
+  total_size_formatted: string;
 }
-
-export type StatsResponse = StorageStats;
 
 export interface FolderItem {
   id: number;
@@ -67,40 +58,3 @@ export interface FolderItem {
 
 export type FilterType = "all" | "photo" | "video";
 export type MainView = "timeline" | "albums";
-export type DisplayLayout = "grid" | "dense" | "list" | "masonry";
-export type SortOption =
-  | "date_desc"
-  | "date_asc"
-  | "name_asc"
-  | "name_desc"
-  | "size_desc"
-  | "size_asc";
-
-export interface UploadTask {
-  id: string;
-  file: File;
-  name: string;
-  size: number;
-  type: string;
-  progress: number;
-  loadedBytes: number;
-  status: "pending" | "uploading" | "processing" | "completed" | "duplicate" | "error";
-  errorMessage?: string;
-  duplicateInfo?: {
-    existingId: number;
-    existingFileName: string;
-    actionTaken?: "skipped" | "renamed_existing" | "alias_created";
-  };
-}
-
-export interface DuplicateConflict {
-  taskId: string;
-  fileName: string;
-  fileSize: number;
-  existingMediaId: number;
-  existingFileName: string;
-  existingCreatedAt?: string;
-  existingFileSize?: number;
-}
-
-export type ConflictResolutionAction = "skip" | "keep_both" | "rename_existing";

@@ -1,108 +1,142 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Header.tsx
- * Purpose: Top search and filter bar supporting mobile sidebar drawer toggling,
- *          media type filters (All/Photos/Videos), and search queries.
+ * Purpose: Top navigation bar containing branding, view switcher (Timeline vs Albums),
+ *          search bar, type filters, upload button, and vault stats.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts
  * Public Members: Header
- * Side Effects: Dispatches search and filter events to parent state.
+ * Side Effects: Dispatches view change, search, filter, and upload events to parent state.
  * =============================================================================
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef } from "react";
 import {
   Search,
   Image as ImageIcon,
   Video,
   Layers,
-  Menu,
-  LayoutGrid,
-  Grid3X3,
-  List,
-  Columns3,
-  ArrowUpDown,
-  Check,
-  ChevronDown,
+  HardDrive,
+  Upload,
+  Loader2,
+  Folder,
+  Clock,
 } from "lucide-react";
-import { DisplayLayout, FilterType, MainView, SortOption } from "../types";
+import { FilterType, MainView, StatsResponse } from "../types";
 
 interface HeaderProps {
   currentView: MainView;
+  onViewChange: (view: MainView) => void;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   activeFilter: FilterType;
   onFilterChange: (f: FilterType) => void;
-  displayLayout?: DisplayLayout;
-  onDisplayLayoutChange?: (l: DisplayLayout) => void;
-  sortBy?: SortOption;
-  onSortChange?: (sort: SortOption) => void;
-  onToggleMobileSidebar: () => void;
+  stats: StatsResponse | null;
+  onUploadFiles: (files: FileList) => void;
+  isUploading: boolean;
 }
-
-const SORT_LABELS: Record<SortOption, { label: string; group: string }> = {
-  date_desc: { label: "Newest First", group: "Date" },
-  date_asc: { label: "Oldest First", group: "Date" },
-  name_asc: { label: "Name (A → Z)", group: "Name" },
-  name_desc: { label: "Name (Z → A)", group: "Name" },
-  size_desc: { label: "Size (Largest First)", group: "Size" },
-  size_asc: { label: "Size (Smallest First)", group: "Size" },
-};
 
 export const Header: React.FC<HeaderProps> = ({
   currentView,
+  onViewChange,
   searchQuery,
   onSearchChange,
   activeFilter,
   onFilterChange,
-  displayLayout = "grid",
-  onDisplayLayoutChange,
-  sortBy = "date_desc",
-  onSortChange,
-  onToggleMobileSidebar,
+  stats,
+  onUploadFiles,
+  isUploading,
 }) => {
-  const [showSortMenu, setShowSortMenu] = useState(false);
-  const sortMenuRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Close sort menu on click outside
-  useEffect(() => {
-    const handleMouseDown = (e: MouseEvent) => {
-      if (
-        sortMenuRef.current &&
-        !sortMenuRef.current.contains(e.target as Node)
-      ) {
-        setShowSortMenu(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      onUploadFiles(e.target.files);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
       }
-    };
-    if (showSortMenu) {
-      document.addEventListener("mousedown", handleMouseDown);
     }
-    return () => {
-      document.removeEventListener("mousedown", handleMouseDown);
-    };
-  }, [showSortMenu]);
+  };
 
   return (
-    <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/80 px-4 lg:px-8 py-3 transition-all">
-      <div className="flex items-center justify-between gap-3">
-        {/* Mobile Hamburger Menu Toggle */}
-        <button
-          onClick={onToggleMobileSidebar}
-          className="p-2 -ml-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-900 md:hidden cursor-pointer"
-          title="Open Navigation"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+    <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-md border-b border-zinc-800/80 px-4 lg:px-8 py-3.5 transition-all">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+        {/* Brand & View Navigation */}
+        <div className="flex items-center justify-between w-full md:w-auto gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+              <Layers className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                TeleGallery
+                <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  Vault
+                </span>
+              </h1>
+            </div>
+          </div>
+
+          {/* Navigation Tabs (Timeline vs Albums) */}
+          <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
+            <button
+              onClick={() => onViewChange("timeline")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                currentView === "timeline"
+                  ? "bg-zinc-800 text-sky-400 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Timeline</span>
+            </button>
+            <button
+              onClick={() => onViewChange("albums")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                currentView === "albums"
+                  ? "bg-zinc-800 text-sky-400 shadow-sm"
+                  : "text-zinc-400 hover:text-zinc-200"
+              }`}
+            >
+              <Folder className="w-3.5 h-3.5" />
+              <span>Albums</span>
+            </button>
+          </div>
+
+          {/* Upload Button (Mobile) */}
+          <div className="md:hidden flex items-center gap-2">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              multiple
+              accept="image/*,video/*"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-600 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
+            >
+              {isUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span>Upload</span>
+            </button>
+          </div>
+        </div>
 
         {/* Search Input */}
-        <div className="relative flex-1 max-w-xl">
+        <div className="relative w-full md:max-w-md">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search photos, videos, cameras (e.g. iPhone, 2026)..."
-            className="w-full pl-10 pr-14 py-2 bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 focus:border-sky-500/80 rounded-xl text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all focus:ring-2 focus:ring-sky-500/20"
+            className="w-full pl-10 pr-4 py-2 bg-zinc-900/90 hover:bg-zinc-900 border border-zinc-800 focus:border-sky-500/80 rounded-xl text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all focus:ring-2 focus:ring-sky-500/20"
           />
           {searchQuery && (
             <button
@@ -114,154 +148,80 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Controls: Filter Pills, Sort Dropdown & Layout Switcher */}
-        {currentView === "timeline" && (
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Filter Pills (All / Photos / Videos) */}
+        {/* Filter Pills, Upload Button & Stats */}
+        <div className="flex items-center justify-between w-full md:w-auto gap-3">
+          {currentView === "timeline" && (
             <div className="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
               <button
                 onClick={() => onFilterChange("all")}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   activeFilter === "all"
                     ? "bg-sky-500 text-white shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
                 }`}
-                title="Show all media"
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">All</span>
+                All
               </button>
               <button
                 onClick={() => onFilterChange("photo")}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   activeFilter === "photo"
                     ? "bg-sky-500 text-white shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
                 }`}
-                title="Filter photos only"
               >
                 <ImageIcon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Photos</span>
+                Photos
               </button>
               <button
                 onClick={() => onFilterChange("video")}
-                className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
                   activeFilter === "video"
                     ? "bg-sky-500 text-white shadow-sm"
                     : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
                 }`}
-                title="Filter videos only"
               >
                 <Video className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Videos</span>
+                Videos
               </button>
             </div>
+          )}
 
-            {/* Sort Menu Dropdown */}
-            {onSortChange && (
-              <div className="relative" ref={sortMenuRef}>
-                <button
-                  onClick={() => setShowSortMenu((p) => !p)}
-                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                    showSortMenu
-                      ? "bg-sky-500/15 border-sky-500/40 text-sky-300"
-                      : "bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800/80"
-                  }`}
-                  title="Sort media by date, name, or size"
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5 text-zinc-400" />
-                  <span className="hidden md:inline">
-                    {SORT_LABELS[sortBy]?.label || "Sort"}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-zinc-500" />
-                </button>
-
-                {showSortMenu && (
-                  <div className="absolute right-0 top-11 w-56 bg-zinc-900 border border-zinc-800 rounded-2xl shadow-2xl backdrop-blur-xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
-                    <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2.5 py-1">
-                      Sort Timeline By
-                    </div>
-
-                    <div className="space-y-0.5 mt-0.5">
-                      {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => {
-                        const isCurrent = sortBy === key;
-                        return (
-                          <button
-                            key={key}
-                            onClick={() => {
-                              onSortChange(key);
-                              setShowSortMenu(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
-                              isCurrent
-                                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
-                                : "text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                            }`}
-                          >
-                            <span>{SORT_LABELS[key].label}</span>
-                            {isCurrent && (
-                              <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Display Layout Switcher */}
-            {onDisplayLayoutChange && (
-              <div className="hidden sm:flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800">
-                <button
-                  onClick={() => onDisplayLayoutChange("grid")}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    displayLayout === "grid"
-                      ? "bg-sky-500 text-white shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                  }`}
-                  title="Standard Grid view"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDisplayLayoutChange("dense")}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    displayLayout === "dense"
-                      ? "bg-sky-500 text-white shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                  }`}
-                  title="Dense Compact Grid view"
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDisplayLayoutChange("masonry")}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    displayLayout === "masonry"
-                      ? "bg-sky-500 text-white shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                  }`}
-                  title="Natural Aspect Ratio Showcase"
-                >
-                  <Columns3 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDisplayLayoutChange("list")}
-                  className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-                    displayLayout === "list"
-                      ? "bg-sky-500 text-white shadow-sm"
-                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/50"
-                  }`}
-                  title="Detailed Table / List view"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+          {/* Upload Button (Desktop) */}
+          <div className="hidden md:flex items-center">
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              multiple
+              accept="image/*,video/*"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20 transition-all cursor-pointer"
+            >
+              {isUploading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Upload className="w-3.5 h-3.5" />
+              )}
+              <span>{isUploading ? "Uploading..." : "Upload"}</span>
+            </button>
           </div>
-        )}
+
+          {/* Desktop Storage Pill */}
+          {stats && (
+            <div className="hidden lg:flex items-center gap-2 text-xs font-medium text-zinc-400 bg-zinc-900/90 px-3.5 py-2 rounded-xl border border-zinc-800">
+              <HardDrive className="w-4 h-4 text-sky-400" />
+              <span>{stats.total_items} items</span>
+              <span className="text-zinc-600">•</span>
+              <span className="text-zinc-300 font-semibold">{stats.total_size_formatted}</span>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );

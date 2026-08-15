@@ -20,13 +20,11 @@ export async function fetchTimeline(
   limit: number = 50,
   filterType: FilterType = "all",
   searchQuery: string = "",
-  folderId?: number | null,
-  sortBy: string = "date_desc"
+  folderId?: number | null
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
-    sort_by: sortBy,
   });
 
   if (filterType !== "all") {
@@ -64,59 +62,19 @@ export async function fetchMediaItem(id: number): Promise<MediaItem> {
   return response.json();
 }
 
-export function uploadMediaFile(
-  file: File,
-  onProgress?: (progressPercent: number, loadedBytes: number, totalBytes: number) => void,
-  onProcessing?: () => void
-): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append("file", file);
+export async function uploadMediaFile(file: File): Promise<any> {
+  const formData = new FormData();
+  formData.append("file", file);
 
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable && onProgress) {
-        // Scale browser-to-server progress to 0-95%
-        const percent = Math.min(95, Math.round((e.loaded / e.total) * 100));
-        onProgress(percent, e.loaded, e.total);
-      }
-    });
-
-    xhr.upload.addEventListener("load", () => {
-      if (onProcessing) {
-        onProcessing();
-      }
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const res = JSON.parse(xhr.responseText);
-          resolve(res);
-        } catch {
-          resolve(xhr.responseText);
-        }
-      } else {
-        try {
-          const errData = JSON.parse(xhr.responseText);
-          reject(new Error(errData.detail || `Upload failed with status ${xhr.status}`));
-        } catch {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
-        }
-      }
-    });
-
-    xhr.addEventListener("error", () => {
-      reject(new Error("Network error during upload"));
-    });
-
-    xhr.addEventListener("abort", () => {
-      reject(new Error("Upload aborted"));
-    });
-
-    xhr.open("POST", `${API_BASE}/api/media/upload`);
-    xhr.send(formData);
+  const response = await fetch(`${API_BASE}/api/media/upload`, {
+    method: "POST",
+    body: formData,
   });
+
+  if (!response.ok) {
+    throw new Error(`Upload failed: ${response.statusText}`);
+  }
+  return response.json();
 }
 
 export async function deleteMediaItem(id: number): Promise<any> {
@@ -182,32 +140,6 @@ export async function removeMediaFromFolder(folderId: number, mediaId: number): 
 
   if (!response.ok) {
     throw new Error(`Failed to remove media from folder: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function renameMediaItem(mediaId: number, newName: string): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/media/${mediaId}/rename`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ new_name: newName }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to rename media item: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function createMediaAlias(mediaId: number, newName: string): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/media/${mediaId}/alias`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ new_name: newName }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create duplicate alias: ${response.statusText}`);
   }
   return response.json();
 }

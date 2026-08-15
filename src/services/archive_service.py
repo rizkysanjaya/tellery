@@ -11,7 +11,6 @@ Side Effects: Database reads/writes, MTProto network uploads/downloads, local We
 """
 
 import asyncio
-import shutil
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 from telethon.errors import FloodWaitError
@@ -19,9 +18,7 @@ from src.config import get_settings
 from src.database.repository import MediaRepository
 from src.services.hasher import compute_bytes_sha256, compute_file_sha256
 from src.services.metadata_extractor import extract_media_metadata
-from src.services.stream_cache import get_stream_cache
-from src.services.thumbnail_service import generate_thumbnail
-from src.services.transcoder_service import ensure_web_stream_ready
+from src.services.thumbnail_service import generate_image_thumbnail
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
 
 
@@ -93,21 +90,12 @@ class ArchiveService:
         meta = extract_media_metadata(target_path)
         final_mime_type = mime_type or meta.mime_type
 
-        # 4. Generate local WebP thumbnail (photos and videos)
-        thumbnail_path = generate_thumbnail(target_path, file_hash, final_mime_type)
+        # 4. Generate local WebP thumbnail
+        thumbnail_path = None
+        if final_mime_type.startswith("image/"):
+            thumbnail_path = generate_image_thumbnail(target_path, file_hash)
 
-        # 5. Populate stream cache and pre-transcode non-web videos to H.264
-        cache_manager = get_stream_cache()
-        cached_stream_file = cache_manager.get_cache_path(file_hash)
-        if not cached_stream_file.exists() or cached_stream_file.stat().st_size != file_size:
-            try:
-                shutil.copy2(target_path, cached_stream_file)
-                if final_mime_type.startswith("video/"):
-                    ensure_web_stream_ready(cached_stream_file, file_hash)
-            except Exception as e:
-                print(f"[Archive] Stream cache pre-population warning: {e}")
-
-        # 6. Upload uncompressed document to Telegram with FloodWait retry safety
+        # 5. Upload uncompressed document to Telegram with FloodWait retry safety
         max_retries = 3
         message = None
         for attempt in range(max_retries):

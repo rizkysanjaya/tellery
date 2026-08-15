@@ -80,7 +80,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   return (
     <>
       {/* Main Floating Toolbar */}
-      <div className="selection-toolbar fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-xl px-2 py-2 flex items-center gap-2 animate-in slide-in-from-bottom duration-300">
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-xl px-2 py-2 flex items-center gap-2 animate-in slide-in-from-bottom duration-300">
         {/* Selected Count */}
         <div className="flex items-center gap-2 px-3 py-1.5 bg-sky-500/10 border border-sky-500/20 rounded-xl">
           <div className="w-5 h-5 rounded-md bg-sky-500 flex items-center justify-center">
@@ -187,7 +187,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
               setShowDeleteConfirm((p) => !p);
               setShowFolderPicker(false);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 text-white/80 hover:text-red-300 hover:bg-red-500/20 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 text-zinc-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             title="Delete Selected"
           >
             <Trash2 className="w-4 h-4" />

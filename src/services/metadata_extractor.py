@@ -117,26 +117,4 @@ def extract_media_metadata(file_path: Union[str, Path]) -> MediaMetadata:
             # Non-fatal error; keep basic metadata
             pass
 
-    # If it is a video, extract resolution and duration via OpenCV
-    elif mime_type.startswith("video/"):
-        try:
-            import cv2
-
-            cap = cv2.VideoCapture(str(path_obj))
-            if cap.isOpened():
-                w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                fps = cap.get(cv2.CAP_PROP_FPS)
-                frame_count = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-
-                if w > 0 and h > 0:
-                    metadata.width = w
-                    metadata.height = h
-                if fps and fps > 0 and frame_count and frame_count > 0:
-                    metadata.duration_seconds = round(frame_count / fps, 2)
-
-                cap.release()
-        except Exception:
-            pass
-
     return metadata
