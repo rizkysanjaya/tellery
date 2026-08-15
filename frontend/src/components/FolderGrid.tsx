@@ -178,7 +178,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               onDragOver={(e) => handleFolderDragOver(e, folder.id)}
               onDragLeave={handleFolderDragLeave}
               onDrop={(e) => handleFolderDrop(e, folder.id)}
-              className={`folder-card-item group relative aspect-square rounded-2xl bg-zinc-900 border overflow-hidden cursor-pointer shadow-lg transition-all duration-300 flex flex-col justify-end ${
+              className={`group relative aspect-square rounded-2xl bg-zinc-900 border overflow-hidden cursor-pointer shadow-lg transition-all duration-300 flex flex-col justify-end ${
                 isDragOver
                   ? "border-sky-400 ring-4 ring-sky-500/40 scale-[1.03] shadow-2xl shadow-sky-500/30"
                   : "border-zinc-800 hover:border-sky-500/50 hover:shadow-2xl hover:shadow-sky-500/10 hover:-translate-y-1"

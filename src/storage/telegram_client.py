@@ -47,7 +47,6 @@ class TelegramStorageClient:
 
         self._client = TelegramClient(str(session_path), self.api_id, self.api_hash)
         self._is_started = False
-        self._entity_cache: dict[Any, Any] = {}
 
     async def start(self) -> None:
         """Starts client session, prompting for phone/code if not yet authorized."""
@@ -73,50 +72,36 @@ class TelegramStorageClient:
         Resolves Telegram entity (channel/group/chat/user) safely, ensuring
         access_hash is populated in MTProto session cache.
         """
-        if channel_id in self._entity_cache:
-            return self._entity_cache[channel_id]
-
         await self.start()
 
-        entity = None
         # 1. Try get_entity with given identifier
         try:
-            entity = await self._client.get_entity(channel_id)
+            return await self._client.get_entity(channel_id)
         except Exception:
             pass
 
         # 2. Try normalized variants for integer channel IDs
-        if not entity and isinstance(channel_id, int):
+        if isinstance(channel_id, int):
             abs_id = abs(channel_id)
             for candidate in [int(f"-100{abs_id}"), -abs_id, abs_id]:
                 try:
-                    entity = await self._client.get_entity(candidate)
-                    if entity:
-                        break
+                    return await self._client.get_entity(candidate)
                 except Exception:
                     pass
 
         # 3. Match from active dialogs
-        if not entity:
-            try:
-                dialogs = await self._client.get_dialogs(limit=200)
-                target_str = str(channel_id).replace("-100", "").replace("-", "")
-                for d in dialogs:
-                    d_id_str = str(d.id).replace("-100", "").replace("-", "")
-                    if d_id_str == target_str or str(d.id) == str(channel_id) or d.name == str(channel_id):
-                        entity = d.entity
-                        break
-            except Exception:
-                pass
+        try:
+            dialogs = await self._client.get_dialogs(limit=200)
+            target_str = str(channel_id).replace("-100", "").replace("-", "")
+            for d in dialogs:
+                d_id_str = str(d.id).replace("-100", "").replace("-", "")
+                if d_id_str == target_str or str(d.id) == str(channel_id) or d.name == str(channel_id):
+                    return d.entity
+        except Exception:
+            pass
 
         # 4. Fallback to get_input_entity
-        if not entity:
-            entity = await self._client.get_input_entity(channel_id)
-
-        if entity:
-            self._entity_cache[channel_id] = entity
-
-        return entity
+        return await self._client.get_input_entity(channel_id)
 
     async def upload_document(
         self,
@@ -126,35 +111,25 @@ class TelegramStorageClient:
     ) -> Message:
         """
         Uploads a local file to the private Telegram channel as an uncompressed raw document.
-        Optimized with direct 1-RPC upload for files <10MB and 512KB part sizes for large media.
+
+        Args:
+            file_path: Path to the local file.
+            channel_id: Target channel ID (e.g. -100xxxxxxxxxx) or username.
+            progress_callback: Optional callback(current_bytes, total_bytes).
+
+        Returns:
+            Message: The uploaded Telegram message object containing Document media.
         """
         await self.start()
         entity = await self.get_target_entity(channel_id)
         path_obj = Path(file_path)
-        file_size = path_obj.stat().st_size
 
-        # Direct 1-RPC fast upload for small files (<10MB)
-        if file_size < 10 * 1024 * 1024:
-            message = await self._client.send_file(
-                entity=entity,
-                file=str(path_obj),
-                force_document=True,
-                progress_callback=progress_callback,
-                silent=True,
-            )
-            return message
-
-        # Chunked multi-part upload for large files (>=10MB)
-        uploaded_file = await self._client.upload_file(
-            file=str(path_obj),
-            part_size_kb=512,
-            progress_callback=progress_callback,
-        )
         message = await self._client.send_file(
             entity=entity,
-            file=uploaded_file,
-            force_document=True,
-            silent=True,
+            file=str(path_obj),
+            force_document=True,  # CRITICAL: Ensures bit-for-bit uncompressed document
+            progress_callback=progress_callback,
+            silent=True,  # Upload without sending noisy push alerts
         )
         return message
 

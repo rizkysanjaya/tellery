@@ -19,9 +19,8 @@ interface MediaCardProps {
   isSelected: boolean;
   isSelectionMode: boolean;
   selectedIds: Set<number>;
-  aspectMode?: "square" | "natural";
   onClick: () => void;
-  onToggleSelect: (id: number, e?: React.MouseEvent) => void;
+  onToggleSelect: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
@@ -30,7 +29,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   isSelected,
   isSelectionMode,
   selectedIds,
-  aspectMode = "square",
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -46,23 +44,16 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Shift+Click selects a continuous range (Google Drive style)
-    if (e.shiftKey) {
-      e.preventDefault();
-      onToggleSelect(item.id, e);
-      return;
-    }
-
-    // Ctrl/Cmd+Click always toggles single item selection
+    // Ctrl/Cmd+Click always toggles selection
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      onToggleSelect(item.id, e);
+      onToggleSelect(item.id);
       return;
     }
 
     // In selection mode, clicking the card body toggles selection
     if (isSelectionMode) {
-      onToggleSelect(item.id, e);
+      onToggleSelect(item.id);
       return;
     }
 
@@ -72,7 +63,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleSelect(item.id, e);
+    onToggleSelect(item.id);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -85,22 +76,13 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     e.dataTransfer.effectAllowed = "copyMove";
   };
 
-  // Dynamic aspect ratio calculation for natural masonry layout
-  const aspectRatioStyle =
-    aspectMode === "natural" && item.width && item.height
-      ? { aspectRatio: `${item.width} / ${item.height}` }
-      : undefined;
-
   return (
     <div
       draggable
       onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
-      style={aspectRatioStyle}
-      className={`media-card-item group relative bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
-        aspectMode === "natural" ? "w-full min-h-[140px]" : "aspect-square"
-      } ${
+      className={`media-card-item group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
         isSelected
           ? "border-sky-500 ring-2 ring-sky-500/40 shadow-xl shadow-sky-500/15 scale-[0.97]"
           : "border-zinc-800/60 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10"

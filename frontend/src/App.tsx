@@ -12,41 +12,31 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { UploadCloud, ChevronLeft, Folder } from "lucide-react";
+import { Loader2, UploadCloud, CheckCircle2, ChevronLeft, Folder } from "lucide-react";
 import {
   addMediaToFolder,
   createFolder,
-  createMediaAlias,
   deleteFolder,
   deleteMediaItem,
   fetchFolders,
   fetchStats,
   fetchTimeline,
-  renameMediaItem,
   uploadMediaFile,
 } from "./api";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
-import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
 import { FolderGrid } from "./components/FolderGrid";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
-import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
 import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
-import { UploadManager } from "./components/UploadManager";
 import {
-  ConflictResolutionAction,
-  DisplayLayout,
-  DuplicateConflict,
   FilterType,
   FolderItem,
   MainView,
   MediaItem,
-  SortOption,
   StatsResponse,
   TimelineGroup,
-  UploadTask,
 } from "./types";
 
 export const App: React.FC = () => {
@@ -57,73 +47,24 @@ export const App: React.FC = () => {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(() => {
-    const saved = localStorage.getItem("telegallery_display_layout");
-    return (saved as DisplayLayout) || "grid";
-  });
-  const [sortBy, setSortBy] = useState<SortOption>(() => {
-    const saved = localStorage.getItem("telegallery_sort_by");
-    return (saved as SortOption) || "date_desc";
-  });
   const [loading, setLoading] = useState(true);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
-  const handleDisplayLayoutChange = (layout: DisplayLayout) => {
-    setDisplayLayout(layout);
-    try {
-      localStorage.setItem("telegallery_display_layout", layout);
-    } catch {
-      // Ignore quota/private browsing errors
-    }
-  };
-
-  const handleSortChange = (newSort: SortOption) => {
-    setSortBy(newSort);
-    try {
-      localStorage.setItem("telegallery_sort_by", newSort);
-    } catch {
-      // Ignore quota/private browsing errors
-    }
-  };
-
   // Mobile Sidebar Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Multi-Select & Keyboard Anchor State
+  // Multi-Select State
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [lastSelectedId, setLastSelectedId] = useState<number | null>(null);
 
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
 
-  // Upload Tasks Queue State & Hidden File Input Ref
-  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  // Upload Progress State & Hidden File Input Ref
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const hiddenFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Duplicate Conflict Resolution State
-  const [activeConflict, setActiveConflict] = useState<DuplicateConflict | null>(null);
-  const conflictResolverRef = useRef<
-    ((action: ConflictResolutionAction, customName?: string, applyToAll?: boolean) => void) | null
-  >(null);
-  const batchConflictPreferenceRef = useRef<{
-    action: ConflictResolutionAction;
-    customName?: string;
-  } | null>(null);
-
-  // Folder Move Relocation Confirmation State
-  const [pendingMove, setPendingMove] = useState<{
-    targetFolderId: number;
-    targetFolderName: string;
-    mediaIds: number[];
-    conflictedItems: MoveConflictItem[];
-  } | null>(null);
-
-  // Flat list of all media items in current view order
-  const flatItems = useMemo(() => {
-    return groups.flatMap((g) => g.items);
-  }, [groups]);
 
   const loadFolders = useCallback(() => {
     setLoadingFolders(true);
@@ -144,7 +85,7 @@ export const App: React.FC = () => {
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    fetchTimeline(0, 100, activeFilter, searchQuery, folderId, sortBy)
+    fetchTimeline(0, 100, activeFilter, searchQuery, folderId)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -153,7 +94,7 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, searchQuery, activeFolder, sortBy, loadFolders]);
+  }, [activeFilter, searchQuery, activeFolder, loadFolders]);
 
   // Load stats, folders, and timeline on filter/search/folder change
   useEffect(() => {
@@ -161,77 +102,32 @@ export const App: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [loadData]);
 
-  // Global Keyboard Shortcuts (Escape to clear/close, Ctrl+A / Cmd+A to select all)
+  // Escape key clears selection or closes context menu
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in text inputs
-      if (
-        document.activeElement instanceof HTMLInputElement ||
-        document.activeElement instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-
       if (e.key === "Escape") {
         if (contextMenu) {
           setContextMenu(null);
         } else if (selectedIds.size > 0 && !selectedMedia) {
           setSelectedIds(new Set());
-          setLastSelectedId(null);
-        }
-      }
-
-      // Ctrl+A / Cmd+A -> Select All items
-      if ((e.ctrlKey || e.metaKey) && (e.key === "a" || e.key === "A")) {
-        if (!selectedMedia) {
-          e.preventDefault();
-          const allIds = flatItems.map((i) => i.id);
-          setSelectedIds(new Set(allIds));
-          setLastSelectedId(null);
         }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedIds, selectedMedia, contextMenu, flatItems]);
+  }, [selectedIds, selectedMedia, contextMenu]);
 
   // =========================================================================
-  // Selection Handlers (with Shift+Click Google Drive-Style Range Selection)
+  // Selection Handlers
   // =========================================================================
 
-  const handleToggleSelect = (id: number, e?: React.MouseEvent) => {
-    const isShift = e?.shiftKey;
-
-    if (isShift && lastSelectedId !== null && flatItems.length > 0) {
-      const anchorIdx = flatItems.findIndex((item) => item.id === lastSelectedId);
-      const targetIdx = flatItems.findIndex((item) => item.id === id);
-
-      if (anchorIdx !== -1 && targetIdx !== -1) {
-        const start = Math.min(anchorIdx, targetIdx);
-        const end = Math.max(anchorIdx, targetIdx);
-        const rangeIds = flatItems.slice(start, end + 1).map((item) => item.id);
-
-        setSelectedIds((prev) => {
-          const next = new Set(prev);
-          rangeIds.forEach((rangeId) => next.add(rangeId));
-          return next;
-        });
-        setLastSelectedId(id);
-        return;
-      }
-    }
-
-    // Toggle individual item
+  const handleToggleSelect = (id: number) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        if (lastSelectedId === id) {
-          setLastSelectedId(null);
-        }
       } else {
         next.add(id);
-        setLastSelectedId(id);
       }
       return next;
     });
@@ -243,9 +139,6 @@ export const App: React.FC = () => {
       ids.forEach((id) => next.add(id));
       return next;
     });
-    if (ids.length > 0) {
-      setLastSelectedId(ids[ids.length - 1]);
-    }
   };
 
   const handleDeselectAllInGroup = (ids: number[]) => {
@@ -257,14 +150,12 @@ export const App: React.FC = () => {
   };
 
   const handleSelectAllGlobal = () => {
-    const allIds = flatItems.map((i) => i.id);
+    const allIds = groups.flatMap((g) => g.items.map((i) => i.id));
     setSelectedIds(new Set(allIds));
-    setLastSelectedId(null);
   };
 
   const handleDeselectAll = () => {
     setSelectedIds(new Set());
-    setLastSelectedId(null);
   };
 
   // =========================================================================
@@ -274,55 +165,17 @@ export const App: React.FC = () => {
   const handleBulkAddToFolder = async (folderId: number, mediaIds?: number[]) => {
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length === 0) return;
-
-    const targetFolder = folders.find((f) => f.id === folderId);
-    const targetFolderName = targetFolder ? targetFolder.name : "Folder";
-
-    // Check if any of the items already belong to a different folder
-    const conflictedItems: MoveConflictItem[] = [];
-    for (const id of ids) {
-      const item = flatItems.find((m) => m.id === id);
-      if (item && item.folder_id && item.folder_id !== folderId) {
-        conflictedItems.push({
-          id: item.id,
-          fileName: item.file_name,
-          currentFolderName: item.folder_name || "Folder",
-        });
-      }
-    }
-
-    if (conflictedItems.length > 0) {
-      // Prompt user with Move Confirmation Modal
-      setPendingMove({
-        targetFolderId: folderId,
-        targetFolderName,
-        mediaIds: ids,
-        conflictedItems,
-      });
-      return;
-    }
-
-    // No conflicts -> move immediately
     await addMediaToFolder(folderId, ids);
-    loadData();
-  };
-
-  const handleConfirmPendingMove = async () => {
-    if (!pendingMove) return;
-    await addMediaToFolder(pendingMove.targetFolderId, pendingMove.mediaIds);
-    setPendingMove(null);
-    loadData();
+    loadFolders();
   };
 
   const handleBulkCreateFolderAndAdd = async (name: string, mediaIds?: number[]) => {
     const created = await createFolder(name);
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length > 0) {
-      // Use handleBulkAddToFolder to check for any existing folder conflicts
-      await handleBulkAddToFolder(created.id, ids);
-    } else {
-      loadFolders();
+      await addMediaToFolder(created.id, ids);
     }
+    loadFolders();
   };
 
   const handleBulkDeleteSelected = async (mediaIds?: number[]) => {
@@ -346,197 +199,32 @@ export const App: React.FC = () => {
   // Upload Handlers
   // =========================================================================
 
-  const handleUploadFiles = (files: FileList | File[]) => {
+  const handleUploadFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
-    // Reset batch conflict preference for new upload batches
-    batchConflictPreferenceRef.current = null;
+    setIsUploading(true);
+    let uploaded = 0;
+    const total = fileArray.length;
 
-    const newTasks: UploadTask[] = fileArray.map((f, idx) => ({
-      id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-      file: f,
-      name: f.name,
-      size: f.size,
-      type: f.type,
-      progress: 0,
-      loadedBytes: 0,
-      status: "pending",
-    }));
-
-    setUploadTasks((prev) => [...newTasks, ...prev]);
-
-    // Process tasks concurrently with real-time byte tracking
-    processUploadQueue(newTasks);
-  };
-
-  const processUploadQueue = async (tasksToProcess: UploadTask[]) => {
-    const queue = [...tasksToProcess];
-    const CONCURRENCY = 2; // Keep concurrency controlled during interactive conflicts
-
-    const worker = async () => {
-      while (queue.length > 0) {
-        const task = queue.shift();
-        if (!task) break;
-
-        setUploadTasks((prev) =>
-          prev.map((t) => (t.id === task.id ? { ...t, status: "uploading" } : t))
-        );
-
-        try {
-          const result = await uploadMediaFile(
-            task.file,
-            (percent, loaded) => {
-              setUploadTasks((prev) =>
-                prev.map((t) =>
-                  t.id === task.id ? { ...t, progress: percent, loadedBytes: loaded } : t
-                )
-              );
-            },
-            () => {
-              // Browser upload complete; now archiving & syncing to Telegram Vault
-              setUploadTasks((prev) =>
-                prev.map((t) =>
-                  t.id === task.id
-                    ? { ...t, status: "processing", progress: 95, loadedBytes: task.size }
-                    : t
-                )
-              );
-            }
-          );
-
-          if (result && result.status === "duplicate") {
-            let chosenAction: ConflictResolutionAction = "skip";
-            let chosenName: string | undefined = undefined;
-
-            if (batchConflictPreferenceRef.current) {
-              chosenAction = batchConflictPreferenceRef.current.action;
-              chosenName = batchConflictPreferenceRef.current.customName;
-            } else {
-              // Pause and request user decision via Duplicate Conflict Dialog
-              const userChoice = await new Promise<{
-                action: ConflictResolutionAction;
-                customName?: string;
-                applyToAll?: boolean;
-              }>((resolve) => {
-                conflictResolverRef.current = (action, customName, applyToAll) => {
-                  resolve({ action, customName, applyToAll });
-                };
-                setActiveConflict({
-                  taskId: task.id,
-                  fileName: task.name,
-                  fileSize: task.size,
-                  existingMediaId: result.media_id,
-                  existingFileName: result.file_name,
-                  existingCreatedAt: result.created_at,
-                  existingFileSize: result.file_size,
-                });
-              });
-
-              chosenAction = userChoice.action;
-              chosenName = userChoice.customName;
-
-              if (userChoice.applyToAll) {
-                batchConflictPreferenceRef.current = {
-                  action: userChoice.action,
-                  customName: userChoice.customName,
-                };
-              }
-            }
-
-            // Execute chosen action
-            if (chosenAction === "skip") {
-              setUploadTasks((prev) =>
-                prev.map((t) =>
-                  t.id === task.id
-                    ? {
-                        ...t,
-                        status: "duplicate",
-                        progress: 100,
-                        loadedBytes: task.size,
-                        duplicateInfo: {
-                          existingId: result.media_id,
-                          existingFileName: result.file_name,
-                          actionTaken: "skipped",
-                        },
-                      }
-                    : t
-                )
-              );
-            } else if (chosenAction === "keep_both") {
-              const aliasName = chosenName || `${task.name} (1)`;
-              await createMediaAlias(result.media_id, aliasName);
-              setUploadTasks((prev) =>
-                prev.map((t) =>
-                  t.id === task.id
-                    ? {
-                        ...t,
-                        name: aliasName,
-                        status: "duplicate",
-                        progress: 100,
-                        loadedBytes: task.size,
-                        duplicateInfo: {
-                          existingId: result.media_id,
-                          existingFileName: result.file_name,
-                          actionTaken: "alias_created",
-                        },
-                      }
-                    : t
-                )
-              );
-              loadData();
-            } else if (chosenAction === "rename_existing") {
-              const renamedName = chosenName || task.name;
-              await renameMediaItem(result.media_id, renamedName);
-              setUploadTasks((prev) =>
-                prev.map((t) =>
-                  t.id === task.id
-                    ? {
-                        ...t,
-                        name: renamedName,
-                        status: "duplicate",
-                        progress: 100,
-                        loadedBytes: task.size,
-                        duplicateInfo: {
-                          existingId: result.media_id,
-                          existingFileName: result.file_name,
-                          actionTaken: "renamed_existing",
-                        },
-                      }
-                    : t
-                )
-              );
-              loadData();
-            }
-          } else {
-            setUploadTasks((prev) =>
-              prev.map((t) =>
-                t.id === task.id
-                  ? { ...t, status: "completed", progress: 100, loadedBytes: task.size }
-                  : t
-              )
-            );
-            loadData();
-          }
-        } catch (err: any) {
-          console.error(`Upload error for ${task.name}:`, err);
-          setUploadTasks((prev) =>
-            prev.map((t) =>
-              t.id === task.id
-                ? { ...t, status: "error", errorMessage: err?.message || "Upload failed" }
-                : t
-            )
-          );
-        }
+    for (let i = 0; i < total; i++) {
+      const file = fileArray[i];
+      setUploadStatus(`Uploading (${i + 1}/${total}) ${file.name}...`);
+      try {
+        await uploadMediaFile(file);
+        uploaded++;
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err);
       }
-    };
+    }
 
-    // Run parallel workers concurrently
-    const activeWorkers = Array.from(
-      { length: Math.min(CONCURRENCY, tasksToProcess.length) },
-      () => worker()
-    );
-    await Promise.all(activeWorkers);
+    setUploadStatus(`Uploaded ${uploaded} / ${total} files!`);
+    setIsUploading(false);
+    loadData();
+
+    setTimeout(() => {
+      setUploadStatus(null);
+    }, 4000);
   };
 
   // =========================================================================
@@ -621,6 +309,10 @@ export const App: React.FC = () => {
   // Lightbox Navigation
   // =========================================================================
 
+  const flatItems = useMemo(() => {
+    return groups.flatMap((g) => g.items);
+  }, [groups]);
+
   const currentIndex = useMemo(() => {
     if (!selectedMedia) return -1;
     return flatItems.findIndex((item) => item.id === selectedMedia.id);
@@ -649,41 +341,12 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    // If context menu is open, dismiss it
-    if (contextMenu) {
-      setContextMenu(null);
-    }
-
-    const target = e.target as HTMLElement;
-    // Don't deselect if click originated from interactive controls or media cards
-    if (
-      target.closest(".media-card-item") ||
-      target.closest(".folder-card-item") ||
-      target.closest(".selection-toolbar") ||
-      target.closest(".upload-manager") ||
-      target.closest("button") ||
-      target.closest("a") ||
-      target.closest("input") ||
-      target.closest("dialog") ||
-      target.closest("header") ||
-      target.closest("aside")
-    ) {
-      return;
-    }
-
-    if (selectedIds.size > 0) {
-      handleDeselectAll();
-    }
-  };
-
   return (
     <div
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       onContextMenu={handleCanvasContextMenu}
-      onClick={handleCanvasClick}
       className="min-h-screen bg-zinc-950 text-zinc-100 flex relative"
     >
       {/* Hidden File Input for Sidebar & Context Menu Upload trigger */}
@@ -747,10 +410,6 @@ export const App: React.FC = () => {
           onSearchChange={setSearchQuery}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
-          displayLayout={displayLayout}
-          onDisplayLayoutChange={handleDisplayLayoutChange}
-          sortBy={sortBy}
-          onSortChange={handleSortChange}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
         />
 
@@ -793,9 +452,6 @@ export const App: React.FC = () => {
             <TimelineGrid
               groups={groups}
               selectedIds={selectedIds}
-              layout={displayLayout}
-              sortBy={sortBy}
-              onSortChange={handleSortChange}
               onSelectMedia={setSelectedMedia}
               onToggleSelect={handleToggleSelect}
               onSelectAllInGroup={handleSelectAllInGroup}
@@ -837,12 +493,17 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Google Drive-Style Floating Upload Queue Manager */}
-      <UploadManager
-        tasks={uploadTasks}
-        onDismiss={() => setUploadTasks([])}
-        onClearCompleted={() => setUploadTasks((prev) => prev.filter((t) => t.status !== "completed"))}
-      />
+      {/* Floating Upload Progress Toast */}
+      {uploadStatus && (
+        <div className="fixed bottom-6 right-6 z-40 bg-zinc-900/95 border border-zinc-700/80 text-white px-4 py-3 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-3 animate-in slide-in-from-bottom duration-300">
+          {isUploading ? (
+            <Loader2 className="w-5 h-5 text-sky-400 animate-spin" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+          )}
+          <span className="text-xs font-semibold">{uploadStatus}</span>
+        </div>
+      )}
 
       {/* Fullscreen Lightbox Modal */}
       {selectedMedia && (
@@ -855,37 +516,6 @@ export const App: React.FC = () => {
           hasPrev={currentIndex > 0}
           hasNext={currentIndex < flatItems.length - 1}
           onDelete={handleDeleteMedia}
-        />
-      )}
-
-      {/* Interactive Duplicate Conflict Resolution Modal */}
-      {activeConflict && (
-        <DuplicateConflictModal
-          conflict={activeConflict}
-          onResolve={(action, customName, applyToAll) => {
-            if (conflictResolverRef.current) {
-              conflictResolverRef.current(action, customName, applyToAll);
-            }
-            setActiveConflict(null);
-          }}
-          onCancel={() => {
-            if (conflictResolverRef.current) {
-              conflictResolverRef.current("skip");
-            }
-            setActiveConflict(null);
-          }}
-        />
-      )}
-
-      {/* Folder Move Relocation Confirmation Modal */}
-      {pendingMove && (
-        <MoveConfirmationModal
-          targetFolderId={pendingMove.targetFolderId}
-          targetFolderName={pendingMove.targetFolderName}
-          conflictedItems={pendingMove.conflictedItems}
-          totalSelectedCount={pendingMove.mediaIds.length}
-          onConfirm={handleConfirmPendingMove}
-          onCancel={() => setPendingMove(null)}
         />
       )}
     </div>
