@@ -100,10 +100,12 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   const handleToggleFolder = async (folderId: number) => {
     const isAssigned = assignedFolderIds.includes(folderId);
     if (isAssigned) {
-      setAssignedFolderIds((prev) => prev.filter((id) => id !== folderId));
+      // Remove from folder (unassign)
+      setAssignedFolderIds([]);
       await removeMediaFromFolder(folderId, item.id).catch(console.error);
     } else {
-      setAssignedFolderIds((prev) => [...prev, folderId]);
+      // Move to this single folder (replaces any previous folder assignment)
+      setAssignedFolderIds([folderId]);
       await addMediaToFolder(folderId, [item.id]).catch(console.error);
     }
   };
@@ -173,7 +175,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           {showFolderMenu && (
             <div className="absolute right-24 top-12 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
-                <span className="text-xs font-bold text-white">Add to Albums</span>
+                <span className="text-xs font-bold text-white">Organize in Folder</span>
                 <button
                   onClick={() => setShowFolderMenu(false)}
                   className="p-1 text-zinc-400 hover:text-white cursor-pointer"
@@ -225,7 +227,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           {/* Delete Media */}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 rounded-full text-zinc-300 hover:text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
+            className="p-2 rounded-full text-zinc-300 hover:text-red-400 hover:bg-white/10 transition-colors cursor-pointer"
             title="Delete Media"
           >
             <Trash2 className="w-5 h-5" />

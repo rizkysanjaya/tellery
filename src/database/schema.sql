@@ -41,6 +41,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_media_file_hash
 CREATE INDEX IF NOT EXISTS idx_media_timeline 
     ON media_items(COALESCE(date_taken, created_at) DESC);
 
+CREATE INDEX IF NOT EXISTS idx_media_filename 
+    ON media_items(file_name COLLATE NOCASE) 
+    WHERE is_deleted = 0;
+
+CREATE INDEX IF NOT EXISTS idx_media_filesize 
+    ON media_items(file_size DESC) 
+    WHERE is_deleted = 0;
+
 CREATE INDEX IF NOT EXISTS idx_media_channel_msg 
     ON media_items(telegram_channel_id, telegram_message_id);
 
@@ -55,18 +63,17 @@ CREATE TABLE IF NOT EXISTS folders (
 
 CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
 
--- 3. Many-to-Many Media <-> Folders Junction Table
+-- 3. Media <-> Folder Table (1-to-1: A media item belongs to at most 1 folder)
 CREATE TABLE IF NOT EXISTS media_folders (
-    media_id INTEGER NOT NULL,
+    media_id INTEGER NOT NULL PRIMARY KEY,
     folder_id INTEGER NOT NULL,
     added_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (media_id, folder_id),
     FOREIGN KEY (media_id) REFERENCES media_items(id) ON DELETE CASCADE,
     FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS idx_media_folders_folder ON media_folders(folder_id, media_id);
-CREATE INDEX IF NOT EXISTS idx_media_folders_media ON media_folders(media_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_media_folders_single_media ON media_folders(media_id);
 
 -- 4. Audit and Verification History Table
 CREATE TABLE IF NOT EXISTS audit_logs (

@@ -84,17 +84,16 @@ class MediaRepository:
         media_type: Optional[str] = None,
         search_query: Optional[str] = None,
         folder_id: Optional[int] = None,
+        sort_by: str = "date_desc",
     ) -> tuple[int, list[dict[str, Any]]]:
         """
-        Retrieves paginated media items ordered chronologically along with the total count.
-        Supports filtering by media type, search query, and virtual folder ID.
+        Retrieves paginated media items with flexible sorting and filtering.
+        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
-        join_sql = ""
 
         if folder_id is not None:
-            join_sql = "JOIN media_folders mf ON mf.media_id = m.id"
             where_clauses.append("mf.folder_id = ?")
             params.append(folder_id)
 
@@ -110,17 +109,36 @@ class MediaRepository:
 
         where_sql = " AND ".join(where_clauses)
 
-        count_query = f"SELECT COUNT(*) FROM media_items m {join_sql} WHERE {where_sql};"
+        # Map sort option to high-performance indexed ORDER BY expression
+        sort_map = {
+            "date_desc": "COALESCE(m.date_taken, m.created_at) DESC",
+            "date_asc": "COALESCE(m.date_taken, m.created_at) ASC",
+            "name_asc": "m.file_name COLLATE NOCASE ASC",
+            "name_desc": "m.file_name COLLATE NOCASE DESC",
+            "size_desc": "m.file_size DESC",
+            "size_asc": "m.file_size ASC",
+        }
+        order_by_clause = sort_map.get(sort_by, "COALESCE(m.date_taken, m.created_at) DESC")
+
+        count_query = f"""
+            SELECT COUNT(*) 
+            FROM media_items m
+            LEFT JOIN media_folders mf ON mf.media_id = m.id
+            WHERE {where_sql};
+        """
         fetch_query = f"""
             SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
                    m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
                    m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
                    m.date_taken, m.thumbnail_path, m.created_at,
-                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key
+                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
+                   mf.folder_id as folder_id,
+                   f.name as folder_name
             FROM media_items m
-            {join_sql}
+            LEFT JOIN media_folders mf ON mf.media_id = m.id
+            LEFT JOIN folders f ON f.id = mf.folder_id
             WHERE {where_sql}
-            ORDER BY COALESCE(m.date_taken, m.created_at) DESC
+            ORDER BY {order_by_clause}
             LIMIT ? OFFSET ?;
         """
 
@@ -164,10 +182,12 @@ class MediaRepository:
 
     @staticmethod
     async def delete_media(media_id: int) -> bool:
-        """Soft deletes media item from SQLite catalog."""
-        query = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
+        """Soft deletes media item from SQLite catalog and removes folder associations."""
+        query_soft_delete = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
+        query_clean_folders = "DELETE FROM media_folders WHERE media_id = ?;"
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query, (media_id,))
+            cursor = await conn.execute(query_soft_delete, (media_id,))
+            await conn.execute(query_clean_folders, (media_id,))
             await conn.commit()
             return cursor.rowcount > 0
 
@@ -197,12 +217,12 @@ class MediaRepository:
     async def list_folders() -> list[dict[str, Any]]:
         """
         Retrieves all folders along with their item count and latest cover thumbnail.
-        Single high-performance query utilizing B-tree indices.
+        Counts only active non-deleted items (COUNT(m.id)).
         """
         query = """
             SELECT 
                 f.id, f.name, f.parent_id, f.created_at,
-                COUNT(mf.media_id) as item_count,
+                COUNT(m.id) as item_count,
                 (
                     SELECT m.thumbnail_path 
                     FROM media_items m 
@@ -239,8 +259,13 @@ class MediaRepository:
 
     @staticmethod
     async def add_media_to_folder(folder_id: int, media_ids: list[int]) -> int:
-        """Batch associates media items with a folder."""
-        query = "INSERT OR IGNORE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
+        """
+        Moves media items to a folder (1-to-1 file manager relationship).
+        Uses atomic INSERT OR REPLACE so a media item belongs to only 1 folder at a time.
+        """
+        if not media_ids:
+            return 0
+        query = "INSERT OR REPLACE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
         params = [(folder_id, mid) for mid in media_ids]
         async with get_db_connection() as conn:
             cursor = await conn.executemany(query, params)
@@ -279,6 +304,63 @@ class MediaRepository:
             cursor = await conn.execute(query, (thumbnail_path, media_id))
             await conn.commit()
             return cursor.rowcount > 0
+
+    @staticmethod
+    async def update_file_name(media_id: int, new_file_name: str) -> bool:
+        """Updates the display filename for a specific media item."""
+        query = "UPDATE media_items SET file_name = ? WHERE id = ? AND is_deleted = 0;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (new_file_name.strip(), media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def create_media_alias(existing_id: int, new_file_name: str) -> Optional[int]:
+        """
+        Creates a new catalog entry pointing to the same Telegram storage document
+        and thumbnail with a new customized filename (zero additional storage).
+        """
+        existing = await MediaRepository.get_by_id(existing_id)
+        if not existing:
+            return None
+
+        import time
+        # Append unique alias tag to avoid SQLite unique constraint collision while preserving reference
+        alias_hash = f"{existing['file_hash']}#alias{int(time.time() * 1000)}"
+
+        query = """
+            INSERT INTO media_items (
+                file_hash, file_name, file_size, mime_type,
+                telegram_channel_id, telegram_message_id, telegram_file_id,
+                width, height, duration_seconds, camera_make, camera_model,
+                date_taken, thumbnail_path
+            ) VALUES (
+                ?, ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?
+            );
+        """
+        params = (
+            alias_hash,
+            new_file_name.strip(),
+            existing["file_size"],
+            existing["mime_type"],
+            existing["telegram_channel_id"],
+            existing["telegram_message_id"],
+            existing["telegram_file_id"],
+            existing.get("width"),
+            existing.get("height"),
+            existing.get("duration_seconds"),
+            existing.get("camera_make"),
+            existing.get("camera_model"),
+            existing.get("date_taken"),
+            existing.get("thumbnail_path"),
+        )
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, params)
+            await conn.commit()
+            return cursor.lastrowid
 
     @staticmethod
     async def log_audit(
