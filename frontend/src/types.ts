@@ -25,6 +25,8 @@ export interface MediaItem {
   thumbnail_url: string;
   stream_url: string;
   created_at: string;
+  folder_id?: number | null;
+  folder_name?: string | null;
 }
 
 export interface TimelineGroup {

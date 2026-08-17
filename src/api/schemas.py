@@ -30,6 +30,8 @@ class MediaItemResponse(BaseModel):
     thumbnail_url: Optional[str] = None
     stream_url: str
     created_at: str
+    folder_id: Optional[int] = None
+    folder_name: Optional[str] = None
 
 
 class TimelineGroup(BaseModel):

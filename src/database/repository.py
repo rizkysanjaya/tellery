@@ -91,10 +91,8 @@ class MediaRepository:
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
-        join_sql = ""
 
         if folder_id is not None:
-            join_sql = "JOIN media_folders mf ON mf.media_id = m.id"
             where_clauses.append("mf.folder_id = ?")
             params.append(folder_id)
 
@@ -110,15 +108,23 @@ class MediaRepository:
 
         where_sql = " AND ".join(where_clauses)
 
-        count_query = f"SELECT COUNT(*) FROM media_items m {join_sql} WHERE {where_sql};"
+        count_query = f"""
+            SELECT COUNT(*) 
+            FROM media_items m
+            LEFT JOIN media_folders mf ON mf.media_id = m.id
+            WHERE {where_sql};
+        """
         fetch_query = f"""
             SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
                    m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
                    m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
                    m.date_taken, m.thumbnail_path, m.created_at,
-                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key
+                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
+                   mf.folder_id as folder_id,
+                   f.name as folder_name
             FROM media_items m
-            {join_sql}
+            LEFT JOIN media_folders mf ON mf.media_id = m.id
+            LEFT JOIN folders f ON f.id = mf.folder_id
             WHERE {where_sql}
             ORDER BY COALESCE(m.date_taken, m.created_at) DESC
             LIMIT ? OFFSET ?;

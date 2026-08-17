@@ -27,8 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Ctrl` / `Cmd` + Click: Toggle individual item in multi-selection.
   - `Ctrl` / `Cmd` + `A`: Instant Select All items in gallery.
   - `Escape`: Instant clear selection / dismiss context menus.
-- **1-to-1 File Manager Folder Hierarchy (`schema.sql`, `repository.py`)**:
+- **1-to-1 File Manager Folder Hierarchy & Move Confirmation Modal (`schema.sql`, `repository.py`, `MoveConfirmationModal.tsx`)**:
   - Enforced strict 1-to-1 folder membership: a media item belongs to exactly one folder at a time (like desktop file managers).
+  - Added interactive `<MoveConfirmationModal />` warning when moving items that already reside in another folder.
   - Atomic `INSERT OR REPLACE` folder move operations and `UNIQUE(media_id)` index in SQLite.
 
 ### ⚡ Performance
