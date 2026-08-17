@@ -86,22 +86,26 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (showDeleteConfirm || showFolderMenu) return;
       if (e.key === "Escape") onClose();
-      if (e.key === "ArrowLeft" && hasPrev) onPrev();
-      if (e.key === "ArrowRight" && hasNext) onNext();
+      if (!isVideo) {
+        if (e.key === "ArrowLeft" && hasPrev) onPrev();
+        if (e.key === "ArrowRight" && hasNext) onNext();
+      }
       if (e.key === "i" || e.key === "I") setShowInfo((prev) => !prev);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm, showFolderMenu]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm, showFolderMenu, isVideo]);
 
   const handleToggleFolder = async (folderId: number) => {
     const isAssigned = assignedFolderIds.includes(folderId);
     if (isAssigned) {
-      setAssignedFolderIds((prev) => prev.filter((id) => id !== folderId));
+      // Remove from folder (unassign)
+      setAssignedFolderIds([]);
       await removeMediaFromFolder(folderId, item.id).catch(console.error);
     } else {
-      setAssignedFolderIds((prev) => [...prev, folderId]);
+      // Move to this single folder (replaces any previous folder assignment)
+      setAssignedFolderIds([folderId]);
       await addMediaToFolder(folderId, [item.id]).catch(console.error);
     }
   };
@@ -157,9 +161,11 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           {/* Add to Album / Folder Menu Button */}
           <button
             onClick={() => setShowFolderMenu((prev) => !prev)}
-            className={`p-2 rounded-full transition-colors cursor-pointer ${
-              showFolderMenu ? "bg-sky-500 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
-            }`}
+            className={
+              showFolderMenu
+                ? "p-2 rounded-full bg-sky-500 text-white transition-colors cursor-pointer"
+                : "p-2 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            }
             title="Organize in Albums"
           >
             <FolderPlus className="w-5 h-5" />
@@ -169,10 +175,10 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           {showFolderMenu && (
             <div className="absolute right-24 top-12 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
-                <span className="text-xs font-bold text-white">Add to Albums</span>
+                <span className="text-xs font-bold text-white">Organize in Folder</span>
                 <button
                   onClick={() => setShowFolderMenu(false)}
-                  className="p-1 text-zinc-400 hover:text-white"
+                  className="p-1 text-zinc-400 hover:text-white cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -212,7 +218,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           <a
             href={item.stream_url}
             download={item.file_name}
-            className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Download Original"
           >
             <Download className="w-5 h-5" />
@@ -221,7 +227,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           {/* Delete Media */}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 rounded-full hover:bg-red-500/20 text-zinc-300 hover:text-red-400 transition-colors cursor-pointer"
+            className="p-2 rounded-full text-zinc-300 hover:text-red-400 hover:bg-white/10 transition-colors cursor-pointer"
             title="Delete Media"
           >
             <Trash2 className="w-5 h-5" />
@@ -230,9 +236,11 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           {/* Toggle EXIF Drawer */}
           <button
             onClick={() => setShowInfo((prev) => !prev)}
-            className={`p-2 rounded-full transition-colors cursor-pointer ${
-              showInfo ? "bg-sky-500 text-white" : "hover:bg-white/10 text-zinc-300 hover:text-white"
-            }`}
+            className={
+              showInfo
+                ? "p-2 rounded-full bg-sky-500 text-white transition-colors cursor-pointer"
+                : "p-2 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            }
             title="Toggle Metadata Info (I)"
           >
             <Info className="w-5 h-5" />

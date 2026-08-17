@@ -187,7 +187,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
               setShowDeleteConfirm((p) => !p);
               setShowFolderPicker(false);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 text-zinc-300 hover:text-red-400 hover:bg-red-500/10 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 text-white/80 hover:text-red-300 hover:bg-red-500/20 rounded-xl text-xs font-semibold transition-all cursor-pointer"
             title="Delete Selected"
           >
             <Trash2 className="w-4 h-4" />

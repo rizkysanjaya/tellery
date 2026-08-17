@@ -164,10 +164,12 @@ class MediaRepository:
 
     @staticmethod
     async def delete_media(media_id: int) -> bool:
-        """Soft deletes media item from SQLite catalog."""
-        query = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
+        """Soft deletes media item from SQLite catalog and removes folder associations."""
+        query_soft_delete = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
+        query_clean_folders = "DELETE FROM media_folders WHERE media_id = ?;"
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query, (media_id,))
+            cursor = await conn.execute(query_soft_delete, (media_id,))
+            await conn.execute(query_clean_folders, (media_id,))
             await conn.commit()
             return cursor.rowcount > 0
 
@@ -197,12 +199,12 @@ class MediaRepository:
     async def list_folders() -> list[dict[str, Any]]:
         """
         Retrieves all folders along with their item count and latest cover thumbnail.
-        Single high-performance query utilizing B-tree indices.
+        Counts only active non-deleted items (COUNT(m.id)).
         """
         query = """
             SELECT 
                 f.id, f.name, f.parent_id, f.created_at,
-                COUNT(mf.media_id) as item_count,
+                COUNT(m.id) as item_count,
                 (
                     SELECT m.thumbnail_path 
                     FROM media_items m 
@@ -239,8 +241,13 @@ class MediaRepository:
 
     @staticmethod
     async def add_media_to_folder(folder_id: int, media_ids: list[int]) -> int:
-        """Batch associates media items with a folder."""
-        query = "INSERT OR IGNORE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
+        """
+        Moves media items to a folder (1-to-1 file manager relationship).
+        Uses atomic INSERT OR REPLACE so a media item belongs to only 1 folder at a time.
+        """
+        if not media_ids:
+            return 0
+        query = "INSERT OR REPLACE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
         params = [(folder_id, mid) for mid in media_ids]
         async with get_db_connection() as conn:
             cursor = await conn.executemany(query, params)
@@ -270,6 +277,72 @@ class MediaRepository:
             async with conn.execute(query, (media_id,)) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(r) for r in rows]
+
+    @staticmethod
+    async def update_thumbnail_path(media_id: int, thumbnail_path: str) -> bool:
+        """Updates the thumbnail path for a specific media item."""
+        query = "UPDATE media_items SET thumbnail_path = ? WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (thumbnail_path, media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def update_file_name(media_id: int, new_file_name: str) -> bool:
+        """Updates the display filename for a specific media item."""
+        query = "UPDATE media_items SET file_name = ? WHERE id = ? AND is_deleted = 0;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (new_file_name.strip(), media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def create_media_alias(existing_id: int, new_file_name: str) -> Optional[int]:
+        """
+        Creates a new catalog entry pointing to the same Telegram storage document
+        and thumbnail with a new customized filename (zero additional storage).
+        """
+        existing = await MediaRepository.get_by_id(existing_id)
+        if not existing:
+            return None
+
+        import time
+        # Append unique alias tag to avoid SQLite unique constraint collision while preserving reference
+        alias_hash = f"{existing['file_hash']}#alias{int(time.time() * 1000)}"
+
+        query = """
+            INSERT INTO media_items (
+                file_hash, file_name, file_size, mime_type,
+                telegram_channel_id, telegram_message_id, telegram_file_id,
+                width, height, duration_seconds, camera_make, camera_model,
+                date_taken, thumbnail_path
+            ) VALUES (
+                ?, ?, ?, ?,
+                ?, ?, ?,
+                ?, ?, ?, ?, ?,
+                ?, ?
+            );
+        """
+        params = (
+            alias_hash,
+            new_file_name.strip(),
+            existing["file_size"],
+            existing["mime_type"],
+            existing["telegram_channel_id"],
+            existing["telegram_message_id"],
+            existing["telegram_file_id"],
+            existing.get("width"),
+            existing.get("height"),
+            existing.get("duration_seconds"),
+            existing.get("camera_make"),
+            existing.get("camera_model"),
+            existing.get("date_taken"),
+            existing.get("thumbnail_path"),
+        )
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, params)
+            await conn.commit()
+            return cursor.lastrowid
 
     @staticmethod
     async def log_audit(

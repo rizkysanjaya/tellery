@@ -2,11 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
  * Purpose: Interactive gallery grid tile with WebP thumbnail, selection checkbox,
- *          context menu forwarding, and drag-start support.
+ *          context menu forwarding, and HTML5 drag-and-drop support.
  * Used by: frontend/src/components/TimelineGrid.tsx
  * Dependencies: lucide-react, frontend/src/types.ts
  * Public Members: MediaCard
- * Side Effects: Triggers lightbox click, selection toggle, and context menu events.
+ * Side Effects: Triggers lightbox click, selection toggle, drag start, and context menu events.
  * =============================================================================
  */
 
@@ -18,8 +18,9 @@ interface MediaCardProps {
   item: MediaItem;
   isSelected: boolean;
   isSelectionMode: boolean;
+  selectedIds: Set<number>;
   onClick: () => void;
-  onToggleSelect: (id: number) => void;
+  onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
@@ -27,6 +28,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   item,
   isSelected,
   isSelectionMode,
+  selectedIds,
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -42,16 +44,23 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Ctrl/Cmd+Click always toggles selection
+    // Shift+Click selects a continuous range (Google Drive style)
+    if (e.shiftKey) {
+      e.preventDefault();
+      onToggleSelect(item.id, e);
+      return;
+    }
+
+    // Ctrl/Cmd+Click always toggles single item selection
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      onToggleSelect(item.id);
+      onToggleSelect(item.id, e);
       return;
     }
 
     // In selection mode, clicking the card body toggles selection
     if (isSelectionMode) {
-      onToggleSelect(item.id);
+      onToggleSelect(item.id, e);
       return;
     }
 
@@ -61,14 +70,26 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleSelect(item.id);
+    onToggleSelect(item.id, e);
+  };
+
+  const handleDragStart = (e: React.DragEvent) => {
+    const payload = isSelected && selectedIds.size > 0
+      ? Array.from(selectedIds)
+      : [item.id];
+    
+    e.dataTransfer.setData("application/telegallery-media", JSON.stringify(payload));
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "copyMove";
   };
 
   return (
     <div
+      draggable
+      onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
-      className={`group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
+      className={`media-card-item group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
         isSelected
           ? "border-sky-500 ring-2 ring-sky-500/40 shadow-xl shadow-sky-500/15 scale-[0.97]"
           : "border-zinc-800/60 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10"
@@ -98,9 +119,10 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         <img
           src={item.thumbnail_url}
           alt={item.file_name}
+          draggable={false}
           loading="lazy"
           onLoad={() => setLoaded(true)}
-          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 ${
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 pointer-events-none select-none ${
             loaded ? "opacity-100" : "opacity-0"
           }`}
         />

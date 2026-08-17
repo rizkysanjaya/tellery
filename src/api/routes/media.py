@@ -51,7 +51,7 @@ def _format_period_title(period_key: Optional[str]) -> str:
 def _to_media_response(item: dict) -> MediaItemResponse:
     """Maps database row dict to MediaItemResponse with computed API endpoints."""
     item_id = item["id"]
-    thumb_url = f"/api/media/{item_id}/thumbnail" if item.get("thumbnail_path") else None
+    thumb_url = f"/api/media/{item_id}/thumbnail"
     return MediaItemResponse(
         id=item_id,
         file_name=item["file_name"],
@@ -197,3 +197,58 @@ async def get_media_assigned_folders(media_id: int):
         raise HTTPException(status_code=404, detail="Media item not found")
     folders = await MediaRepository.get_media_folders(media_id)
     return folders
+
+
+@router.post("/{media_id:int}/rename")
+async def rename_media_item(media_id: int, payload: dict):
+    """
+    Renames the display file name of an existing media item in the catalog.
+    """
+    new_name = payload.get("new_name")
+    if not new_name or not new_name.strip():
+        raise HTTPException(status_code=400, detail="New filename cannot be empty")
+
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    success = await MediaRepository.update_file_name(media_id, new_name.strip())
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to rename media item")
+
+    await MediaRepository.log_audit(
+        action="MEDIA_RENAME",
+        media_id=media_id,
+        file_hash=item["file_hash"],
+        details=f"Renamed from '{item['file_name']}' to '{new_name.strip()}'",
+    )
+
+    return {"status": "renamed", "media_id": media_id, "new_name": new_name.strip()}
+
+
+@router.post("/{media_id:int}/alias")
+async def create_duplicate_alias(media_id: int, payload: dict):
+    """
+    Creates a new catalog reference for a duplicate file with a new custom name,
+    reusing the existing Telegram storage document without duplicating storage bytes.
+    """
+    new_name = payload.get("new_name")
+    if not new_name or not new_name.strip():
+        raise HTTPException(status_code=400, detail="New filename cannot be empty")
+
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    alias_id = await MediaRepository.create_media_alias(media_id, new_name.strip())
+    if not alias_id:
+        raise HTTPException(status_code=500, detail="Failed to create duplicate alias entry")
+
+    await MediaRepository.log_audit(
+        action="ALIAS_CREATED",
+        media_id=alias_id,
+        file_hash=item["file_hash"],
+        details=f"Created duplicate alias '{new_name.strip()}' referencing media {media_id}",
+    )
+
+    return {"status": "alias_created", "new_id": alias_id, "file_name": new_name.strip()}

@@ -19,7 +19,7 @@ interface TimelineGridProps {
   groups: TimelineGroup[];
   selectedIds: Set<number>;
   onSelectMedia: (item: MediaItem) => void;
-  onToggleSelect: (id: number) => void;
+  onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onSelectAllInGroup: (ids: number[]) => void;
   onDeselectAllInGroup: (ids: number[]) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
@@ -114,6 +114,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                   item={item}
                   isSelected={selectedIds.has(item.id)}
                   isSelectionMode={isSelectionMode}
+                  selectedIds={selectedIds}
                   onClick={() => onSelectMedia(item)}
                   onToggleSelect={onToggleSelect}
                   onContextMenu={onContextMenu}

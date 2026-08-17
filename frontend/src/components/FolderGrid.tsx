@@ -2,16 +2,25 @@
  * =============================================================================
  * Module: frontend/src/components/FolderGrid.tsx
  * Purpose: Responsive album and folder grid view with cover thumbnails,
- *          folder creation modal, and deletion controls.
+ *          folder creation modal, deletion controls, and HTML5 drag-and-drop target support.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: FolderGrid
- * Side Effects: Triggers folder selection, creation, and deletion events in parent state.
+ * Side Effects: Triggers folder selection, creation, deletion, and media drop assignments in parent state.
  * =============================================================================
  */
 
 import React, { useState } from "react";
-import { Folder, FolderPlus, Trash2, Images, Plus, X, Loader2 } from "lucide-react";
+import {
+  Folder,
+  FolderPlus,
+  Trash2,
+  Images,
+  Plus,
+  X,
+  Loader2,
+  ArrowDownToLine,
+} from "lucide-react";
 import { FolderItem } from "../types";
 
 interface FolderGridProps {
@@ -19,6 +28,7 @@ interface FolderGridProps {
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string) => Promise<void>;
   onDeleteFolder: (folderId: number) => Promise<void>;
+  onAddMediaToFolder?: (folderId: number, mediaIds: number[]) => Promise<void>;
   loading: boolean;
 }
 
@@ -27,6 +37,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   onSelectFolder,
   onCreateFolder,
   onDeleteFolder,
+  onAddMediaToFolder,
   loading,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -34,6 +45,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dragOverFolderId, setDragOverFolderId] = useState<number | null>(null);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +78,41 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
     }
   };
 
+  const handleFolderDragOver = (e: React.DragEvent, folderId: number) => {
+    if (
+      e.dataTransfer.types.includes("application/telegallery-media") ||
+      e.dataTransfer.types.includes("application/json")
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragOverFolderId(folderId);
+    }
+  };
+
+  const handleFolderDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolderId(null);
+  };
+
+  const handleFolderDrop = async (e: React.DragEvent, folderId: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOverFolderId(null);
+
+    try {
+      const rawData = e.dataTransfer.getData("application/json");
+      if (rawData && onAddMediaToFolder) {
+        const mediaIds = JSON.parse(rawData) as number[];
+        if (Array.isArray(mediaIds) && mediaIds.length > 0) {
+          await onAddMediaToFolder(folderId, mediaIds);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to parse dropped media data:", err);
+    }
+  };
+
   return (
     <div className="pb-16 animate-in fade-in duration-300">
       {/* Top Action Bar */}
@@ -76,7 +123,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
             Albums & Folders
           </h2>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Organize your Telegram media warehouse into custom collections
+            Organize your Telegram media warehouse into custom collections (drag & drop media here)
           </p>
         </div>
 
@@ -121,53 +168,82 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
       {/* Folders Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-        {folders.map((folder) => (
-          <div
-            key={folder.id}
-            onClick={() => onSelectFolder(folder)}
-            className="group relative aspect-square rounded-2xl bg-zinc-900 border border-zinc-800 hover:border-sky-500/50 overflow-hidden cursor-pointer shadow-lg hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-end"
-          >
-            {/* Cover Image or Placeholder */}
-            {folder.cover_thumbnail_url ? (
-              <img
-                src={folder.cover_thumbnail_url}
-                alt={folder.name}
-                className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                loading="lazy"
-              />
-            ) : (
-              <div className="absolute inset-0 bg-gradient-to-tr from-zinc-900 to-zinc-800 flex items-center justify-center">
-                <Folder className="w-14 h-14 text-zinc-700 group-hover:text-sky-500 transition-colors" />
-              </div>
-            )}
+        {folders.map((folder) => {
+          const isDragOver = dragOverFolderId === folder.id;
 
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
-
-            {/* Delete Button (Hover) */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setFolderToDelete(folder);
-              }}
-              className="absolute top-2.5 right-2.5 z-10 p-2 rounded-xl bg-zinc-950/70 hover:bg-red-600 text-zinc-400 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer shadow-md"
-              title="Delete Album"
+          return (
+            <div
+              key={folder.id}
+              onClick={() => onSelectFolder(folder)}
+              onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+              onDragLeave={handleFolderDragLeave}
+              onDrop={(e) => handleFolderDrop(e, folder.id)}
+              className={`group relative aspect-square rounded-2xl bg-zinc-900 border overflow-hidden cursor-pointer shadow-lg transition-all duration-300 flex flex-col justify-end ${
+                isDragOver
+                  ? "border-sky-400 ring-4 ring-sky-500/40 scale-[1.03] shadow-2xl shadow-sky-500/30"
+                  : "border-zinc-800 hover:border-sky-500/50 hover:shadow-2xl hover:shadow-sky-500/10 hover:-translate-y-1"
+              }`}
             >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
+              {/* Cover Image or Placeholder */}
+              {folder.cover_thumbnail_url ? (
+                <img
+                  src={folder.cover_thumbnail_url}
+                  alt={folder.name}
+                  className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${
+                    isDragOver ? "scale-110" : "group-hover:scale-105"
+                  }`}
+                  loading="lazy"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-tr from-zinc-900 to-zinc-800 flex items-center justify-center">
+                  <Folder
+                    className={`w-14 h-14 transition-colors ${
+                      isDragOver ? "text-sky-400 scale-110" : "text-zinc-700 group-hover:text-sky-500"
+                    }`}
+                  />
+                </div>
+              )}
 
-            {/* Title & Count Info */}
-            <div className="relative z-10 p-3.5">
-              <h4 className="text-sm font-bold text-white truncate group-hover:text-sky-400 transition-colors">
-                {folder.name}
-              </h4>
-              <p className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-0.5">
-                <Images className="w-3 h-3 text-sky-400" />
-                <span>{folder.item_count} {folder.item_count === 1 ? "item" : "items"}</span>
-              </p>
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+
+              {/* Drag Over Active Overlay */}
+              {isDragOver && (
+                <div className="absolute inset-0 bg-sky-600/30 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20 animate-in fade-in duration-150">
+                  <ArrowDownToLine className="w-8 h-8 text-white animate-pulse mb-1" />
+                  <span className="text-xs font-bold bg-sky-500 text-white px-2.5 py-1 rounded-lg shadow-lg">
+                    Drop to Add
+                  </span>
+                </div>
+              )}
+
+              {/* Delete Button (Hover) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFolderToDelete(folder);
+                }}
+                className="absolute top-2.5 right-2.5 z-10 p-2 rounded-xl bg-zinc-950/70 hover:bg-red-600 text-white/70 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer shadow-md"
+                title="Delete Album"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Title & Count Info */}
+              <div className="relative z-10 p-3.5">
+                <h4 className="text-sm font-bold text-white truncate group-hover:text-sky-400 transition-colors">
+                  {folder.name}
+                </h4>
+                <p className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                  <Images className="w-3 h-3 text-sky-400" />
+                  <span>
+                    {folder.item_count} {folder.item_count === 1 ? "item" : "items"}
+                  </span>
+                </p>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Create Folder Modal */}
