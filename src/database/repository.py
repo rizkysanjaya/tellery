@@ -91,8 +91,10 @@ class MediaRepository:
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
+        join_sql = ""
 
         if folder_id is not None:
+            join_sql = "JOIN media_folders mf ON mf.media_id = m.id"
             where_clauses.append("mf.folder_id = ?")
             params.append(folder_id)
 
@@ -108,23 +110,15 @@ class MediaRepository:
 
         where_sql = " AND ".join(where_clauses)
 
-        count_query = f"""
-            SELECT COUNT(*) 
-            FROM media_items m
-            LEFT JOIN media_folders mf ON mf.media_id = m.id
-            WHERE {where_sql};
-        """
+        count_query = f"SELECT COUNT(*) FROM media_items m {join_sql} WHERE {where_sql};"
         fetch_query = f"""
             SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
                    m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
                    m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
                    m.date_taken, m.thumbnail_path, m.created_at,
-                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
-                   mf.folder_id as folder_id,
-                   f.name as folder_name
+                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key
             FROM media_items m
-            LEFT JOIN media_folders mf ON mf.media_id = m.id
-            LEFT JOIN folders f ON f.id = mf.folder_id
+            {join_sql}
             WHERE {where_sql}
             ORDER BY COALESCE(m.date_taken, m.created_at) DESC
             LIMIT ? OFFSET ?;
@@ -170,12 +164,10 @@ class MediaRepository:
 
     @staticmethod
     async def delete_media(media_id: int) -> bool:
-        """Soft deletes media item from SQLite catalog and removes folder associations."""
-        query_soft_delete = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
-        query_clean_folders = "DELETE FROM media_folders WHERE media_id = ?;"
+        """Soft deletes media item from SQLite catalog."""
+        query = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query_soft_delete, (media_id,))
-            await conn.execute(query_clean_folders, (media_id,))
+            cursor = await conn.execute(query, (media_id,))
             await conn.commit()
             return cursor.rowcount > 0
 
@@ -205,12 +197,12 @@ class MediaRepository:
     async def list_folders() -> list[dict[str, Any]]:
         """
         Retrieves all folders along with their item count and latest cover thumbnail.
-        Counts only active non-deleted items (COUNT(m.id)).
+        Single high-performance query utilizing B-tree indices.
         """
         query = """
             SELECT 
                 f.id, f.name, f.parent_id, f.created_at,
-                COUNT(m.id) as item_count,
+                COUNT(mf.media_id) as item_count,
                 (
                     SELECT m.thumbnail_path 
                     FROM media_items m 
@@ -247,13 +239,8 @@ class MediaRepository:
 
     @staticmethod
     async def add_media_to_folder(folder_id: int, media_ids: list[int]) -> int:
-        """
-        Moves media items to a folder (1-to-1 file manager relationship).
-        Uses atomic INSERT OR REPLACE so a media item belongs to only 1 folder at a time.
-        """
-        if not media_ids:
-            return 0
-        query = "INSERT OR REPLACE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
+        """Batch associates media items with a folder."""
+        query = "INSERT OR IGNORE INTO media_folders (folder_id, media_id) VALUES (?, ?);"
         params = [(folder_id, mid) for mid in media_ids]
         async with get_db_connection() as conn:
             cursor = await conn.executemany(query, params)

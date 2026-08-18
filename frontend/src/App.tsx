@@ -30,7 +30,6 @@ import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
 import { FolderGrid } from "./components/FolderGrid";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
-import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
 import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
@@ -82,14 +81,6 @@ export const App: React.FC = () => {
   const batchConflictPreferenceRef = useRef<{
     action: ConflictResolutionAction;
     customName?: string;
-  } | null>(null);
-
-  // Folder Move Relocation Confirmation State
-  const [pendingMove, setPendingMove] = useState<{
-    targetFolderId: number;
-    targetFolderName: string;
-    mediaIds: number[];
-    conflictedItems: MoveConflictItem[];
   } | null>(null);
 
   // Flat list of all media items in current view order
@@ -246,55 +237,17 @@ export const App: React.FC = () => {
   const handleBulkAddToFolder = async (folderId: number, mediaIds?: number[]) => {
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length === 0) return;
-
-    const targetFolder = folders.find((f) => f.id === folderId);
-    const targetFolderName = targetFolder ? targetFolder.name : "Folder";
-
-    // Check if any of the items already belong to a different folder
-    const conflictedItems: MoveConflictItem[] = [];
-    for (const id of ids) {
-      const item = flatItems.find((m) => m.id === id);
-      if (item && item.folder_id && item.folder_id !== folderId) {
-        conflictedItems.push({
-          id: item.id,
-          fileName: item.file_name,
-          currentFolderName: item.folder_name || "Folder",
-        });
-      }
-    }
-
-    if (conflictedItems.length > 0) {
-      // Prompt user with Move Confirmation Modal
-      setPendingMove({
-        targetFolderId: folderId,
-        targetFolderName,
-        mediaIds: ids,
-        conflictedItems,
-      });
-      return;
-    }
-
-    // No conflicts -> move immediately
     await addMediaToFolder(folderId, ids);
-    loadData();
-  };
-
-  const handleConfirmPendingMove = async () => {
-    if (!pendingMove) return;
-    await addMediaToFolder(pendingMove.targetFolderId, pendingMove.mediaIds);
-    setPendingMove(null);
-    loadData();
+    loadFolders();
   };
 
   const handleBulkCreateFolderAndAdd = async (name: string, mediaIds?: number[]) => {
     const created = await createFolder(name);
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length > 0) {
-      // Use handleBulkAddToFolder to check for any existing folder conflicts
-      await handleBulkAddToFolder(created.id, ids);
-    } else {
-      loadFolders();
+      await addMediaToFolder(created.id, ids);
     }
+    loadFolders();
   };
 
   const handleBulkDeleteSelected = async (mediaIds?: number[]) => {
@@ -810,18 +763,6 @@ export const App: React.FC = () => {
             }
             setActiveConflict(null);
           }}
-        />
-      )}
-
-      {/* Folder Move Relocation Confirmation Modal */}
-      {pendingMove && (
-        <MoveConfirmationModal
-          targetFolderId={pendingMove.targetFolderId}
-          targetFolderName={pendingMove.targetFolderName}
-          conflictedItems={pendingMove.conflictedItems}
-          totalSelectedCount={pendingMove.mediaIds.length}
-          onConfirm={handleConfirmPendingMove}
-          onCancel={() => setPendingMove(null)}
         />
       )}
     </div>

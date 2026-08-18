@@ -66,8 +66,6 @@ def _to_media_response(item: dict) -> MediaItemResponse:
         thumbnail_url=thumb_url,
         stream_url=f"/api/media/{item_id}/stream",
         created_at=item["created_at"],
-        folder_id=item.get("folder_id"),
-        folder_name=item.get("folder_name"),
     )
 
 
