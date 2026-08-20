@@ -3,7 +3,7 @@
  * Module: frontend/src/components/UploadManager.tsx
  * Purpose: Google Drive-style floating upload manager widget with individual per-file
  *          progress bars, byte transfer counters, processing/syncing indicators,
- *          duplicate conflict badges, collapsible panel, and completion badges.
+ *          collapsible panel, and completion badges.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: UploadManager
@@ -11,9 +11,7 @@
  * =============================================================================
  */
 
-import React, { useState, useEffect, useRef } from "react";
-import { motion } from "framer-motion";
-import confetti from "canvas-confetti";
+import React, { useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -24,7 +22,6 @@ import {
   FileVideo,
   FileImage,
   UploadCloud,
-  Copy,
 } from "lucide-react";
 import { UploadTask } from "../types";
 
@@ -40,36 +37,13 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
   onClearCompleted,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const prevInProgressRef = useRef(0);
+
+  if (tasks.length === 0) return null;
 
   const completedCount = tasks.filter((t) => t.status === "completed").length;
-  const duplicateCount = tasks.filter((t) => t.status === "duplicate").length;
   const inProgressCount = tasks.filter(
     (t) => t.status === "uploading" || t.status === "processing" || t.status === "pending"
   ).length;
-
-  // Trigger celebration confetti when all uploads finish
-  useEffect(() => {
-    if (
-      prevInProgressRef.current > 0 &&
-      inProgressCount === 0 &&
-      completedCount > 0
-    ) {
-      try {
-        confetti({
-          particleCount: 50,
-          spread: 60,
-          origin: { y: 0.85, x: 0.85 },
-          colors: ["#0ea5e9", "#38bdf8", "#6366f1", "#a855f7"],
-        });
-      } catch (e) {
-        console.error("Confetti error", e);
-      }
-    }
-    prevInProgressRef.current = inProgressCount;
-  }, [inProgressCount, completedCount]);
-
-  if (tasks.length === 0) return null;
 
   const totalLoaded = tasks.reduce((sum, t) => sum + (t.loadedBytes || 0), 0);
   const totalSize = tasks.reduce((sum, t) => sum + (t.size || 0), 0);
@@ -83,35 +57,27 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 30, scale: 0.95 }}
-      transition={{ type: "spring", stiffness: 350, damping: 25 }}
-      className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 neo-card bg-surface-base rounded-neo-lg overflow-hidden"
-    >
+    <div className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 bg-zinc-900/95 border border-zinc-800/80 rounded-2xl shadow-2xl backdrop-blur-xl overflow-hidden animate-in slide-in-from-bottom-5 duration-200">
       {/* Header Bar */}
       <div
         onClick={() => setIsCollapsed((prev) => !prev)}
-        className="flex items-center justify-between px-4 py-3 bg-surface-container-lowest border-b border-surface-container-highest cursor-pointer select-none hover:bg-surface-container transition-colors"
+        className="flex items-center justify-between px-4 py-3 bg-zinc-950/60 border-b border-zinc-800/60 cursor-pointer select-none hover:bg-zinc-800/30 transition-colors"
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-neo bg-surface-container text-primary flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-400 flex items-center justify-center shrink-0">
             {inProgressCount > 0 ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <Loader2 className="w-4 h-4 animate-spin text-sky-400" />
             ) : (
-              <UploadCloud className="w-4 h-4 text-primary" />
+              <UploadCloud className="w-4 h-4 text-sky-400" />
             )}
           </div>
           <div className="truncate">
-            <h4 className="text-xs font-bold text-on-surface truncate">
+            <h4 className="text-xs font-bold text-white truncate">
               {inProgressCount > 0
                 ? `Uploading ${inProgressCount} item${inProgressCount > 1 ? "s" : ""} (${overallPercent}%)`
-                : duplicateCount > 0
-                ? `${completedCount} uploaded • ${duplicateCount} duplicate${duplicateCount > 1 ? "s" : ""}`
                 : `${completedCount} upload${completedCount > 1 ? "s" : ""} complete`}
             </h4>
-            <p className="text-[11px] text-on-surface-variant font-mono truncate">
+            <p className="text-[11px] text-zinc-400 truncate">
               {formatBytes(totalLoaded)} of {formatBytes(totalSize)}
             </p>
           </div>
@@ -119,17 +85,17 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-          {(completedCount > 0 || duplicateCount > 0) && inProgressCount === 0 && (
+          {completedCount > 0 && inProgressCount === 0 && (
             <button
               onClick={onClearCompleted}
-              className="text-[11px] font-semibold text-on-surface-variant hover:text-primary px-1.5 py-0.5 rounded-neo hover:bg-surface-container transition-colors cursor-pointer"
+              className="text-[11px] font-semibold text-zinc-400 hover:text-sky-400 px-1.5 py-0.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
             >
               Clear
             </button>
           )}
           <button
             onClick={() => setIsCollapsed((prev) => !prev)}
-            className="p-1 text-on-surface-variant hover:text-on-surface rounded-neo hover:bg-surface-container transition-colors cursor-pointer"
+            className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
             title={isCollapsed ? "Expand" : "Collapse"}
           >
             {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -137,7 +103,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
           {inProgressCount === 0 && (
             <button
               onClick={onDismiss}
-              className="p-1 text-on-surface-variant hover:text-on-surface rounded-neo hover:bg-surface-container transition-colors cursor-pointer"
+              className="p-1 text-zinc-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               title="Close upload widget"
             >
               <X className="w-4 h-4" />
@@ -148,53 +114,43 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
 
       {/* Collapsible File List Body */}
       {!isCollapsed && (
-        <div className="max-h-64 overflow-y-auto divide-y divide-surface-container-highest p-2 space-y-1">
+        <div className="max-h-64 overflow-y-auto divide-y divide-zinc-800/40 p-2 space-y-1">
           {tasks.map((task) => {
             const isVideo = task.type.startsWith("video/");
             return (
               <div
                 key={task.id}
-                className="p-2 rounded-neo hover:bg-surface-container transition-colors space-y-1.5"
+                className="p-2 rounded-xl hover:bg-zinc-800/30 transition-colors space-y-1.5"
               >
                 {/* File Row Header */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-1.5 rounded-neo bg-surface-container-high text-on-surface-variant shrink-0">
+                    <div className="p-1.5 rounded-lg bg-zinc-800 text-zinc-300 shrink-0">
                       {isVideo ? (
-                        <FileVideo className="w-4 h-4 text-primary" />
+                        <FileVideo className="w-4 h-4 text-purple-400" />
                       ) : (
-                        <FileImage className="w-4 h-4 text-on-surface-variant" />
+                        <FileImage className="w-4 h-4 text-sky-400" />
                       )}
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-semibold text-on-surface truncate">{task.name}</p>
-                      <p className="text-[10px] text-on-surface-variant font-mono">
+                      <p className="text-xs font-semibold text-zinc-200 truncate">{task.name}</p>
+                      <p className="text-[10px] text-zinc-400 font-mono">
                         {task.status === "uploading" && (
                           <span>
                             {formatBytes(task.loadedBytes)} of {formatBytes(task.size)} • {task.progress}%
-                            {task.speedMbps && task.speedMbps > 0 ? ` • ${task.speedMbps} MB/s` : ""}
                           </span>
                         )}
                         {task.status === "processing" && (
-                          <span className="text-primary font-medium">
+                          <span className="text-sky-400 font-medium">
                             Syncing to Telegram Vault...
                           </span>
                         )}
                         {task.status === "pending" && <span>In queue...</span>}
                         {task.status === "completed" && (
-                          <span className="text-emerald-400 font-medium">{formatBytes(task.size)} • Saved in Vault</span>
-                        )}
-                        {task.status === "duplicate" && (
-                          <span className="text-glow-indigo">
-                            {task.duplicateInfo?.actionTaken === "renamed_existing"
-                              ? "Duplicate • Renamed existing"
-                              : task.duplicateInfo?.actionTaken === "alias_created"
-                              ? "Duplicate • Saved copy"
-                              : "Duplicate • Skipped upload"}
-                          </span>
+                          <span className="text-emerald-400">{formatBytes(task.size)} • Saved in Vault</span>
                         )}
                         {task.status === "error" && (
-                          <span className="text-error">{task.errorMessage || "Upload failed"}</span>
+                          <span className="text-red-400">{task.errorMessage || "Upload failed"}</span>
                         )}
                       </p>
                     </div>
@@ -203,19 +159,16 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                   {/* Status Indicator */}
                   <div className="shrink-0">
                     {(task.status === "uploading" || task.status === "processing") && (
-                      <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                      <Loader2 className="w-4 h-4 text-sky-400 animate-spin" />
                     )}
                     {task.status === "pending" && (
-                      <div className="w-2 h-2 rounded-full bg-surface-variant" />
+                      <div className="w-2 h-2 rounded-full bg-zinc-500" />
                     )}
                     {task.status === "completed" && (
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     )}
-                    {task.status === "duplicate" && (
-                      <Copy className="w-4 h-4 text-glow-indigo" />
-                    )}
                     {task.status === "error" && (
-                      <AlertCircle className="w-4 h-4 text-error" />
+                      <AlertCircle className="w-4 h-4 text-red-400" />
                     )}
                   </div>
                 </div>
@@ -224,13 +177,13 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                 {(task.status === "uploading" ||
                   task.status === "processing" ||
                   task.status === "pending") && (
-                  <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
+                  <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
                     <div
                       style={{ width: `${task.progress}%` }}
-                      className={`h-full rounded-full transition-all duration-150 bg-glow-indigo ${
+                      className={`h-full rounded-full transition-all duration-150 ${
                         task.status === "processing"
-                          ? "animate-pulse"
-                          : ""
+                          ? "bg-gradient-to-r from-sky-400 via-indigo-400 to-purple-500 animate-pulse"
+                          : "bg-gradient-to-r from-sky-400 to-indigo-500"
                       }`}
                     />
                   </div>
@@ -240,6 +193,6 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
           })}
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };

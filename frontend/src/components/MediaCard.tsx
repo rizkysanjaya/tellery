@@ -19,9 +19,8 @@ interface MediaCardProps {
   isSelected: boolean;
   isSelectionMode: boolean;
   selectedIds: Set<number>;
-  aspectMode?: "square" | "natural";
   onClick: () => void;
-  onToggleSelect: (id: number, e?: React.MouseEvent) => void;
+  onToggleSelect: (id: number) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
@@ -30,7 +29,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   isSelected,
   isSelectionMode,
   selectedIds,
-  aspectMode = "square",
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -46,23 +44,16 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Shift+Click selects a continuous range (Google Drive style)
-    if (e.shiftKey) {
-      e.preventDefault();
-      onToggleSelect(item.id, e);
-      return;
-    }
-
-    // Ctrl/Cmd+Click always toggles single item selection
+    // Ctrl/Cmd+Click always toggles selection
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      onToggleSelect(item.id, e);
+      onToggleSelect(item.id);
       return;
     }
 
     // In selection mode, clicking the card body toggles selection
     if (isSelectionMode) {
-      onToggleSelect(item.id, e);
+      onToggleSelect(item.id);
       return;
     }
 
@@ -72,7 +63,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onToggleSelect(item.id, e);
+    onToggleSelect(item.id);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -85,131 +76,83 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     e.dataTransfer.effectAllowed = "copyMove";
   };
 
-  const aspectRatioStyle: React.CSSProperties =
-    aspectMode === "natural" && item.width && item.height
-      ? { aspectRatio: `${item.width} / ${item.height}` }
-      : {};
-
-  const getFileExtension = (filename: string, mimeType: string) => {
-    const lastDot = filename.lastIndexOf(".");
-    if (lastDot !== -1 && lastDot < filename.length - 1) {
-      const ext = filename.substring(lastDot + 1).toUpperCase();
-      if (ext.length <= 4) {
-        if (ext === "JPEG") return "JPG";
-        return ext;
-      }
-    }
-    if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "JPG";
-    if (mimeType.includes("png")) return "PNG";
-    if (mimeType.includes("webp")) return "WEBP";
-    if (mimeType.includes("gif")) return "GIF";
-    if (mimeType.includes("heic")) return "HEIC";
-    if (mimeType.includes("mp4")) return "MP4";
-    if (mimeType.includes("quicktime") || mimeType.includes("mov")) return "MOV";
-    if (mimeType.includes("matroska") || mimeType.includes("mkv")) return "MKV";
-    if (mimeType.startsWith("video/")) return "VIDEO";
-    return "IMG";
-  };
-
-  const fileExt = getFileExtension(item.file_name, item.mime_type);
-
   return (
     <div
-      className={`relative group transition-transform duration-150 ease-out hover:scale-[1.02] ${
-        aspectMode === "natural" ? "w-full min-h-[140px]" : "aspect-square"
+      draggable
+      onDragStart={handleDragStart}
+      onClick={handleClick}
+      onContextMenu={(e) => onContextMenu(e, item)}
+      className={`media-card-item group relative aspect-square bg-zinc-900 rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 transform hover:-translate-y-1 ${
+        isSelected
+          ? "border-sky-500 ring-2 ring-sky-500/40 shadow-xl shadow-sky-500/15 scale-[0.97]"
+          : "border-zinc-800/60 hover:border-sky-500/50 hover:shadow-xl hover:shadow-sky-500/10"
       }`}
     >
+      {/* Selection Checkbox (top-left) */}
       <div
-        draggable
-        onDragStart={handleDragStart}
-        onClick={handleClick}
-        onContextMenu={(e) => onContextMenu(e, item)}
-        style={aspectRatioStyle}
-        className={`media-card-item neo-card bg-surface-base p-1.5 rounded-2xl h-full w-full cursor-pointer transition-all duration-150 active:scale-[0.98] ${
-          isSelected ? "ring-2 ring-primary" : ""
+        onClick={handleCheckboxClick}
+        className={`absolute top-2.5 left-2.5 z-10 w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${
+          isSelected
+            ? "bg-sky-500 border-sky-500 shadow-lg shadow-sky-500/30"
+            : isSelectionMode
+              ? "bg-zinc-900/70 border border-zinc-600 backdrop-blur-md hover:border-sky-400"
+              : "bg-zinc-900/70 border border-zinc-600 backdrop-blur-md opacity-0 group-hover:opacity-100 hover:border-sky-400"
         }`}
       >
-        <div className="relative w-full h-full rounded-xl overflow-hidden bg-surface-container">
-          {/* Selection Checkbox (top-left) */}
-          <div
-            onClick={handleCheckboxClick}
-            className={`absolute top-2.5 left-2.5 z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
-              isSelected
-                ? "bg-primary-container text-on-surface scale-105"
-                : isSelectionMode
-                  ? "neo-button hover:text-on-surface"
-                  : "neo-button opacity-0 group-hover:opacity-100 hover:text-on-surface"
-            }`}
-          >
-            {isSelected && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-          </div>
+        {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
+      </div>
 
-          {/* Selected Dimming Overlay */}
-          {isSelected && (
-            <div className="absolute inset-0 bg-primary/10 z-[1] pointer-events-none" />
-          )}
+      {/* Selected Dimming Overlay */}
+      {isSelected && (
+        <div className="absolute inset-0 bg-sky-500/10 z-[1] pointer-events-none" />
+      )}
 
-          {/* Thumbnail Image */}
-          {item.thumbnail_url ? (
-            <img
-              src={item.thumbnail_url}
-              alt={item.file_name}
-              draggable={false}
-              loading="lazy"
-              onLoad={() => setLoaded(true)}
-              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none ${
-                loaded ? "opacity-100" : "opacity-0"
-              }`}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-on-surface-variant bg-surface-container">
-              <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
-              <span className="text-[10px] truncate max-w-[80%]">
-                {item.file_name}
-              </span>
-            </div>
-          )}
+      {/* Thumbnail Image */}
+      {item.thumbnail_url ? (
+        <img
+          src={item.thumbnail_url}
+          alt={item.file_name}
+          draggable={false}
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+          className={`w-full h-full object-cover transition-all duration-500 group-hover:scale-105 pointer-events-none select-none ${
+            loaded ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 bg-zinc-900/50">
+          <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
+          <span className="text-[10px] text-zinc-500 truncate max-w-[80%]">
+            {item.file_name}
+          </span>
+        </div>
+      )}
 
-          {/* File Format Badge (top-right) */}
-          <div className="absolute top-2.5 right-2.5 z-20 pointer-events-none">
-            <div className="bg-surface-container text-on-surface-variant px-2 py-0.5 rounded-full text-label-md font-semibold flex items-center shadow-sm">
-              <span className={isVideo ? "text-primary" : ""}>
-                {fileExt}
-              </span>
-            </div>
-          </div>
+      {/* Video Indicator / Play Badge */}
+      {isVideo && (
+        <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1.5 text-[11px] font-medium text-white shadow-sm border border-white/10">
+          <Play className="w-3 h-3 fill-white text-white" />
+          {item.duration_seconds ? <span>{formatDuration(item.duration_seconds)}</span> : null}
+        </div>
+      )}
 
-          {/* Video Duration Pill Badge (bottom-left corner) */}
-          {isVideo && (
-            <div className="absolute bottom-2.5 left-2.5 z-20 pointer-events-none group-hover:opacity-0 transition-opacity duration-150">
-              <div className="bg-surface-base/85 backdrop-blur-xs text-on-surface text-label-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                <Play className="w-2.5 h-2.5 fill-current shrink-0 text-primary" />
-                <span className="font-mono">
-                  {item.duration_seconds ? formatDuration(item.duration_seconds) : "Video"}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Overlay details on hover */}
-          <div className="absolute inset-0 z-10 bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
-            <span className="text-xs font-semibold text-on-surface truncate">
-              {item.file_name}
+      {/* Overlay details on hover */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
+        <p className="text-xs font-semibold text-white truncate drop-shadow-sm">
+          {item.file_name}
+        </p>
+        <div className="flex items-center gap-2 text-[10px] text-zinc-300 mt-0.5">
+          {item.camera_model && (
+            <span className="flex items-center gap-1">
+              <Camera className="w-3 h-3 text-sky-400" />
+              {item.camera_model}
             </span>
-            <div className="flex items-center gap-2 text-[10px] text-on-surface-variant mt-0.5">
-              {item.camera_model && (
-                <span className="flex items-center gap-1 font-sans">
-                  <Camera className="w-3 h-3 text-primary" />
-                  {item.camera_model}
-                </span>
-              )}
-              {item.width && item.height && (
-                <span>
-                  {item.width}×{item.height}
-                </span>
-              )}
-            </div>
-          </div>
+          )}
+          {item.width && item.height && (
+            <span>
+              {item.width}×{item.height}
+            </span>
+          )}
         </div>
       </div>
     </div>

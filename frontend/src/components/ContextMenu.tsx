@@ -117,13 +117,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   const screenWidth = typeof window !== "undefined" ? window.innerWidth : 1000;
   const screenHeight = typeof window !== "undefined" ? window.innerHeight : 800;
 
-  const adjustedX = Math.min(Math.max(16, position.x), screenWidth - menuWidth - 16);
-  const adjustedY = Math.min(Math.max(16, position.y), screenHeight - menuHeight - 16);
-
-  // Adaptive submenu positioning: flip left if opening rightwards would exceed screen boundary
-  const submenuWidth = 210;
-  const openSubmenuLeft = adjustedX + menuWidth + submenuWidth + 16 > screenWidth;
-  const openSubmenuUp = adjustedY + 180 > screenHeight;
+  const adjustedX = Math.min(position.x, screenWidth - menuWidth - 16);
+  const adjustedY = Math.min(position.y, screenHeight - menuHeight - 16);
 
   const handleAddToExistingFolder = async (folderId: number) => {
     setIsProcessing(true);
@@ -153,6 +148,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const handleDelete = async () => {
     if (count === 0) return;
+    const confirmMsg =
+      count === 1
+        ? `Permanently delete this item from your Telegram vault?`
+        : `Permanently delete ${count} items from your Telegram vault?`;
+    if (!window.confirm(confirmMsg)) return;
+
     setIsProcessing(true);
     try {
       await onDeleteMedia(effectiveMediaIds);
@@ -163,37 +164,35 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   };
 
   const handleDownload = () => {
-    if (!targetItem) return;
-    const a = document.createElement("a");
-    a.href = targetItem.stream_url;
-    a.download = targetItem.file_name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    if (targetItem) {
+      const a = document.createElement("a");
+      a.href = targetItem.stream_url;
+      a.download = targetItem.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
     onClose();
   };
 
   return (
     <div
       ref={menuRef}
-      style={{
-        left: `${adjustedX}px`,
-        top: `${adjustedY}px`,
-      }}
-      className="fixed z-50 w-[220px] neo-card bg-surface-base rounded-neo-lg p-1.5 text-xs text-on-surface animate-in fade-in zoom-in-95 duration-100 select-none"
+      style={{ top: `${adjustedY}px`, left: `${adjustedX}px` }}
+      className="fixed z-50 w-56 bg-zinc-900/95 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-xl p-1.5 text-xs text-zinc-200 select-none animate-in fade-in zoom-in-95 duration-100"
     >
       {targetItem ? (
         <>
-          {/* Media Card Specific Actions */}
+          {/* Card Specific Actions */}
           <button
             onClick={() => {
               onOpenItem(targetItem);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-sky-500/15 hover:text-sky-400 font-medium transition-all text-left cursor-pointer"
           >
-            <Maximize2 className="w-4 h-4 text-on-surface-variant" />
-            <span>Open Lightbox</span>
+            <Maximize2 className="w-4 h-4 text-zinc-400" />
+            <span>Open Preview</span>
           </button>
 
           <button
@@ -201,13 +200,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onToggleSelect(targetItem.id);
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-800 hover:text-white font-medium transition-all text-left cursor-pointer"
           >
-            <CheckSquare className="w-4 h-4 text-on-surface-variant" />
+            <CheckSquare className="w-4 h-4 text-zinc-400" />
             <span>{isTargetSelected ? "Deselect Item" : "Select Item"}</span>
           </button>
 
-          {/* Add/Move to Folder submenu toggle */}
+          {/* Add to Album submenu toggle */}
           <div
             className="relative"
             onMouseEnter={() => setShowAlbumSubmenu(true)}
@@ -215,25 +214,21 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             <button
               onClick={() => setShowAlbumSubmenu((p) => !p)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-zinc-800 hover:text-white font-medium transition-all text-left cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <FolderPlus className="w-4 h-4 text-on-surface-variant" />
+                <FolderPlus className="w-4 h-4 text-zinc-400" />
                 <span>
-                  {count > 1 ? `Move ${count} to Folder` : "Move to Folder"}
+                  {count > 1 ? `Add ${count} to Album` : "Add to Album"}
                 </span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
             </button>
 
-            {/* Adaptive Viewport-Aware Submenu */}
+            {/* Submenu */}
             {showAlbumSubmenu && (
-              <div
-                className={`absolute w-52 neo-card bg-surface-base rounded-neo-lg p-2 z-50 animate-in fade-in zoom-in-95 duration-100 ${
-                  openSubmenuLeft ? "right-full mr-1" : "left-full ml-1"
-                } ${openSubmenuUp ? "bottom-0" : "top-0"}`}
-              >
-                <div className="text-[11px] font-bold text-on-surface-variant px-2 py-1 border-b border-outline-variant/20 mb-1">
+              <div className="absolute top-0 left-full ml-1 w-52 bg-zinc-900 border border-zinc-700/80 rounded-2xl shadow-2xl backdrop-blur-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="text-[11px] font-bold text-zinc-400 px-2 py-1 border-b border-zinc-800 mb-1">
                   Select Album
                 </div>
                 <div className="max-h-40 overflow-y-auto space-y-0.5">
@@ -304,19 +299,19 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
           <button
             onClick={handleDownload}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-800 hover:text-white font-medium transition-all text-left cursor-pointer"
           >
-            <Download className="w-4 h-4 text-on-surface-variant" />
+            <Download className="w-4 h-4 text-zinc-400" />
             <span>Download File</span>
           </button>
 
-          <div className="h-px bg-outline-variant/20 my-1" />
+          <div className="h-px bg-zinc-800 my-1" />
 
           {/* Delete Action */}
           <button
             onClick={handleDelete}
             disabled={isProcessing}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-neo hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer disabled:opacity-50"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-red-500/15 text-red-400 hover:text-red-300 font-medium transition-all text-left cursor-pointer disabled:opacity-50"
           >
             {isProcessing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -334,9 +329,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onSelectAll();
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-800 hover:text-white font-medium transition-all text-left cursor-pointer"
           >
-            <CheckSquare className="w-4 h-4 text-on-surface-variant" />
+            <CheckSquare className="w-4 h-4 text-zinc-400" />
             <span>Select All</span>
           </button>
 
@@ -345,9 +340,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onTriggerUpload();
               onClose();
             }}
-            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-800 hover:text-white font-medium transition-all text-left cursor-pointer"
           >
-            <Upload className="w-4 h-4 text-on-surface-variant" />
+            <Upload className="w-4 h-4 text-zinc-400" />
             <span>Upload Media</span>
           </button>
 
@@ -385,7 +380,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onClick={() => setShowNewAlbumInput(true)}
               className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-zinc-800 hover:text-white font-medium transition-all text-left cursor-pointer"
             >
-              <FolderPlus className="w-4 h-4 text-on-surface-variant" />
+              <FolderPlus className="w-4 h-4 text-zinc-400" />
               <span>Create Album</span>
             </button>
           )}

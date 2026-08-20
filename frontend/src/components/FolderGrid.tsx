@@ -11,7 +11,6 @@
  */
 
 import React, { useState } from "react";
-import { motion } from "framer-motion";
 import {
   Folder,
   FolderPlus,
@@ -101,46 +100,36 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
     e.stopPropagation();
     setDragOverFolderId(null);
 
-    let rawData = e.dataTransfer.getData("application/telegallery-media");
-    if (!rawData) {
-      rawData = e.dataTransfer.getData("application/json");
-    }
-
-    if (!rawData || !onAddMediaToFolder) return;
-
     try {
-      const mediaIds: number[] = JSON.parse(rawData);
-      if (Array.isArray(mediaIds) && mediaIds.length > 0) {
-        await onAddMediaToFolder(folderId, mediaIds);
+      const rawData = e.dataTransfer.getData("application/json");
+      if (rawData && onAddMediaToFolder) {
+        const mediaIds = JSON.parse(rawData) as number[];
+        if (Array.isArray(mediaIds) && mediaIds.length > 0) {
+          await onAddMediaToFolder(folderId, mediaIds);
+        }
       }
     } catch (err) {
-      console.error("Failed to parse dragged media payload", err);
+      console.error("Failed to parse dropped media data:", err);
     }
   };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.2 }}
-      className="space-y-6 pb-20 select-none"
-    >
+    <div className="pb-16 animate-in fade-in duration-300">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant/20">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
         <div>
-          <h2 className="text-headline-lg text-on-surface font-semibold tracking-tight flex items-center gap-2.5">
-            <Folder className="w-5 h-5 text-primary" />
-            Albums
+          <h2 className="text-xl font-bold text-white flex items-center gap-2.5">
+            <Folder className="w-5 h-5 text-sky-400" />
+            Albums & Folders
           </h2>
-          <p className="text-sm text-on-surface-variant mt-0.5">
-            Organize your media into albums, collections, and highlights (drag & drop media here)
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Organize your Telegram media warehouse into custom collections (drag & drop media here)
           </p>
         </div>
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 neo-button-primary rounded-neo px-4 py-2 text-sm font-medium transition-all cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20 active:scale-95 transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>New Album</span>
@@ -153,7 +142,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
           {[...Array(6)].map((_, i) => (
             <div
               key={i}
-              className="aspect-square rounded-2xl bg-zinc-900/60 animate-pulse border border-white/[0.06]"
+              className="aspect-square rounded-2xl bg-zinc-900 animate-pulse border border-zinc-800"
             />
           ))}
         </div>
@@ -161,18 +150,18 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
       {/* Empty State */}
       {!loading && folders.length === 0 && (
-        <div className="text-center py-20 bg-zinc-900/30 rounded-3xl border border-dashed border-white/[0.08]">
+        <div className="text-center py-20 bg-zinc-900/30 rounded-3xl border border-dashed border-zinc-800">
           <FolderPlus className="w-16 h-16 text-zinc-600 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-zinc-200">No Collections Created Yet</h3>
+          <h3 className="text-base font-bold text-zinc-200">No Albums Created Yet</h3>
           <p className="text-xs text-zinc-500 mt-1 max-w-sm mx-auto">
-            Create your first collection to organize trips, events, or favorite highlights.
+            Create your first album to organize family trips, events, or favorite highlights.
           </p>
           <button
             onClick={() => setShowCreateModal(true)}
-            className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-400 text-white rounded-xl text-xs font-semibold shadow-[0_0_20px_rgba(14,165,233,0.3)] active:scale-95 transition-all cursor-pointer"
+            className="mt-5 inline-flex items-center gap-2 px-4 py-2 bg-sky-500 hover:bg-sky-600 text-white rounded-xl text-xs font-semibold shadow-lg shadow-sky-500/20 active:scale-95 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Create First Collection</span>
+            <span>Create First Album</span>
           </button>
         </div>
       )}
@@ -185,71 +174,72 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
           return (
             <div
               key={folder.id}
-              className="aspect-square transition-transform duration-150 ease-out hover:-translate-y-1 active:scale-[0.98]"
+              onClick={() => onSelectFolder(folder)}
+              onDragOver={(e) => handleFolderDragOver(e, folder.id)}
+              onDragLeave={handleFolderDragLeave}
+              onDrop={(e) => handleFolderDrop(e, folder.id)}
+              className={`group relative aspect-square rounded-2xl bg-zinc-900 border overflow-hidden cursor-pointer shadow-lg transition-all duration-300 flex flex-col justify-end ${
+                isDragOver
+                  ? "border-sky-400 ring-4 ring-sky-500/40 scale-[1.03] shadow-2xl shadow-sky-500/30"
+                  : "border-zinc-800 hover:border-sky-500/50 hover:shadow-2xl hover:shadow-sky-500/10 hover:-translate-y-1"
+              }`}
             >
-              <div
-                onClick={() => onSelectFolder(folder)}
-                onDragOver={(e) => handleFolderDragOver(e, folder.id)}
-                onDragLeave={handleFolderDragLeave}
-                onDrop={(e) => handleFolderDrop(e, folder.id)}
-                className={`folder-card-item group flex flex-col h-full w-full neo-card bg-surface-base rounded-neo-lg overflow-hidden cursor-pointer transition-all duration-200 ${
-                  isDragOver ? "ring-2 ring-primary scale-[1.03]" : "hover:scale-[1.01]"
-                }`}
+              {/* Cover Image or Placeholder */}
+              {folder.cover_thumbnail_url ? (
+                <img
+                  src={folder.cover_thumbnail_url}
+                  alt={folder.name}
+                  className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${
+                    isDragOver ? "scale-110" : "group-hover:scale-105"
+                  }`}
+                  loading="lazy"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-tr from-zinc-900 to-zinc-800 flex items-center justify-center">
+                  <Folder
+                    className={`w-14 h-14 transition-colors ${
+                      isDragOver ? "text-sky-400 scale-110" : "text-zinc-700 group-hover:text-sky-500"
+                    }`}
+                  />
+                </div>
+              )}
+
+              {/* Gradient Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+
+              {/* Drag Over Active Overlay */}
+              {isDragOver && (
+                <div className="absolute inset-0 bg-sky-600/30 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20 animate-in fade-in duration-150">
+                  <ArrowDownToLine className="w-8 h-8 text-white animate-pulse mb-1" />
+                  <span className="text-xs font-bold bg-sky-500 text-white px-2.5 py-1 rounded-lg shadow-lg">
+                    Drop to Add
+                  </span>
+                </div>
+              )}
+
+              {/* Delete Button (Hover) */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFolderToDelete(folder);
+                }}
+                className="absolute top-2.5 right-2.5 z-10 p-2 rounded-xl bg-zinc-950/70 hover:bg-red-600 text-white/70 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer shadow-md"
+                title="Delete Album"
               >
-                <div className="relative flex-1 w-full min-h-[120px] neo-image-wrapper overflow-hidden bg-surface-container">
-                  {/* Cover Image or Placeholder */}
-                  {folder.cover_thumbnail_url ? (
-                    <img
-                      src={folder.cover_thumbnail_url}
-                      alt={folder.name}
-                      className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 ${
-                        isDragOver ? "scale-110" : "group-hover:scale-105"
-                      }`}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center bg-surface-container">
-                      <Folder
-                        className={`w-12 h-12 transition-colors ${
-                          isDragOver ? "text-primary scale-110" : "text-on-surface-variant group-hover:text-primary"
-                        }`}
-                      />
-                    </div>
-                  )}
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
 
-                  {/* Drag Over Active Overlay */}
-                  {isDragOver && (
-                    <div className="absolute inset-0 bg-primary/20 backdrop-blur-xs flex flex-col items-center justify-center z-20 animate-in fade-in duration-150">
-                      <ArrowDownToLine className="w-8 h-8 text-primary animate-pulse mb-1" />
-                      <span className="text-xs font-bold bg-primary text-on-primary px-2.5 py-1 rounded-neo shadow-lg">
-                        Drop to Add
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Delete Button (hover only) */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFolderToDelete(folder);
-                    }}
-                    className="absolute top-2 right-2 p-1.5 rounded-full bg-surface-base/80 text-on-surface-variant hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shadow-sm z-10"
-                    title="Delete Album"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {/* Folder Details */}
-                <div className="p-3 sm:p-4 border-t border-outline-variant/10">
-                  <h3 className="text-sm font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
-                    {folder.name}
-                  </h3>
-                  <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant mt-1 font-mono">
-                    <Images className="w-3 h-3 text-primary" />
-                    <span>{folder.item_count} items</span>
-                  </div>
-                </div>
+              {/* Title & Count Info */}
+              <div className="relative z-10 p-3.5">
+                <h4 className="text-sm font-bold text-white truncate group-hover:text-sky-400 transition-colors">
+                  {folder.name}
+                </h4>
+                <p className="text-[11px] text-zinc-400 flex items-center gap-1.5 mt-0.5">
+                  <Images className="w-3 h-3 text-sky-400" />
+                  <span>
+                    {folder.item_count} {folder.item_count === 1 ? "item" : "items"}
+                  </span>
+                </p>
               </div>
             </div>
           );
@@ -345,6 +335,6 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };

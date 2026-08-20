@@ -64,21 +64,25 @@ async def stream_media(
     content_disp = _encode_content_disposition(item["file_name"], disposition="inline")
 
     cache_manager = get_stream_cache()
-    cache_path = cache_manager.get_cache_path(file_hash)
 
+    try:
+        cache_path = await cache_manager.ensure_cached_or_downloading(
+            message_id=message_id,
+            channel_id=channel_id,
+            file_hash=file_hash,
+            file_size=raw_file_size,
+        )
+    except Exception as e:
+        print(f"[Stream] Failed to cache stream for media {media_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve media from storage vault")
+
+    # If this is a video and the source is cached on disk, ensure it is web-compatible (H.264)
     target_stream_path = cache_path
     stream_file_size = raw_file_size
     target_mime_type = mime_type
     target_file_hash = file_hash
 
-    # Check if a web-compatible transcoded version already exists in cache
-    web_cached = cache_manager.cache_dir / f"{file_hash}_web.mp4"
-    if web_cached.exists() and web_cached.stat().st_size > 0:
-        target_stream_path = web_cached
-        stream_file_size = web_cached.stat().st_size
-        target_mime_type = "video/mp4"
-        target_file_hash = f"{file_hash}_web"
-    elif mime_type.startswith("video/") and cache_path.exists() and cache_path.stat().st_size == raw_file_size:
+    if mime_type.startswith("video/") and cache_path.exists():
         web_path = ensure_web_stream_ready(cache_path, file_hash)
         if web_path != cache_path and web_path.exists():
             target_stream_path = web_path
@@ -100,8 +104,6 @@ async def stream_media(
                 file_hash=target_file_hash,
                 start=0,
                 end=stream_file_size - 1,
-                message_id=message_id,
-                channel_id=channel_id,
             ),
             status_code=status.HTTP_200_OK,
             headers=headers,
@@ -144,8 +146,6 @@ async def stream_media(
             file_hash=target_file_hash,
             start=start,
             end=end,
-            message_id=message_id,
-            channel_id=channel_id,
         ),
         status_code=status.HTTP_206_PARTIAL_CONTENT,
         headers=headers,

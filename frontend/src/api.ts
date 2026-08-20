@@ -1,14 +1,12 @@
 /**
  * =============================================================================
  * Module: frontend/src/api.ts
- * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions,
- *          albums/folders, and Telegram Channel sync operations.
+ * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions, and albums/folders.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile,
  *                deleteMediaItem, fetchFolders, createFolder, deleteFolder,
- *                addMediaToFolder, removeMediaFromFolder, fetchMediaFolders,
- *                triggerVaultSync, fetchSyncStatus
+ *                addMediaToFolder, removeMediaFromFolder, fetchMediaFolders
  * Side Effects: Executes HTTP requests to backend REST API.
  * =============================================================================
  */
@@ -22,13 +20,11 @@ export async function fetchTimeline(
   limit: number = 50,
   filterType: FilterType = "all",
   searchQuery: string = "",
-  folderId?: number | null,
-  sortBy: string = "date_desc"
+  folderId?: number | null
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
-    sort_by: sortBy,
   });
 
   if (filterType !== "all") {
@@ -68,77 +64,30 @@ export async function fetchMediaItem(id: number): Promise<MediaItem> {
 
 export function uploadMediaFile(
   file: File,
-  onProgress?: (progressPercent: number, loadedBytes: number, totalBytes: number, speedMbps?: number) => void,
+  onProgress?: (progressPercent: number, loadedBytes: number, totalBytes: number) => void,
   onProcessing?: () => void
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
-    const uploadId = "upl_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
     formData.append("file", file);
-    formData.append("upload_id", uploadId);
 
-    let pollInterval: any = null;
-    let isFinished = false;
-
-    const stopPolling = () => {
-      isFinished = true;
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
-    };
-
-    let maxReportedBytes = 0;
-
-    // 1. Initial browser-to-server spool progress
-    xhr.upload.addEventListener("progress", () => {
-      if (isFinished) return;
-      if (onProgress) {
-        onProgress(1, 0, file.size, 0);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        // Scale browser-to-server progress to 0-95%
+        const percent = Math.min(95, Math.round((e.loaded / e.total) * 100));
+        onProgress(percent, e.loaded, e.total);
       }
     });
 
-    // 2. Actively poll real-time MTProto upload to Telegram Cloud
     xhr.upload.addEventListener("load", () => {
-      if (isFinished) return;
       if (onProcessing) {
         onProcessing();
       }
-
-      pollInterval = setInterval(async () => {
-        if (isFinished) {
-          stopPolling();
-          return;
-        }
-        try {
-          const res = await fetch(`${API_BASE}/api/media/upload/progress/${uploadId}`);
-          if (isFinished) return;
-          if (res.ok) {
-            const data = await res.json();
-            if (isFinished) return;
-            if (data.status === "uploading_to_telegram" && onProgress) {
-              const currentBytes = Math.max(maxReportedBytes, data.bytes_uploaded || 0);
-              maxReportedBytes = currentBytes;
-              const percent = Math.min(99, Math.max(1, Math.round((currentBytes / file.size) * 100)));
-              onProgress(
-                percent,
-                currentBytes,
-                file.size,
-                data.speed_mbps || 0
-              );
-            }
-          }
-        } catch {}
-      }, 200);
     });
 
     xhr.addEventListener("load", () => {
-      stopPolling();
       if (xhr.status >= 200 && xhr.status < 300) {
-        if (onProgress) {
-          onProgress(100, file.size, file.size, 0);
-        }
         try {
           const res = JSON.parse(xhr.responseText);
           resolve(res);
@@ -156,12 +105,10 @@ export function uploadMediaFile(
     });
 
     xhr.addEventListener("error", () => {
-      stopPolling();
       reject(new Error("Network error during upload"));
     });
 
     xhr.addEventListener("abort", () => {
-      stopPolling();
       reject(new Error("Upload aborted"));
     });
 
@@ -237,32 +184,6 @@ export async function removeMediaFromFolder(folderId: number, mediaId: number): 
   return response.json();
 }
 
-export async function renameMediaItem(mediaId: number, newName: string): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/media/${mediaId}/rename`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ new_name: newName }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to rename media item: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function createMediaAlias(mediaId: number, newName: string): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/media/${mediaId}/alias`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ new_name: newName }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to create duplicate alias: ${response.statusText}`);
-  }
-  return response.json();
-}
-
 export async function fetchMediaFolders(mediaId: number): Promise<FolderItem[]> {
   const response = await fetch(`${API_BASE}/api/media/${mediaId}/folders`);
   if (!response.ok) {
@@ -270,51 +191,3 @@ export async function fetchMediaFolders(mediaId: number): Promise<FolderItem[]> 
   }
   return response.json();
 }
-
-export async function triggerVaultSync(fullScan: boolean = false, limit: number = 200): Promise<{
-  status: string;
-  message: string;
-  stats: {
-    scanned: number;
-    added: number;
-    skipped: number;
-    duration_seconds: number;
-    started_at: string;
-  };
-}> {
-  const response = await fetch(`${API_BASE}/api/sync`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ full_scan: fullScan, limit }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to synchronize vault: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function fetchSyncStatus(): Promise<{
-  is_syncing: boolean;
-  listener_active: boolean;
-  last_sync_time: string | null;
-  last_sync_stats: any;
-}> {
-  const response = await fetch(`${API_BASE}/api/sync/status`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch sync status: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function updateMediaMetadata(
-  mediaId: number,
-  metadata: { duration_seconds?: number; width?: number; height?: number }
-): Promise<void> {
-  await fetch(`${API_BASE}/api/media/${mediaId}/metadata`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(metadata),
-  });
-}
-

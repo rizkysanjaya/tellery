@@ -3,33 +3,38 @@
  * Module: frontend/src/components/MediaLightbox.tsx
  * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
  *          zoomable viewport, album/folder assignment manager, and permanent deletion controls.
- *          Updated to match Silk Cloud dark neomorphic design system.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/api.ts, frontend/src/components/VideoPlayer.tsx
  * Public Members: MediaLightbox
- * Side Effects: Listens for window keydown events, executes deletion over HTTP.
+ * Side Effects: Listens for window keydown events, executes folder membership changes and deletion over HTTP.
  * =============================================================================
  */
 
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import {
+  X,
   ChevronLeft,
   ChevronRight,
   Info,
   Download,
+  Calendar,
+  Camera,
+  Maximize2,
+  HardDrive,
+  FileCode,
   Trash2,
   AlertTriangle,
   Loader2,
+  FolderPlus,
   Check,
-  ArrowLeft,
-  Share2,
 } from "lucide-react";
-import { MediaItem } from "../types";
+import { FolderItem, MediaItem } from "../types";
+import { addMediaToFolder, fetchMediaFolders, removeMediaFromFolder } from "../api";
 import { VideoPlayer } from "./VideoPlayer";
 
 interface MediaLightboxProps {
   item: MediaItem;
+  allFolders: FolderItem[];
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -40,6 +45,7 @@ interface MediaLightboxProps {
 
 export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   item,
+  allFolders,
   onClose,
   onPrev,
   onNext,
@@ -47,27 +53,38 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   hasNext,
   onDelete,
 }) => {
-  const [showInfo, setShowInfo] = useState(true);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const [assignedFolderIds, setAssignedFolderIds] = useState<number[]>([]);
+  const [loadingFolders, setLoadingFolders] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [copied, setCopied] = useState(false);
   const isVideo = item.mime_type.startsWith("video/");
 
-  const handleCopyLink = async () => {
-    try {
-      const fullUrl = `${window.location.origin}${item.stream_url}`;
-      await navigator.clipboard.writeText(fullUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
-    }
-  };
+  // Load assigned folders for current media item
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingFolders(true);
+    fetchMediaFolders(item.id)
+      .then((folders) => {
+        if (isMounted) {
+          setAssignedFolderIds(folders.map((f) => f.id));
+          setLoadingFolders(false);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        if (isMounted) setLoadingFolders(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [item.id]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showDeleteConfirm) return;
+      if (showDeleteConfirm || showFolderMenu) return;
       if (e.key === "Escape") onClose();
       if (!isVideo) {
         if (e.key === "ArrowLeft" && hasPrev) onPrev();
@@ -78,40 +95,42 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasPrev, hasNext, isVideo, onClose, onPrev, onNext, showDeleteConfirm]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm, showFolderMenu, isVideo]);
+
+  const handleToggleFolder = async (folderId: number) => {
+    const isAssigned = assignedFolderIds.includes(folderId);
+    if (isAssigned) {
+      setAssignedFolderIds((prev) => prev.filter((id) => id !== folderId));
+      await removeMediaFromFolder(folderId, item.id).catch(console.error);
+    } else {
+      setAssignedFolderIds((prev) => [...prev, folderId]);
+      await addMediaToFolder(folderId, [item.id]).catch(console.error);
+    }
+  };
 
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
       await onDelete(item.id);
-      setShowDeleteConfirm(false);
-      onClose();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to delete media item.");
     } finally {
       setIsDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
   const formatBytes = (bytes: number) => {
     if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
     if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${bytes} B`;
   };
 
   const formatDate = (iso: string | null) => {
-    if (!iso) return "Unknown Date";
+    if (!iso) return "Unknown";
     try {
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return iso;
-      return d.toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+      return new Date(iso).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
       });
     } catch {
       return iso;
@@ -119,196 +138,269 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 bg-background/95 flex flex-col select-none font-sans text-on-surface"
-    >
+    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col select-none animate-in fade-in duration-200">
       {/* Top Action Bar */}
-      <header className="w-full flex justify-between items-center px-6 py-4 bg-surface-base/90 backdrop-blur-md border-b border-outline-variant/10 z-10">
-        <div className="flex items-center gap-3 min-w-0">
+      <div className="flex items-center justify-between px-4 lg:px-6 py-3.5 bg-gradient-to-b from-black/80 to-transparent z-10">
+        <div className="flex items-center gap-3">
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shrink-0"
-            title="Back (Esc)"
+            className="p-2 rounded-full hover:bg-white/10 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+            title="Close (Esc)"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
-          
-          <span className="text-sm font-semibold text-on-surface truncate">
-            {item.file_name}
-          </span>
+          <div className="truncate max-w-[180px] sm:max-w-md">
+            <h3 className="text-sm font-semibold text-white truncate">{item.file_name}</h3>
+            <p className="text-xs text-zinc-400">{formatDate(item.date_taken)}</p>
+          </div>
         </div>
 
-        <div className="flex gap-2 items-center">
+        <div className="flex items-center gap-2 relative">
+          {/* Add to Album / Folder Menu Button */}
+          <button
+            onClick={() => setShowFolderMenu((prev) => !prev)}
+            className={
+              showFolderMenu
+                ? "p-2 rounded-full bg-sky-500 text-white transition-colors cursor-pointer"
+                : "p-2 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            }
+            title="Organize in Albums"
+          >
+            <FolderPlus className="w-5 h-5" />
+          </button>
+
+          {/* Folder Assignment Dropdown */}
+          {showFolderMenu && (
+            <div className="absolute right-24 top-12 w-64 bg-zinc-900 border border-zinc-800 rounded-2xl p-3 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-zinc-800">
+                <span className="text-xs font-bold text-white">Add to Albums</span>
+                <button
+                  onClick={() => setShowFolderMenu(false)}
+                  className="p-1 text-zinc-400 hover:text-white cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {loadingFolders ? (
+                <div className="py-4 text-center">
+                  <Loader2 className="w-4 h-4 text-sky-400 animate-spin mx-auto" />
+                </div>
+              ) : allFolders.length === 0 ? (
+                <p className="text-xs text-zinc-500 py-3 text-center">No albums created yet.</p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-1">
+                  {allFolders.map((folder) => {
+                    const isChecked = assignedFolderIds.includes(folder.id);
+                    return (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleToggleFolder(folder.id)}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
+                          isChecked
+                            ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                            : "text-zinc-300 hover:bg-zinc-800"
+                        }`}
+                      >
+                        <span className="truncate">{folder.name}</span>
+                        {isChecked && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Download Original */}
+          <a
+            href={item.stream_url}
+            download={item.file_name}
+            className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            title="Download Original"
+          >
+            <Download className="w-5 h-5" />
+          </a>
+
+          {/* Delete Media */}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="p-2 rounded-full text-zinc-300 hover:text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
+            title="Delete Media"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+
+          {/* Toggle EXIF Drawer */}
           <button
             onClick={() => setShowInfo((prev) => !prev)}
-            className={`w-10 h-10 rounded-full neo-button flex items-center justify-center transition-colors cursor-pointer ${
-              showInfo ? "text-primary neo-pressed" : "text-on-surface hover:text-primary"
-            }`}
-            title="Toggle Info Panel (i)"
+            className={
+              showInfo
+                ? "p-2 rounded-full bg-sky-500 text-white transition-colors cursor-pointer"
+                : "p-2 rounded-full text-zinc-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            }
+            title="Toggle Metadata Info (I)"
           >
             <Info className="w-5 h-5" />
           </button>
         </div>
-      </header>
+      </div>
 
-      {/* Main Content Canvas */}
-      <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden">
-        {/* Image/Video Container */}
-        <div className="flex-1 p-2 md:p-6 flex items-center justify-center relative bg-surface-container-lowest overflow-hidden">
+      {/* Main Content Area */}
+      <div className="relative flex-1 flex items-center justify-center overflow-hidden">
+        {/* Navigation Arrows */}
+        {hasPrev && (
+          <button
+            onClick={onPrev}
+            className="absolute left-4 z-20 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 cursor-pointer"
+            title="Previous (Left Arrow)"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        )}
+        {hasNext && (
+          <button
+            onClick={onNext}
+            className="absolute right-4 z-20 p-3 rounded-full bg-black/50 hover:bg-black/80 text-white/80 hover:text-white backdrop-blur-md border border-white/10 transition-all hover:scale-105 cursor-pointer"
+            title="Next (Right Arrow)"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        )}
+
+        {/* Media Renderer */}
+        <div className="w-full h-full flex items-center justify-center p-4">
           {isVideo ? (
-            <div className="w-full h-full flex items-center justify-center">
-              <VideoPlayer item={item} />
-            </div>
+            <VideoPlayer item={item} />
           ) : (
-            <div className="relative max-w-5xl max-h-[88vh] rounded-neo-xl neo-raised p-2 bg-surface-base flex items-center justify-center">
-              <div className="w-full h-full rounded-neo-lg overflow-hidden neo-pressed bg-surface-container-highest relative flex items-center justify-center">
-                <motion.img
-                  key={item.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                  src={item.stream_url}
-                  alt={item.file_name}
-                  className="object-contain max-h-[84vh] w-auto max-w-full rounded-neo-lg shadow-inner z-0"
-                />
-              </div>
-            </div>
+            <img
+              src={item.stream_url}
+              alt={item.file_name}
+              className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl transition-all"
+            />
           )}
-
-          {/* Navigation Arrows */}
-          {hasPrev && (
-            <button
-              onClick={onPrev}
-              className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors z-20 cursor-pointer"
-              title="Previous (Left Arrow)"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
-          )}
-          {hasNext && (
-            <button
-              onClick={onNext}
-              className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors z-20 cursor-pointer"
-              title="Next (Right Arrow)"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
-          )}
-
-          {/* Delete Confirmation Modal Overlay */}
-          <AnimatePresence>
-            {showDeleteConfirm && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-              >
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="max-w-sm w-full bg-surface-base rounded-neo-xl p-6 neo-card text-center space-y-4 border border-outline-variant/15"
-                >
-                  <div className="w-12 h-12 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mx-auto shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
-                    <AlertTriangle className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="text-base font-bold text-on-surface">Delete Media Item?</h4>
-                    <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                      This will permanently delete <span className="text-on-surface font-semibold">{item.file_name}</span>.
-                    </p>
-                  </div>
-                  <div className="flex items-center justify-end gap-2 pt-2">
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      disabled={isDeleting}
-                      className="flex-1 px-4 py-2 neo-button rounded-neo-lg text-on-surface text-xs font-semibold transition-all cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      disabled={isDeleting}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 active:scale-95 disabled:opacity-50 rounded-neo-lg text-xs font-semibold transition-all cursor-pointer"
-                    >
-                      {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                      <span>{isDeleting ? "Deleting..." : "Delete"}</span>
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
-        {/* Info Panel (Right Side Desktop / Bottom Mobile) */}
-        <aside className={`w-full md:w-80 bg-surface-base flex-col gap-6 p-6 neo-raised md:shadow-[-6px_0_12px_rgba(0,0,0,0.05)] z-10 shrink-0 overflow-y-auto ${showInfo ? 'flex' : 'hidden md:flex'}`}>
-          {/* File Meta */}
-          <div className="flex flex-col gap-1 px-2">
-            <h2 className="text-xl font-semibold text-on-surface break-words">{item.file_name}</h2>
-            <p className="text-sm text-on-surface-variant">{formatDate(item.date_taken)} • {formatBytes(item.file_size)}</p>
-          </div>
-
-          {/* Action Grid (Download, Copy Link, Delete) */}
-          <div className="grid grid-cols-3 gap-3 mt-2">
-            <a
-              href={item.stream_url}
-              download={item.file_name}
-              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
-            >
-              <Download className="w-4 h-4" />
-              <span className="text-xs font-semibold">Download</span>
-            </a>
-            <button
-              onClick={handleCopyLink}
-              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
-            >
-              {copied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
-              <span className="text-xs font-semibold">{copied ? "Copied!" : "Share"}</span>
-            </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="text-xs font-semibold">Delete</span>
-            </button>
-          </div>
-
-          {/* Details Section */}
-          <div className="mt-auto md:mt-6 rounded-neo-xl bg-surface-container-low p-4 neo-pressed border border-white/[0.02]">
-            <h3 className="text-sm font-semibold text-on-surface mb-3 flex items-center gap-2">
-              <Info className="w-4 h-4 text-primary" /> Details
-            </h3>
-            <div className="space-y-3 text-sm">
-              {(item.camera_make || item.camera_model) && (
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Camera</span>
-                  <span className="text-on-surface font-medium text-right max-w-[120px] truncate">
-                    {[item.camera_make, item.camera_model].filter(Boolean).join(" ")}
-                  </span>
-                </div>
-              )}
-              {item.width && item.height && (
-                <div className="flex justify-between">
-                  <span className="text-on-surface-variant">Resolution</span>
-                  <span className="text-on-surface font-medium">{item.width} × {item.height}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-on-surface-variant">Format</span>
-                <span className="text-on-surface font-medium uppercase">{item.mime_type.split('/').pop()}</span>
+        {/* Delete Confirmation Modal Overlay */}
+        {showDeleteConfirm && (
+          <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="max-w-sm w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl text-center space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-white">Delete Media Item?</h4>
+                <p className="text-xs text-zinc-400 mt-1">
+                  This will permanently delete <span className="text-zinc-200 font-semibold">{item.file_name}</span> from your Telegram Vault storage channel and local database.
+                </p>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-zinc-200 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 active:scale-95 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-lg shadow-red-600/20 transition-all cursor-pointer"
+                >
+                  {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  <span>{isDeleting ? "Deleting..." : "Delete"}</span>
+                </button>
               </div>
             </div>
           </div>
-        </aside>
-      </main>
-    </motion.div>
+        )}
+
+        {/* EXIF & Technical Metadata Drawer */}
+        {showInfo && (
+          <aside className="absolute right-0 top-0 bottom-0 w-80 bg-zinc-900/95 backdrop-blur-xl border-l border-zinc-800 p-6 overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-200">
+            <div className="flex items-center justify-between pb-4 border-b border-zinc-800">
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <Info className="w-4 h-4 text-sky-400" />
+                Technical Metadata
+              </h4>
+              <button
+                onClick={() => setShowInfo(false)}
+                className="p-1 rounded-lg hover:bg-zinc-800 text-zinc-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="mt-6 space-y-5 text-xs">
+              {/* Date Taken */}
+              <div>
+                <span className="text-zinc-500 font-medium flex items-center gap-1.5 mb-1">
+                  <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                  Date Captured
+                </span>
+                <p className="text-zinc-200 font-semibold">{formatDate(item.date_taken)}</p>
+              </div>
+
+              {/* Camera Model */}
+              {(item.camera_make || item.camera_model) && (
+                <div>
+                  <span className="text-zinc-500 font-medium flex items-center gap-1.5 mb-1">
+                    <Camera className="w-3.5 h-3.5 text-sky-400" />
+                    Camera Device
+                  </span>
+                  <p className="text-zinc-200 font-semibold">
+                    {[item.camera_make, item.camera_model].filter(Boolean).join(" ")}
+                  </p>
+                </div>
+              )}
+
+              {/* Dimensions */}
+              {item.width && item.height && (
+                <div>
+                  <span className="text-zinc-500 font-medium flex items-center gap-1.5 mb-1">
+                    <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
+                    Resolution
+                  </span>
+                  <p className="text-zinc-200 font-semibold">
+                    {item.width} × {item.height} px
+                  </p>
+                </div>
+              )}
+
+              {/* File Size */}
+              <div>
+                <span className="text-zinc-500 font-medium flex items-center gap-1.5 mb-1">
+                  <HardDrive className="w-3.5 h-3.5 text-sky-400" />
+                  File Size
+                </span>
+                <p className="text-zinc-200 font-semibold">{formatBytes(item.file_size)}</p>
+              </div>
+
+              {/* MIME Type */}
+              <div>
+                <span className="text-zinc-500 font-medium flex items-center gap-1.5 mb-1">
+                  <FileCode className="w-3.5 h-3.5 text-sky-400" />
+                  Format / MIME
+                </span>
+                <p className="text-zinc-200 font-semibold font-mono">{item.mime_type}</p>
+              </div>
+
+              {/* Storage Info */}
+              <div className="pt-4 border-t border-zinc-800">
+                <span className="text-[11px] text-zinc-500 uppercase tracking-wider font-bold">
+                  Storage Backend
+                </span>
+                <div className="mt-2 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800/80">
+                  <p className="text-sky-400 font-semibold">Telegram MTProto Vault</p>
+                  <p className="text-[11px] text-zinc-400 mt-0.5">
+                    Original uncompressed raw document
+                  </p>
+                </div>
+              </div>
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
   );
 };
