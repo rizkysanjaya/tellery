@@ -21,7 +21,7 @@ import imageio_ffmpeg
 
 def get_video_codec(file_path: Union[str, Path]) -> str:
     """
-    Detects the FourCC video stream codec using OpenCV.
+    Detects the FourCC video stream codec using OpenCV with FFmpeg stream inspection fallback.
     Returns lowercase codec string (e.g. 'h264', 'hevc', 'avc1', 'vp09', etc.).
     """
     path_obj = Path(file_path)
@@ -31,36 +31,75 @@ def get_video_codec(file_path: Union[str, Path]) -> str:
     cap = None
     try:
         cap = cv2.VideoCapture(str(path_obj))
-        if not cap.isOpened():
-            return "unknown"
-        fourcc_int = int(cap.get(cv2.CAP_PROP_FOURCC))
-        if fourcc_int <= 0:
-            return "unknown"
-        codec = "".join([chr((fourcc_int >> 8 * i) & 0xFF) for i in range(4)]).lower().strip()
-        return codec
+        if cap.isOpened():
+            fourcc_int = int(cap.get(cv2.CAP_PROP_FOURCC))
+            if fourcc_int > 0:
+                codec = "".join([chr((fourcc_int >> 8 * i) & 0xFF) for i in range(4)]).lower().strip()
+                if codec and codec != "unknown":
+                    return codec
     except Exception:
-        return "unknown"
+        pass
     finally:
         if cap is not None:
             cap.release()
 
+    # Fallback to direct FFmpeg probe if OpenCV returns unknown
+    try:
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        res = subprocess.run(
+            [ffmpeg_exe, "-i", str(path_obj)],
+            stderr=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            text=True,
+            timeout=5,
+        )
+        output = res.stderr.lower()
+        if "hevc" in output or "h.265" in output:
+            return "hevc"
+        if "h264" in output or "avc" in output:
+            return "h264"
+        if "prores" in output:
+            return "prores"
+        if "vp9" in output:
+            return "vp90"
+        if "vp8" in output:
+            return "vp80"
+        if "av1" in output:
+            return "av01"
+    except Exception:
+        pass
+
+    return "unknown"
+
 
 def is_web_compatible(file_path: Union[str, Path]) -> bool:
     """
-    Returns True if the video is encoded with a universal browser-compatible codec (H.264 / AVC).
-    Returns False for HEVC/H.265, ProRes, VC1, MPEG-2, or unknown codecs requiring transcoding.
+    Returns True if the video is encoded with a universal browser-compatible codec (H.264 / AVC)
+    and does not exceed browser hardware decoding dimension limits (e.g. 2160x3840 vertical 4K).
     """
     codec = get_video_codec(file_path)
-
-    # Universally supported web codecs across all modern browsers
-    web_codecs = {"h264", "avc1", "avc3", "vp80", "vp90", "av01", "mp4v"}
-    if codec in web_codecs:
-        return True
 
     # Incompatible codecs that freeze on Windows/Android/iOS browsers
     incompatible_codecs = {"hevc", "hvc1", "hev1", "apcn", "apch", "ap4h", "ap4x", "prores"}
     if codec in incompatible_codecs:
         return False
+
+    # Check for oversized vertical 4K dimensions (height > 2160) which crash browser GPU decoders on seek
+    try:
+        cap = cv2.VideoCapture(str(file_path))
+        if cap.isOpened():
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            cap.release()
+            if h > 2160 or w > 2160:
+                return False
+    except Exception:
+        pass
+
+    # Universally supported web codecs across all modern browsers
+    web_codecs = {"h264", "avc1", "avc3", "vp80", "vp90", "av01", "mp4v"}
+    if codec in web_codecs:
+        return True
 
     # Default to compatible if standard mp4/webm container
     suffix = Path(file_path).suffix.lower()
@@ -72,7 +111,7 @@ def transcode_to_web_h264(
     output_path: Union[str, Path],
 ) -> bool:
     """
-    Transcodes an unsupported video (HEVC/ProRes) to high-quality, fast-start H.264 MP4.
+    Transcodes an unsupported video (HEVC/ProRes/Oversized 4K) to high-quality, fast-start H.264 MP4.
     Applies +faststart for instantaneous 0ms HTTP range seek initiation.
     """
     in_file = Path(input_path)
@@ -90,6 +129,7 @@ def transcode_to_web_h264(
             ffmpeg_exe,
             "-y",
             "-i", str(in_file),
+            "-vf", "scale='min(1080,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", "22",

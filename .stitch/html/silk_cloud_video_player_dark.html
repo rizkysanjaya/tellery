@@ -1,0 +1,384 @@
+<!--
+  Screen: Silk Cloud - Video Player (Dark)
+  Project ID: 6279234504831182909
+  Screen ID: 2925907659734d3983836d3115511dc2
+  Exported from Stitch MCP
+-->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Silk Cloud - Video Player</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "tertiary": "#ffb783",
+                      "error": "#ffb4ab",
+                      "shadow-dark": "#060910",
+                      "surface-base": "#0f172a",
+                      "on-error": "#690005",
+                      "on-primary-container": "#0d0096",
+                      "surface-container-high": "#222a3d",
+                      "tertiary-fixed": "#ffdcc5",
+                      "on-error-container": "#ffdad6",
+                      "secondary-fixed": "#d8e3fb",
+                      "surface-bright": "#31394d",
+                      "on-surface-variant": "#c7c4d7",
+                      "inverse-surface": "#dae2fd",
+                      "on-tertiary-fixed": "#301400",
+                      "tertiary-container": "#d97721",
+                      "on-secondary-fixed": "#111c2d",
+                      "primary-fixed": "#e1e0ff",
+                      "on-tertiary": "#4f2500",
+                      "primary-fixed-dim": "#c0c1ff",
+                      "error-container": "#93000a",
+                      "on-secondary": "#263143",
+                      "on-secondary-fixed-variant": "#3c475a",
+                      "surface-variant": "#2d3449",
+                      "secondary-fixed-dim": "#bcc7de",
+                      "on-background": "#dae2fd",
+                      "surface-container-low": "#131b2e",
+                      "primary-container": "#8083ff",
+                      "secondary-container": "#3e495d",
+                      "tertiary-fixed-dim": "#ffb783",
+                      "surface-container-highest": "#2d3449",
+                      "on-primary": "#1000a9",
+                      "surface-elevated": "#161e2e",
+                      "on-secondary-container": "#aeb9d0",
+                      "surface-container-lowest": "#060e20",
+                      "on-primary-fixed-variant": "#2f2ebe",
+                      "glow-indigo": "#818cf8",
+                      "background": "#0b1326",
+                      "outline": "#908fa0",
+                      "inverse-on-surface": "#283044",
+                      "surface": "#0b1326",
+                      "primary": "#c0c1ff",
+                      "on-primary-fixed": "#07006c",
+                      "surface-dim": "#0b1326",
+                      "surface-container": "#171f33",
+                      "inverse-primary": "#494bd6",
+                      "on-tertiary-container": "#452000",
+                      "outline-variant": "#464554",
+                      "secondary": "#bcc7de",
+                      "on-surface": "#dae2fd",
+                      "surface-tint": "#c0c1ff",
+                      "on-tertiary-fixed-variant": "#703700",
+                      "shadow-light": "#1e293b"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "sm": "16px",
+                      "base": "4px",
+                      "margin-mobile": "16px",
+                      "md": "24px",
+                      "xs": "8px",
+                      "margin-desktop": "48px",
+                      "xl": "64px",
+                      "lg": "40px"
+              },
+              "fontFamily": {
+                      "body-sm": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-md": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "label-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "headline-xl": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-lg": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body-md": [
+                              "Plus Jakarta Sans"
+                      ]
+              },
+              "fontSize": {
+                      "body-sm": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "headline-md": [
+                              "24px",
+                              {
+                                      "lineHeight": "32px",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-lg": [
+                              "32px",
+                              {
+                                      "lineHeight": "40px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-md": [
+                              "12px",
+                              {
+                                      "lineHeight": "16px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "label-lg": [
+                              "14px",
+                              {
+                                      "lineHeight": "20px",
+                                      "letterSpacing": "0.05em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "headline-xl": [
+                              "40px",
+                              {
+                                      "lineHeight": "48px",
+                                      "letterSpacing": "-0.02em",
+                                      "fontWeight": "600"
+                              }
+                      ],
+                      "body-lg": [
+                              "18px",
+                              {
+                                      "lineHeight": "28px",
+                                      "fontWeight": "500"
+                              }
+                      ],
+                      "body-md": [
+                              "16px",
+                              {
+                                      "lineHeight": "24px",
+                                      "fontWeight": "500"
+                              }
+                      ]
+              }
+      },
+          },
+        }
+    </script>
+<style>
+        /* Neomorphic Utilities for Dark Theme */
+        .neo-surface {
+            background-color: theme('colors.surface-base');
+            box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .neo-inset {
+            background-color: theme('colors.surface-container-low');
+            box-shadow: inset 6px 6px 12px #060910, inset -4px -4px 10px rgba(30, 41, 59, 0.4);
+        }
+
+        .neo-button {
+            background-color: theme('colors.surface-base');
+            box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .neo-button:active, .neo-button-active {
+            background-color: theme('colors.surface-container-low');
+            box-shadow: inset 6px 6px 12px #060910, inset -4px -4px 10px rgba(30, 41, 59, 0.4);
+            transform: scale(0.98);
+        }
+        
+        .neo-button-primary {
+            background: linear-gradient(135deg, theme('colors.primary-fixed-dim'), theme('colors.primary'));
+            box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5), 0 0 15px theme('colors.glow-indigo');
+            color: theme('colors.on-primary');
+        }
+
+        /* Material Icons Setup */
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24
+        }
+        
+        .icon-filled {
+            font-variation-settings: 'FILL' 1 !important;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col font-body-md overflow-x-hidden">
+<!-- TopNavBar -->
+<nav class="bg-background dark:bg-background text-primary dark:text-primary font-headline-md text-headline-md font-body-md text-body-md w-full docked top-0 flex justify-between items-center px-gutter py-sm sticky z-50">
+<div class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-headline-lg">cloud</span>
+<span class="text-headline-md font-headline-md font-bold text-on-surface tracking-tight">Silk Cloud</span>
+</div>
+<!-- Search - Center -->
+<div class="hidden md:flex flex-1 max-w-xl mx-gutter">
+<div class="w-full neo-inset rounded-full flex items-center px-sm py-xs">
+<span class="material-symbols-outlined text-on-surface-variant mr-xs">search</span>
+<input class="w-full bg-transparent border-none focus:ring-0 text-body-md text-on-surface placeholder-on-surface-variant p-0 h-8" placeholder="Search files, folders..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="neo-button p-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-all active:shadow-[inset_6px_6px_12px_#060910,inset_-4px_-4px_10px_rgba(30,41,59,0.4)]">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="neo-button p-xs rounded-full flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-all active:shadow-[inset_6px_6px_12px_#060910,inset_-4px_-4px_10px_rgba(30,41,59,0.4)]">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+<div class="h-10 w-10 rounded-full overflow-hidden neo-surface border border-outline-variant/20 ml-xs">
+<img alt="User profile" class="w-full h-full object-cover" data-alt="A macro photography shot of a sleek, dark geometric sphere with glowing blue neon accents, set against a matte black studio background with subtle soft side lighting, creating a premium high-tech avatar aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAlcQsaJlJP6GhzAH5mjNLvaH-0lKoOdKaNbo6-9-gr9UmR2JsEtrpkVAaASOVZo7db-y9IxuprM-TARE8J3gDUW1c_WYf-eHueFmcsigxKZqpVbdyIY6g-MhPQQ_4iEjsvg31jeQ62v5xAvAl55lWNb_cjyD9VpMN3j2g65-_EUqoHXS8w6jPUomEZWh7qooZYW3MAnucqAMA9R5pILDzFJQaIlDZhaKA05bIK8oYjc3i6JkM6_RF"/>
+</div>
+</div>
+</nav>
+<!-- Main Layout -->
+<div class="flex flex-1 overflow-hidden relative">
+<!-- SideNavBar -->
+<aside class="bg-background dark:bg-background text-primary dark:text-primary font-label-lg text-label-lg font-body-sm text-body-sm h-screen w-64 docked left-0 flex flex-col p-sm space-y-md border-r border-outline-variant/10 shadow-[10px_10px_20px_#060910] hidden md:flex z-40 relative">
+<nav class="flex-1 space-y-xs mt-md">
+<a class="flex items-center gap-sm p-sm rounded-xl text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="image">image</span>
+<span>Photos</span>
+</a>
+<a class="flex items-center gap-sm p-sm rounded-xl bg-surface-container-high text-primary shadow-[inset_6px_6px_12px_#060910,inset_-4px_-4px_10px_rgba(30,41,59,0.4)]" href="#">
+<span class="material-symbols-outlined icon-filled" data-icon="library_books">library_books</span>
+<span>Albums</span>
+</a>
+<a class="flex items-center gap-sm p-sm rounded-xl text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="share">share</span>
+<span>Sharing</span>
+</a>
+<a class="flex items-center gap-sm p-sm rounded-xl text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="cloud">cloud</span>
+<span>Storage</span>
+</a>
+</nav>
+<div class="mt-auto pt-md border-t border-outline-variant/20 space-y-xs">
+<a class="flex items-center gap-sm p-sm rounded-xl text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+<span>Help</span>
+</a>
+<a class="flex items-center gap-sm p-sm rounded-xl text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+<span>Trash</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col p-margin-mobile md:p-margin-desktop overflow-y-auto">
+<!-- Context Header -->
+<div class="flex items-center gap-sm mb-lg">
+<button class="neo-button h-10 w-10 rounded-full flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Design_System_Review_Q3.mp4</h1>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Shared Album • Uploaded 2 days ago</p>
+</div>
+</div>
+<!-- Video Player Container -->
+<div class="neo-surface rounded-xl p-md flex-1 flex flex-col max-w-5xl mx-auto w-full">
+<!-- Video Screen -->
+<div class="neo-inset rounded-lg overflow-hidden flex-1 relative bg-black aspect-video flex items-center justify-center">
+<img alt="Video Content" class="w-full h-full object-cover opacity-80" data-alt="A sleek, modern dark mode digital dashboard interface concept art, displaying abstract data visualizations and geometric network patterns glowing in subtle neon blue and purple against a deep obsidian background, high resolution, professional UX design aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCytY6QO7ICSY3pLsd7gJrGkAGndW5oM1RqtMB1rJOnfEg08JJ1NW6_LmtH268OeopxIslFfnazE-De6xQbi_0eylOXCFixVuIL7tGnr63P05OHOnLBSsJE051Np7qqJpcDzdnDGp-qvTGqWCg8cYLJn5BKLBXjIhqNtNls9819VsekQ7hT6_OGAvPi_U6XXxiJNpm1VSm_kvu6zyCwKwqWa0Xn2CfdIeCJ-M1Pq9wuKB3BoXMfI_KT"/>
+<!-- Overlay Play Button -->
+<button class="absolute inset-0 m-auto h-20 w-20 neo-button rounded-full flex items-center justify-center bg-surface-base/80 backdrop-blur-sm group">
+<span class="material-symbols-outlined text-5xl text-primary pl-1 group-hover:scale-110 transition-transform">play_arrow</span>
+</button>
+<!-- Top Overlay Info -->
+<div class="absolute top-0 left-0 right-0 p-sm bg-gradient-to-b from-black/60 to-transparent flex justify-end">
+<span class="bg-surface-base/80 backdrop-blur-md px-sm py-1 rounded-full font-label-md text-label-md text-on-surface">1080p HD</span>
+</div>
+</div>
+<!-- Controls Area -->
+<div class="pt-lg flex flex-col gap-md">
+<!-- Progress Bar -->
+<div class="flex items-center gap-sm w-full">
+<span class="font-label-md text-label-md text-on-surface-variant w-12 text-right">02:14</span>
+<div class="flex-1 neo-inset h-3 rounded-full relative cursor-pointer">
+<div class="absolute left-0 top-0 bottom-0 w-1/3 bg-primary rounded-full shadow-[0_0_8px_rgba(192,193,255,0.4)]"></div>
+<div class="absolute left-1/3 top-1/2 -translate-y-1/2 -ml-2 h-4 w-4 rounded-full bg-white shadow-[0_0_10px_rgba(0,0,0,0.5)]"></div>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant w-12">14:30</span>
+</div>
+<!-- Bottom Controls Bar -->
+<div class="flex items-center justify-between">
+<!-- Left Controls -->
+<div class="flex items-center gap-sm">
+<button class="neo-button h-12 w-12 rounded-full flex items-center justify-center text-on-surface hover:text-primary">
+<span class="material-symbols-outlined">replay_10</span>
+</button>
+<button class="neo-button h-14 w-14 rounded-full flex items-center justify-center text-primary bg-surface-base border border-outline-variant/20 shadow-[10px_10px_20px_#060910,-5px_-5px_15px_rgba(30,41,59,0.5),inset_2px_2px_4px_rgba(255,255,255,0.05)]">
+<span class="material-symbols-outlined text-3xl icon-filled">pause</span>
+</button>
+<button class="neo-button h-12 w-12 rounded-full flex items-center justify-center text-on-surface hover:text-primary">
+<span class="material-symbols-outlined">forward_10</span>
+</button>
+</div>
+<!-- Right Controls -->
+<div class="flex items-center gap-md">
+<div class="flex items-center gap-sm hidden sm:flex">
+<span class="material-symbols-outlined text-on-surface-variant">volume_up</span>
+<div class="w-24 neo-inset h-2 rounded-full relative">
+<div class="absolute left-0 top-0 bottom-0 w-3/4 bg-on-surface-variant rounded-full"></div>
+</div>
+</div>
+<div class="h-8 w-px bg-outline-variant/30 hidden sm:block"></div>
+<button class="neo-button h-10 w-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined">closed_caption</span>
+</button>
+<button class="neo-button h-10 w-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<button class="neo-button h-10 w-10 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface">
+<span class="material-symbols-outlined">fullscreen</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Metadata Area Below Player -->
+<div class="max-w-5xl mx-auto w-full mt-lg grid grid-cols-1 md:grid-cols-3 gap-md">
+<div class="md:col-span-2 neo-surface rounded-xl p-md">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-sm">Description</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                        Review of the new components for Q3. Focus is on the updated neomorphic dark mode theme, shadow depth levels, and typography scaling across viewports.
+                    </p>
+<div class="mt-md flex gap-xs flex-wrap">
+<span class="neo-surface px-sm py-1 rounded-full font-label-md text-label-md text-primary">#design</span>
+<span class="neo-surface px-sm py-1 rounded-full font-label-md text-label-md text-primary">#UI</span>
+<span class="neo-surface px-sm py-1 rounded-full font-label-md text-label-md text-primary">#Q3</span>
+</div>
+</div>
+<div class="neo-surface rounded-xl p-md flex flex-col justify-center items-center text-center">
+<span class="material-symbols-outlined text-4xl text-on-surface-variant mb-xs">group</span>
+<h4 class="font-headline-md text-headline-md text-on-surface">Shared with 4 people</h4>
+<button class="mt-sm px-md py-xs neo-button rounded-full font-label-lg text-label-lg text-primary">Manage Access</button>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -96,14 +96,12 @@ class ArchiveService:
         # 4. Generate local WebP thumbnail (photos and videos)
         thumbnail_path = generate_thumbnail(target_path, file_hash, final_mime_type)
 
-        # 5. Populate stream cache and pre-transcode non-web videos to H.264
+        # 5. Populate stream cache for instant local playback
         cache_manager = get_stream_cache()
         cached_stream_file = cache_manager.get_cache_path(file_hash)
         if not cached_stream_file.exists() or cached_stream_file.stat().st_size != file_size:
             try:
                 shutil.copy2(target_path, cached_stream_file)
-                if final_mime_type.startswith("video/"):
-                    ensure_web_stream_ready(cached_stream_file, file_hash)
             except Exception as e:
                 print(f"[Archive] Stream cache pre-population warning: {e}")
 

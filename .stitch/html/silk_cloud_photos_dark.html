@@ -1,0 +1,316 @@
+<!--
+  Screen: Silk Cloud - Photos (Dark)
+  Project: Vanguard Modern Gallery (6279234504831182909)
+  Screen ID: 01726ad96f2246958b200ab83e5ce80a
+  Source: Stitch MCP / Stitch
+-->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Silk Cloud - Photos Timeline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "tertiary": "#ffb783",
+                        "error": "#ffb4ab",
+                        "shadow-dark": "#060910",
+                        "surface-base": "#0f172a",
+                        "on-error": "#690005",
+                        "on-primary-container": "#0d0096",
+                        "surface-container-high": "#222a3d",
+                        "tertiary-fixed": "#ffdcc5",
+                        "on-error-container": "#ffdad6",
+                        "secondary-fixed": "#d8e3fb",
+                        "surface-bright": "#31394d",
+                        "on-surface-variant": "#c7c4d7",
+                        "inverse-surface": "#dae2fd",
+                        "on-tertiary-fixed": "#301400",
+                        "tertiary-container": "#d97721",
+                        "on-secondary-fixed": "#111c2d",
+                        "primary-fixed": "#e1e0ff",
+                        "on-tertiary": "#4f2500",
+                        "primary-fixed-dim": "#c0c1ff",
+                        "error-container": "#93000a",
+                        "on-secondary": "#263143",
+                        "on-secondary-fixed-variant": "#3c475a",
+                        "surface-variant": "#2d3449",
+                        "secondary-fixed-dim": "#bcc7de",
+                        "on-background": "#dae2fd",
+                        "surface-container-low": "#131b2e",
+                        "primary-container": "#8083ff",
+                        "secondary-container": "#3e495d",
+                        "tertiary-fixed-dim": "#ffb783",
+                        "surface-container-highest": "#2d3449",
+                        "on-primary": "#1000a9",
+                        "surface-elevated": "#161e2e",
+                        "on-secondary-container": "#aeb9d0",
+                        "surface-container-lowest": "#060e20",
+                        "on-primary-fixed-variant": "#2f2ebe",
+                        "glow-indigo": "#818cf8",
+                        "background": "#0b1326",
+                        "outline": "#908fa0",
+                        "inverse-on-surface": "#283044",
+                        "surface": "#0b1326",
+                        "primary": "#c0c1ff",
+                        "on-primary-fixed": "#07006c",
+                        "surface-dim": "#0b1326",
+                        "surface-container": "#171f33",
+                        "inverse-primary": "#494bd6",
+                        "on-tertiary-container": "#452000",
+                        "outline-variant": "#464554",
+                        "secondary": "#bcc7de",
+                        "on-surface": "#dae2fd",
+                        "surface-tint": "#c0c1ff",
+                        "on-tertiary-fixed-variant": "#703700",
+                        "shadow-light": "#1e293b"
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
+                    },
+                    spacing: {
+                        gutter: "24px",
+                        sm: "16px",
+                        base: "4px",
+                        "margin-mobile": "16px",
+                        md: "24px",
+                        xs: "8px",
+                        "margin-desktop": "48px",
+                        xl: "64px",
+                        lg: "40px"
+                    },
+                    fontFamily: {
+                        "body-sm": ["Plus Jakarta Sans"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Plus Jakarta Sans"],
+                        "label-md": ["Plus Jakarta Sans"],
+                        "label-lg": ["Plus Jakarta Sans"],
+                        "headline-xl": ["Plus Jakarta Sans"],
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "body-md": ["Plus Jakarta Sans"]
+                    },
+                    fontSize: {
+                        "body-sm": ["14px", { lineHeight: "20px", fontWeight: "500" }],
+                        "headline-md": ["24px", { lineHeight: "32px", fontWeight: "600" }],
+                        "headline-lg": ["32px", { lineHeight: "40px", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "label-md": ["12px", { lineHeight: "16px", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "label-lg": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "600" }],
+                        "headline-xl": ["40px", { lineHeight: "48px", letterSpacing: "-0.02em", fontWeight: "600" }],
+                        "body-lg": ["18px", { lineHeight: "28px", fontWeight: "500" }],
+                        "body-md": ["16px", { lineHeight: "24px", fontWeight: "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body {
+            background-color: theme('colors.background');
+            color: theme('colors.on-surface');
+        }
+        
+        .neo-raised {
+            box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .neo-pressed {
+            box-shadow: inset 6px 6px 12px #060910, inset -4px -4px 10px rgba(30, 41, 59, 0.4);
+        }
+        
+        .neo-card {
+            box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5);
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            background-color: theme('colors.surface');
+        }
+
+        .neo-frame {
+            padding: 12px;
+            border-radius: theme('borderRadius.xl');
+            background: theme('colors.surface-base');
+            box-shadow: inset 6px 6px 12px #060910, inset -4px -4px 10px rgba(30, 41, 59, 0.4);
+        }
+        
+        .neo-image-wrapper {
+            position: relative;
+            border-radius: theme('borderRadius.lg');
+            overflow: hidden;
+            box-shadow: 4px 4px 10px #060910, -2px -2px 5px rgba(30, 41, 59, 0.3);
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- Side Navigation Shell (from JSON) -->
+<nav class="hidden md:flex flex-col h-screen w-64 docked left-0 bg-background text-primary shadow-[10px_10px_20px_#060910] p-sm space-y-md border-r border-outline-variant/10 z-40 relative">
+<div class="flex items-center space-x-3 px-3 py-4 mb-4">
+<span class="material-symbols-outlined text-3xl text-primary drop-shadow-[0_0_8px_rgba(192,193,255,0.5)]">cloud</span>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface tracking-tight">Silk Cloud</h1>
+<p class="font-label-md text-label-md text-on-surface-variant">Media Vault</p>
+</div>
+</div>
+<div class="flex-1 space-y-2">
+<!-- Active Tab -->
+<a class="flex items-center space-x-3 px-4 py-3 bg-surface-container-high text-primary shadow-[inset_6px_6px_12px_#060910,inset_-4px_-4px_10px_rgba(30,41,59,0.4)] rounded-xl font-label-lg text-label-lg active:scale-95 transition-transform duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">image</span>
+<span>Photos</span>
+</a>
+<!-- Inactive Tabs -->
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] rounded-xl font-label-lg text-label-lg transition-all" href="#">
+<span class="material-symbols-outlined">library_books</span>
+<span>Albums</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] rounded-xl font-label-lg text-label-lg transition-all" href="#">
+<span class="material-symbols-outlined">share</span>
+<span>Sharing</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] rounded-xl font-label-lg text-label-lg transition-all" href="#">
+<span class="material-symbols-outlined">cloud</span>
+<span>Storage</span>
+</a>
+</div>
+<div class="mt-auto space-y-2 pt-4 border-t border-outline-variant/10">
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] rounded-xl font-label-lg text-label-lg transition-all" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Help</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 text-on-surface-variant hover:text-on-surface hover:shadow-[-2px_-2px_5px_rgba(30,41,59,0.2),2px_2px_5px_#060910] rounded-xl font-label-lg text-label-lg transition-all" href="#">
+<span class="material-symbols-outlined">delete</span>
+<span>Trash</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col min-w-0">
+<!-- Top Navigation Shell (from JSON) -->
+<header class="flex justify-between items-center px-gutter py-sm w-full sticky top-0 z-50 bg-background shadow-[10px_10px_20px_#060910,-5px_-5px_15px_rgba(30,41,59,0.5)]">
+<div class="flex items-center md:hidden">
+<h1 class="font-headline-md text-headline-md font-bold text-on-surface tracking-tight">Silk Cloud</h1>
+</div>
+<div class="hidden md:flex flex-1 max-w-2xl mx-gutter">
+<div class="w-full relative neo-pressed rounded-full flex items-center px-4 py-2 bg-surface-container-low">
+<span class="material-symbols-outlined text-on-surface-variant mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-on-surface placeholder:text-on-surface-variant font-body-md focus:outline-none" placeholder="Search photos, places, dates..." type="text"/>
+</div>
+</div>
+<div class="flex items-center space-x-4">
+<button class="p-2 rounded-full neo-raised text-on-surface-variant hover:text-primary transition-all active:neo-pressed flex items-center justify-center w-10 h-10">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 rounded-full neo-raised text-on-surface-variant hover:text-primary transition-all active:neo-pressed flex items-center justify-center w-10 h-10">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-10 h-10 rounded-full neo-raised p-1 cursor-pointer">
+<img class="w-full h-full rounded-full object-cover" data-alt="Close up portrait of a young professional wearing modern glasses, subtly lit by blue and purple neon rim lights against a very dark background. The image has a crisp, high-end commercial tech aesthetic, matching a premium dark mode UI." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB6RgIfNAH1_C-kIzDPMmvuDcgHoSEN43ogijbsY9c22s0NuzeLplGGeLsnjesjT0hF7T4EfkTNUODHKpinfZDloGT3Uy5TLsf06P6-nNoEdVKMUZ9zUt-kS3zTZNxjSYjI-3jvInai0m3GuacmGMBAEIcPAvZYuJRbw7rDY6NlotEJqQ10hfjnUkoDvTwTnZCVm90c29wwrhUVFyRsGhu5Pc3KVmigoEGVPYYv9V-BWNulg9oowPj8"/>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 overflow-y-auto p-margin-mobile md:p-margin-desktop space-y-xl pb-32">
+<!-- Section: Today -->
+<section class="space-y-md">
+<div class="flex items-center justify-between sticky top-[72px] bg-background/90 backdrop-blur-md py-4 z-30">
+<h2 class="font-headline-lg text-headline-lg text-on-surface flex items-baseline space-x-3">
+<span>Today</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">San Francisco, CA</span>
+</h2>
+<button class="px-4 py-2 rounded-full neo-raised text-on-surface font-label-md text-label-md flex items-center space-x-2 active:neo-pressed transition-all">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span>Select</span>
+</button>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-sm md:gap-md">
+<!-- Photo Item 1 -->
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A macro shot of a sleek metallic mechanical keyboard with glowing indigo backlighting against a completely black desk surface. High contrast, sharp focus, premium dark tech aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDaFK9yDPuncbh8PNwyXkkZWISKCysl8_vFfG2l38L_RTgAofI1-dx5_qK6PXRkiqL6AdwE_Tf3U50VVnwXwRLV41jKSD8UnUrNif86sjLM-1INXNSWMBDF-FiUTAtxrjDiN9Xso9VUE4Ys58-XW2qKxYOb_3hSHJBX8v4zE0CZK6VPGGtYAztljAs6zPIHlfwzHaNtSvyDnGvuW2YxwsLkYONowtAzlKrz63Qx895lViPdTCynKzTt"/>
+</div>
+</div>
+<!-- Photo Item 2 -->
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A long exposure photograph of nighttime city traffic blurring into streaks of vivid blue and white light, captured from above. The surrounding architecture is silhouetted in deep, matte charcoal grays. Moody and cinematic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDodTYzEdGB-pWxGzKmYN0qYVUUERYl2eKtES-dIY62t13xrR75yMLTjvi3ALUn7eQdM9AwHc1XfGSytR_g90HrS_Ov32fvET5Q7NyAY-zvDP4phyinyDtcqI9MF_VZBgl95dgLDhxQclWpZ6sBNYbDyY7fezlzEpMOVzYMXoj6hXlgYNYlDkvszwaOe2pWeh5BxJpXtYP5puPZbqXwp5N1ff33cjnQI5wRqr3F1jns3B6pHSlNOQ9m"/>
+</div>
+</div>
+<!-- Photo Item 3 -->
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-[3/4] md:aspect-square md:col-span-2 md:row-span-2">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A portrait of a minimalist architect examining blueprints in a dimly lit, ultra-modern studio. The only light source is a stark, focused desk lamp casting dramatic shadows across the dark grey textured walls. Sophisticated and intense." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBkkHhD73b6LzpdRkTn4iWTGqLNefVOVMZSCu0qnLOHz8KDNENupXu3ayrFV-SzZ-99n0QfUarFN2-AkcO-04z49s0ILNUsUBsIA48gi5dRcXzdIj1FLubbPPu4Qe23vmHTGO2fgxDMb66sDA3BALYJ8E-eMd4VfltDajt5Qn5MnGOta6TSy_kgtqOCPiMAvfMLB-nIpYbG1Bt-r-QcSKPs_HOLsz1a74tSrgfGU7wOyk5GC1zlMa0I"/>
+</div>
+</div>
+<!-- Photo Item 4 -->
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Close up of a premium matte black coffee cup sitting on a dark stone counter. A subtle wisp of steam is illuminated by a cool, indirect bluish light. Very sleek, dark mood." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8ghR93W39s58pOg4oms8cwrxXY_OYrpEgFOxgZCnOeTggU4301JwgezPQwkPp6XsBVylctBYJ_HDtuh6H-WFsyVZA96GPxH_3hrKc2qqTN8PoiF5g-N_PYryZN5fq5bjtPCk3La5TBUl7UP40VSmooSl_qS_CNPkBK4Yex2YOqLtQuptrTFzv6TM8Sz-ZZ7RKWI9UCI15CP0YD9DiBpCp7ntV3TWqUjUzSAJ9Hm8VZE3NVrAxEdA5"/>
+</div>
+</div>
+<!-- Photo Item 5 -->
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A geometric detail shot of a modern glass skyscraper reflecting a stormy, dark twilight sky. The glass panels create abstract patterns of deep blues and slate grays." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcxqrANnqdI44XS16UZOFyE4da0mBrUB_gDp5MX0V-LqditygK15k9EksHSnLgdFlhAPYOHk8PIoPTGUOApLFvfg5sv4qePb0MwW_FEunqNkJvtfLlTwmAekS7eS-ioskDGO0weEiNKvzoX3J5fkm_PpGqQMFJwOPM1T396PgqF7K_lY-xTCX6m_dMJtFHmTLyXnwtNyd9ibn7ktSm4wlHfJY-b25sUgffOgxKbMkM36gQ7XvDJk9f"/>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: Yesterday -->
+<section class="space-y-md">
+<div class="flex items-center justify-between sticky top-[72px] bg-background/90 backdrop-blur-md py-4 z-30">
+<h2 class="font-headline-lg text-headline-lg text-on-surface flex items-baseline space-x-3">
+<span>Yesterday</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Home</span>
+</h2>
+<button class="px-4 py-2 rounded-full neo-raised text-on-surface font-label-md text-label-md flex items-center space-x-2 active:neo-pressed transition-all">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span>Select</span>
+</button>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-sm md:gap-md">
+<!-- Smaller thumbs for older dates -->
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A sleek black smartphone resting on a dark slate textured surface. The screen displays a glowing abstract visualization. Lit by a single cool-toned spotlight to emphasize texture and dark mode aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAXsi5lzc8cN2FUaOnOJZwstoi-G75OxTg9NoarxXuPl4zl9Cd9xNI8Mqs4V3dQWZTRKzIt1PNdC3SIiaJWokapwstBDb512cUW4VJjadwkwEdFzkwDXyr1vQOZi3ef0QIfrZW_OLuubaUH8Eh0lolMYC1PnQgbUe8S3cRE1-zw_k_n18NP8mGY9s2y3tLfwpWhInrsCW-KZyip8BILJQBQJ-3gM7oLfQqkg6iDp5dysv8gU0ax3TVs"/>
+</div>
+</div>
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Abstract macro photography of dark layered paper forming topographical waves, softly illuminated from one side to create deep shadows and subtle highlights. Neomorphic visual style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAKK4-Tdn-zVt6QJ1vcUrWkJViMLp3Emf6M7S78xmRBCqLnoOOWuyvoz2tqObN3P5kNhOqro3d5ElQJK7RPCO5U6p7Ld1Bdsg-Ag6wEdcdLrv9cIDPVnXP1RxsJeSZV2syFXrPlcKTf_S9HqYKnIeR_VIxh_rWCP_IXrNM9ABt4VROsDzLxnxR2SnXfykQ8xZEeZ_EJeTC05sKVaoI_BSyDHaz1LC_xU0EQUBsb2o1k6gxibgVJm2JP"/>
+</div>
+</div>
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A pair of premium dark-grey wireless headphones resting on a matte black stand. Background is completely pitch black. Product photography style, clean and high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZz7vKbtcfyzw0s-LqbdDBQGOT3zt0Rb350JRfenY8kvPxc4C7SsrJ-jXOXdCc91ZM1US_AvYZXBT5RAJDXqVLqcIYzh0PYBeIyFObLzDewLQlX69yx0eeTEzWQQwbEqEK0Nbk3u9krwnqeEYA3zdB09SyNwmq9QNnRCztGvFAbVSDNa0Oo-GuPzncLSusCBCXq5KyKxLz8xr9ETaSZITChswF13Z2OHnTAalEEV6AgfjnHu7NqzWe"/>
+</div>
+</div>
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A glowing blue neon sign forming abstract geometric shapes in a dark, moody industrial environment. The reflection of the sign is visible on a glossy, wet concrete floor." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpl_kj0iv4LWWrGS3QDnB3ex5RMBMYirRoaZ4c90zpdHhatrkeh1WtPtRCbF9VuR_cMpCETmYoAbnlJuTLa5nj9ni-NC2OD3ZVBlKOpFOzJVboOC5z97wOC6xlrYOww8BybmseE3Ord6U4Jfny13CfdvR820UJx1jBY_RxV-dTUzbxSB1n_CQYrSDd8uUeZkwwMqdpyk1Qy-1QfQmmimbR52XWN09dERtt87LZB9CnSag8weiuRjYn"/>
+</div>
+</div>
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="A minimalist digital art installation featuring a solitary, glowing indigo orb floating above a textured obsidian plinth in a vast, dark gallery space." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCrGLZI8Yd0moXtKLnRpWH0GkFX-Og5qeE-c_ZQNJhdtfQJsiQw-LTM036PD8howBgvdcDoe3eE_j_3Hw7K23-trEEAHg2e3B1VhWCxJA4pTHl8U9XcxFji42GDjtWqSSzXLq_tP3tdLgB5fyogZAdrUpBGMYXFLdDyvpBjzmVd0dapr2brCOJ5Dh-vDmRMaAgNL9FyUA_VKgWdoP260pBIXinfYsassMhFAxlaC1W_BJedmZg06pG0"/>
+</div>
+</div>
+<div class="neo-frame group cursor-pointer">
+<div class="neo-image-wrapper aspect-square">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" data-alt="Detail shot of a carbon fiber texture illuminated by a sharp, cool white raking light against a dark background. High-tech, rigid, and sophisticated." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtTF9F5Alz1LM2ZP_TLAknGVnsYZw8hkaoXEqI1H_JhVJhINAeJPjg7G_hEgTPypKAP4Ar0BMI2LJ_5dScZEh3SddWdCil1nMBEOaRibpx_hFQr1iJTV51cQeAc8HosoRXIoi3-GAtso0EVs6IgP4ybiCpBXvo73nDAUwc2zYa7GtZEpb3vNPQC88i0ITdQ2fYpoOvEP2msTuch8uJLCLydy-OXnGFlleq9hkL--R9zp_FJValW3ON"/>
+</div>
+</div>
+</div>
+</section>
+</main>
+</div>
+</body></html>

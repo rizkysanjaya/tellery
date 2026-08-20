@@ -25,6 +25,8 @@ export interface MediaItem {
   thumbnail_url: string;
   stream_url: string;
   created_at: string;
+  folder_id?: number | null;
+  folder_name?: string | null;
 }
 
 export interface TimelineGroup {
@@ -65,6 +67,14 @@ export interface FolderItem {
 
 export type FilterType = "all" | "photo" | "video";
 export type MainView = "timeline" | "albums";
+export type DisplayLayout = "grid" | "dense" | "list" | "masonry";
+export type SortOption =
+  | "date_desc"
+  | "date_asc"
+  | "name_asc"
+  | "name_desc"
+  | "size_desc"
+  | "size_asc";
 
 export interface UploadTask {
   id: string;
@@ -74,6 +84,7 @@ export interface UploadTask {
   type: string;
   progress: number;
   loadedBytes: number;
+  speedMbps?: number;
   status: "pending" | "uploading" | "processing" | "completed" | "duplicate" | "error";
   errorMessage?: string;
   duplicateInfo?: {

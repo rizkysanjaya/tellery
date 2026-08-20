@@ -1,13 +1,15 @@
 /**
  * =============================================================================
  * Module: frontend/src/App.tsx
- * Purpose: Root application component managing gallery state, persistent left sidebar,
+ * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
+ *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
  *          multi-select system, virtual folders, search, filtering, lightbox, drag-and-drop,
- *          context menus, and Telegram vault uploads.
+ *          context menus, Telegram vault uploads, and Telegram channel sync.
  * Used by: frontend/src/main.tsx
- * Dependencies: React, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
+ * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats over HTTP, executes uploads, deletions, and folder assignments.
+ * Side Effects: Fetches timeline/folders/stats over HTTP, executes uploads, deletions,
+ *                folder assignments, vault sync, and persists theme/layout in localStorage.
  * =============================================================================
  */
 
@@ -23,6 +25,7 @@ import {
   fetchStats,
   fetchTimeline,
   renameMediaItem,
+  triggerVaultSync,
   uploadMediaFile,
 } from "./api";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
@@ -30,17 +33,23 @@ import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
 import { FolderGrid } from "./components/FolderGrid";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
+import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
 import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
 import { UploadManager } from "./components/UploadManager";
+import { AuroraBackground } from "./components/ui/AuroraBackground";
+import { CommandPalette } from "./components/ui/CommandPalette";
+import { UndoToast } from "./components/ui/UndoToast";
 import {
   ConflictResolutionAction,
+  DisplayLayout,
   DuplicateConflict,
   FilterType,
   FolderItem,
   MainView,
   MediaItem,
+  SortOption,
   StatsResponse,
   TimelineGroup,
   UploadTask,
@@ -54,12 +63,65 @@ export const App: React.FC = () => {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(() => {
+    const saved = localStorage.getItem("telegallery_display_layout");
+    return (saved as DisplayLayout) || "grid";
+  });
+  const [sortBy, setSortBy] = useState<SortOption>(() => {
+    const saved = localStorage.getItem("telegallery_sort_by");
+    return (saved as SortOption) || "date_desc";
+  });
+  const [theme, setTheme] = useState<"dark" | "light">(() => {
+    const saved = localStorage.getItem("telegallery_theme");
+    return (saved as "dark" | "light") || "dark";
+  });
+
+  // Apply theme class to document root
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === "dark") {
+      root.classList.add("dark");
+      root.classList.remove("light");
+    } else {
+      root.classList.add("light");
+      root.classList.remove("dark");
+    }
+    try {
+      localStorage.setItem("telegallery_theme", theme);
+    } catch {
+      // Ignore quota/storage errors
+    }
+  }, [theme]);
+
+  const handleToggleTheme = useCallback(() => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
 
+  const handleDisplayLayoutChange = (layout: DisplayLayout) => {
+    setDisplayLayout(layout);
+    try {
+      localStorage.setItem("telegallery_display_layout", layout);
+    } catch {
+      // Ignore quota/private browsing errors
+    }
+  };
+
+  const handleSortChange = (newSort: SortOption) => {
+    setSortBy(newSort);
+    try {
+      localStorage.setItem("telegallery_sort_by", newSort);
+    } catch {
+      // Ignore quota/private browsing errors
+    }
+  };
+
   // Mobile Sidebar Drawer State
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
 
   // Multi-Select & Keyboard Anchor State
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -83,10 +145,28 @@ export const App: React.FC = () => {
     customName?: string;
   } | null>(null);
 
+  // Folder Move Relocation Confirmation State
+  const [pendingMove, setPendingMove] = useState<{
+    targetFolderId: number;
+    targetFolderName: string;
+    mediaIds: number[];
+    conflictedItems: MoveConflictItem[];
+  } | null>(null);
+
   // Flat list of all media items in current view order
   const flatItems = useMemo(() => {
     return groups.flatMap((g) => g.items);
   }, [groups]);
+
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
+
+  // Debounce ONLY text typing in search input (prevents lag on tab/album clicks)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const loadFolders = useCallback(() => {
     setLoadingFolders(true);
@@ -101,13 +181,44 @@ export const App: React.FC = () => {
       });
   }, []);
 
+  // Initial load for stats & folders
+  useEffect(() => {
+    fetchStats().then(setStats).catch(console.error);
+    loadFolders();
+  }, [loadFolders]);
+
+  // Instant timeline loading on tab, filter, sort, or folder selection (0ms delay)
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+
+    const folderId = activeFolder ? activeFolder.id : null;
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy)
+      .then((res) => {
+        if (isMounted) {
+          setGroups(res.groups);
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.error(err);
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy]);
+
   const loadData = useCallback(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    fetchTimeline(0, 100, activeFilter, searchQuery, folderId)
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -116,13 +227,22 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, searchQuery, activeFolder, loadFolders]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, loadFolders]);
 
-  // Load stats, folders, and timeline on filter/search/folder change
-  useEffect(() => {
-    const timeoutId = setTimeout(loadData, 150);
-    return () => clearTimeout(timeoutId);
-  }, [loadData]);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncVault = useCallback(async (fullScan: boolean = false) => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      await triggerVaultSync(fullScan);
+      loadData();
+    } catch (err) {
+      console.error("Vault sync error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, loadData]);
 
   // Global Keyboard Shortcuts (Escape to clear/close, Ctrl+A / Cmd+A to select all)
   useEffect(() => {
@@ -237,34 +357,198 @@ export const App: React.FC = () => {
   const handleBulkAddToFolder = async (folderId: number, mediaIds?: number[]) => {
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length === 0) return;
+
+    const targetFolder = folders.find((f) => f.id === folderId);
+    const targetFolderName = targetFolder ? targetFolder.name : "Folder";
+
+    // Check if any of the items already belong to a different folder
+    const conflictedItems: MoveConflictItem[] = [];
+    for (const id of ids) {
+      const item = flatItems.find((m) => m.id === id);
+      if (item && item.folder_id && item.folder_id !== folderId) {
+        conflictedItems.push({
+          id: item.id,
+          fileName: item.file_name,
+          currentFolderName: item.folder_name || "Folder",
+        });
+      }
+    }
+
+    if (conflictedItems.length > 0) {
+      // Prompt user with Move Confirmation Modal
+      setPendingMove({
+        targetFolderId: folderId,
+        targetFolderName,
+        mediaIds: ids,
+        conflictedItems,
+      });
+      return;
+    }
+
+    // No conflicts -> move immediately
     await addMediaToFolder(folderId, ids);
-    loadFolders();
+    loadData();
+  };
+
+  const handleConfirmPendingMove = async () => {
+    if (!pendingMove) return;
+    await addMediaToFolder(pendingMove.targetFolderId, pendingMove.mediaIds);
+    setPendingMove(null);
+    loadData();
   };
 
   const handleBulkCreateFolderAndAdd = async (name: string, mediaIds?: number[]) => {
     const created = await createFolder(name);
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length > 0) {
-      await addMediaToFolder(created.id, ids);
+      // Use handleBulkAddToFolder to check for any existing folder conflicts
+      await handleBulkAddToFolder(created.id, ids);
+    } else {
+      loadFolders();
     }
-    loadFolders();
   };
+
+  // 5-Second Undo Delete State
+  const [pendingDeletion, setPendingDeletion] = useState<{
+    items: MediaItem[];
+    message: string;
+  } | null>(null);
+  const pendingDeletionRef = useRef<{
+    items: MediaItem[];
+    message: string;
+  } | null>(null);
+  const pendingDeletionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    pendingDeletionRef.current = pendingDeletion;
+  }, [pendingDeletion]);
+
+  const commitPendingDeletion = useCallback(async () => {
+    if (pendingDeletionTimeoutRef.current) {
+      clearTimeout(pendingDeletionTimeoutRef.current);
+      pendingDeletionTimeoutRef.current = null;
+    }
+    const current = pendingDeletionRef.current;
+    if (!current) return;
+    const itemsToDelete = current.items;
+    setPendingDeletion(null);
+    pendingDeletionRef.current = null;
+
+    // Perform permanent backend deletion asynchronously
+    for (const item of itemsToDelete) {
+      try {
+        await deleteMediaItem(item.id);
+      } catch (err) {
+        console.error(`Failed to permanently delete media ${item.id}:`, err);
+      }
+    }
+    // Refresh stats & folders
+    fetchStats().then(setStats).catch(console.error);
+    fetchFolders().then(setFolders).catch(console.error);
+  }, []);
+
+  const handleUndoDelete = useCallback(() => {
+    if (pendingDeletionTimeoutRef.current) {
+      clearTimeout(pendingDeletionTimeoutRef.current);
+      pendingDeletionTimeoutRef.current = null;
+    }
+    const current = pendingDeletionRef.current;
+    if (!current) return;
+
+    // Restore items optimistically to timeline
+    const restoredItems = current.items;
+    setPendingDeletion(null);
+    pendingDeletionRef.current = null;
+
+    setGroups((prev) => {
+      const next = [...prev];
+      for (const item of restoredItems) {
+        const dateKey = item.date_taken
+          ? item.date_taken.split("T")[0]
+          : "Unknown Date";
+        const groupIndex = next.findIndex((g) => g.period_key === dateKey);
+        if (groupIndex >= 0) {
+          if (!next[groupIndex].items.some((i) => i.id === item.id)) {
+            next[groupIndex] = {
+              ...next[groupIndex],
+              items: [item, ...next[groupIndex].items],
+            };
+          }
+        } else {
+          next.unshift({
+            period_key: dateKey,
+            period_title: dateKey,
+            items: [item],
+          });
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const queueDeleteItems = useCallback(
+    (itemsToDelete: MediaItem[]) => {
+      if (itemsToDelete.length === 0) return;
+
+      // If a deletion was already pending, commit it immediately first
+      if (pendingDeletionRef.current) {
+        commitPendingDeletion();
+      }
+
+      const idsToDelete = new Set(itemsToDelete.map((i) => i.id));
+
+      // Optimistic UI Removal: Remove items from current timeline view immediately
+      setGroups((prev) =>
+        prev
+          .map((group) => ({
+            ...group,
+            items: group.items.filter((item) => !idsToDelete.has(item.id)),
+          }))
+          .filter((group) => group.items.length > 0)
+      );
+
+      // Deselect if selected
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        idsToDelete.forEach((id) => next.delete(id));
+        return next;
+      });
+
+      // Close lightbox if current item is being deleted
+      if (selectedMedia && idsToDelete.has(selectedMedia.id)) {
+        setSelectedMedia(null);
+      }
+
+      const message =
+        itemsToDelete.length === 1
+          ? `Deleted "${itemsToDelete[0].file_name}"`
+          : `Deleted ${itemsToDelete.length} items`;
+
+      const newPending = {
+        items: itemsToDelete,
+        message,
+      };
+      setPendingDeletion(newPending);
+      pendingDeletionRef.current = newPending;
+
+      // Schedule 5-second automatic commit
+      if (pendingDeletionTimeoutRef.current) {
+        clearTimeout(pendingDeletionTimeoutRef.current);
+      }
+      pendingDeletionTimeoutRef.current = setTimeout(() => {
+        commitPendingDeletion();
+      }, 5000);
+    },
+    [commitPendingDeletion, selectedMedia]
+  );
 
   const handleBulkDeleteSelected = async (mediaIds?: number[]) => {
     const ids = mediaIds || Array.from(selectedIds);
-    for (const id of ids) {
-      try {
-        await deleteMediaItem(id);
-      } catch (err) {
-        console.error(`Failed to delete media ${id}:`, err);
-      }
+    const idSet = new Set(ids);
+    const itemsToDelete = flatItems.filter((i) => idSet.has(i.id));
+    if (itemsToDelete.length > 0) {
+      queueDeleteItems(itemsToDelete);
     }
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      ids.forEach((id) => next.delete(id));
-      return next;
-    });
-    loadData();
   };
 
   // =========================================================================
@@ -297,7 +581,7 @@ export const App: React.FC = () => {
 
   const processUploadQueue = async (tasksToProcess: UploadTask[]) => {
     const queue = [...tasksToProcess];
-    const CONCURRENCY = 2; // Keep concurrency controlled during interactive conflicts
+    const CONCURRENCY = 3; // Allow up to 3 simultaneous parallel file uploads
 
     const worker = async () => {
       while (queue.length > 0) {
@@ -311,19 +595,27 @@ export const App: React.FC = () => {
         try {
           const result = await uploadMediaFile(
             task.file,
-            (percent, loaded) => {
+            (percent, loaded, _total, speedMbps) => {
               setUploadTasks((prev) =>
                 prev.map((t) =>
-                  t.id === task.id ? { ...t, progress: percent, loadedBytes: loaded } : t
+                  t.id === task.id && t.status !== "completed" && t.status !== "duplicate"
+                    ? {
+                        ...t,
+                        progress: percent,
+                        loadedBytes: loaded,
+                        speedMbps: speedMbps,
+                        status: percent >= 100 ? "processing" : "uploading",
+                      }
+                    : t
                 )
               );
             },
             () => {
-              // Browser upload complete; now archiving & syncing to Telegram Vault
+              // Browser upload spooled; now actively uploading to Telegram Vault
               setUploadTasks((prev) =>
                 prev.map((t) =>
-                  t.id === task.id
-                    ? { ...t, status: "processing", progress: 95, loadedBytes: task.size }
+                  t.id === task.id && t.status !== "completed" && t.status !== "duplicate"
+                    ? { ...t, status: "uploading" }
                     : t
                 )
               );
@@ -564,24 +856,50 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteMedia = async (id: number) => {
-    try {
-      await deleteMediaItem(id);
-      setSelectedMedia(null);
-      loadData();
-    } catch (err) {
-      console.error("Failed to delete media:", err);
-      alert("Failed to delete media item from Telegram vault.");
+    const item = flatItems.find((i) => i.id === id) || (selectedMedia?.id === id ? selectedMedia : null);
+    if (item) {
+      queueDeleteItems([item]);
+    }
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // If context menu is open, dismiss it
+    if (contextMenu) {
+      setContextMenu(null);
+    }
+
+    const target = e.target as HTMLElement;
+    // Don't deselect if click originated from interactive controls or media cards
+    if (
+      target.closest(".media-card-item") ||
+      target.closest(".folder-card-item") ||
+      target.closest(".selection-toolbar") ||
+      target.closest(".upload-manager") ||
+      target.closest("button") ||
+      target.closest("a") ||
+      target.closest("input") ||
+      target.closest("dialog") ||
+      target.closest("header") ||
+      target.closest("aside")
+    ) {
+      return;
+    }
+
+    if (selectedIds.size > 0) {
+      handleDeselectAll();
     }
   };
 
   return (
-    <div
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      onDrop={handleDrop}
-      onContextMenu={handleCanvasContextMenu}
-      className="min-h-screen bg-zinc-950 text-zinc-100 flex relative"
-    >
+    <AuroraBackground>
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onContextMenu={handleCanvasContextMenu}
+        onClick={handleCanvasClick}
+        className="min-h-screen text-zinc-100 flex relative"
+      >
       {/* Hidden File Input for Sidebar & Context Menu Upload trigger */}
       <input
         ref={hiddenFileInputRef}
@@ -632,6 +950,8 @@ export const App: React.FC = () => {
         onDeleteFolder={handleDeleteFolder}
         onAddMediaToFolder={handleBulkAddToFolder}
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
+        onSyncVault={handleSyncVault}
+        isSyncing={isSyncing}
       />
 
       {/* Main Workspace Area (Offset by Sidebar on Desktop) */}
@@ -643,26 +963,33 @@ export const App: React.FC = () => {
           onSearchChange={setSearchQuery}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
+          displayLayout={displayLayout}
+          onDisplayLayoutChange={handleDisplayLayoutChange}
+          sortBy={sortBy}
+          onSortChange={handleSortChange}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
         />
 
         {/* Main Content Viewport */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 pt-6">
           {/* Active Folder Breadcrumb Bar */}
           {activeFolder && (
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant/15 animate-in fade-in duration-200">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setActiveFolder(null)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white rounded-xl text-xs font-semibold border border-zinc-800 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-base neo-button text-on-surface-variant hover:text-on-surface rounded-xl text-xs font-semibold transition-all cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span>All Photos</span>
                 </button>
-                <div className="h-4 w-px bg-zinc-800" />
+                <div className="h-4 w-px bg-outline-variant/20" />
                 <div className="flex items-center gap-2">
-                  <Folder className="w-4 h-4 text-sky-400" />
-                  <h2 className="text-lg font-bold text-white">{activeFolder.name}</h2>
+                  <Folder className="w-4 h-4 text-primary" />
+                  <h2 className="text-lg font-bold text-on-surface">{activeFolder.name}</h2>
                 </div>
               </div>
             </div>
@@ -685,6 +1012,9 @@ export const App: React.FC = () => {
             <TimelineGrid
               groups={groups}
               selectedIds={selectedIds}
+              layout={displayLayout}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
               onSelectMedia={setSelectedMedia}
               onToggleSelect={handleToggleSelect}
               onSelectAllInGroup={handleSelectAllInGroup}
@@ -696,16 +1026,18 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Multi-Select Floating Toolbar */}
+      {/* Multi-Select Floating Toolbar Container (Flexbox centered between sidebar and right edge) */}
       {selectedIds.size > 0 && (
-        <SelectionToolbar
-          selectedCount={selectedIds.size}
-          folders={folders}
-          onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
-          onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
-          onDeleteSelected={() => handleBulkDeleteSelected()}
-          onDeselectAll={handleDeselectAll}
-        />
+        <div className="fixed bottom-7 left-0 right-0 md:left-64 pointer-events-none flex justify-center z-40 px-4">
+          <SelectionToolbar
+            selectedCount={selectedIds.size}
+            folders={folders}
+            onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
+            onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
+            onDeleteSelected={() => handleBulkDeleteSelected()}
+            onDeselectAll={handleDeselectAll}
+          />
+        </div>
       )}
 
       {/* Custom Context Menu */}
@@ -737,7 +1069,6 @@ export const App: React.FC = () => {
       {selectedMedia && (
         <MediaLightbox
           item={selectedMedia}
-          allFolders={folders}
           onClose={() => setSelectedMedia(null)}
           onPrev={handlePrev}
           onNext={handleNext}
@@ -765,6 +1096,60 @@ export const App: React.FC = () => {
           }}
         />
       )}
-    </div>
+
+      {/* Folder Move Relocation Confirmation Modal */}
+      {pendingMove && (
+        <MoveConfirmationModal
+          targetFolderId={pendingMove.targetFolderId}
+          targetFolderName={pendingMove.targetFolderName}
+          conflictedItems={pendingMove.conflictedItems}
+          totalSelectedCount={pendingMove.mediaIds.length}
+          onConfirm={handleConfirmPendingMove}
+          onCancel={() => setPendingMove(null)}
+        />
+      )}
+
+      {/* 21st.dev Raycast / Spotlight Command Palette Modal */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        currentView={currentView}
+        activeFolder={activeFolder}
+        folders={folders}
+        displayLayout={displayLayout}
+        sortBy={sortBy}
+        onSelectTimeline={() => {
+          setCurrentView("timeline");
+          setActiveFolder(null);
+          setSelectedIds(new Set());
+        }}
+        onSelectAlbumsOverview={() => {
+          setCurrentView("albums");
+          setActiveFolder(null);
+          setSelectedIds(new Set());
+        }}
+        onSelectFolder={(folder) => {
+          setCurrentView("timeline");
+          setActiveFolder(folder);
+          setSelectedIds(new Set());
+        }}
+        onDisplayLayoutChange={handleDisplayLayoutChange}
+        onSortChange={handleSortChange}
+        onTriggerUpload={() => hiddenFileInputRef.current?.click()}
+        onSyncVault={handleSyncVault}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
+
+      {/* 5-Second Undo Delete Toast */}
+      <UndoToast
+        isOpen={!!pendingDeletion}
+        message={pendingDeletion?.message || ""}
+        durationMs={5000}
+        onUndo={handleUndoDelete}
+        onCommit={commitPendingDeletion}
+      />
+      </div>
+    </AuroraBackground>
   );
 };
