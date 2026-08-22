@@ -254,34 +254,19 @@ class TelegramStorageClient:
         if not message or not message.media:
             raise ValueError(f"No media found for message {message_id}")
 
-        align = 4096
-        aligned_offset = (offset // align) * align
-        skip_initial_bytes = offset - aligned_offset
-
         total_yielded = 0
         async for chunk in self._client.iter_download(
             message.media,
-            offset=aligned_offset,
+            offset=offset,
             chunk_size=chunk_size,
             request_size=chunk_size,
         ):
-            if skip_initial_bytes > 0:
-                if len(chunk) <= skip_initial_bytes:
-                    skip_initial_bytes -= len(chunk)
-                    continue
-                else:
-                    chunk = chunk[skip_initial_bytes:]
-                    skip_initial_bytes = 0
-
+            if limit is not None and total_yielded >= limit:
+                break
             if limit is not None and total_yielded + len(chunk) > limit:
                 chunk = chunk[: limit - total_yielded]
-
-            if not chunk:
-                continue
-
             total_yielded += len(chunk)
             yield chunk
-
             if limit is not None and total_yielded >= limit:
                 break
 

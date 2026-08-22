@@ -223,7 +223,7 @@ class StreamCacheManager:
         High-throughput multi-part parallel background downloader.
         Downloads in 1MB chunk slices across concurrent MTProto workers into local NVMe disk.
         """
-        temp_path = self.cache_dir / f"{file_hash}.downloading"
+        temp_path = self.cache_dir / f"{file_hash}.part"
         client = get_telegram_client()
         try:
             await client.start()
@@ -285,11 +285,6 @@ class StreamCacheManager:
         except Exception as e:
             print(f"[StreamCache] Background caching error for {file_hash}: {e}")
         finally:
-            if temp_path.exists() and not target_path.exists():
-                try:
-                    temp_path.unlink()
-                except Exception:
-                    pass
             async with self._lock:
                 self._inflight_downloads.pop(file_hash, None)
 
@@ -304,69 +299,91 @@ class StreamCacheManager:
         chunk_size: int = 512 * 1024,
     ) -> AsyncIterator[bytes]:
         """
-        Progressively streams a byte slice [start, end] from disk cache if completed,
+        Progressively streams a byte slice [start, end] from disk cache if available,
         or falls back to direct MTProto chunk seeking for instant response on forward seeks / moov headers.
         """
         bytes_to_send = (end - start) + 1
         bytes_sent = 0
+        part_path = self.cache_dir / f"{file_hash}.part"
 
-        # 1. Fast path: if completed cache file is already available on disk, stream directly from disk
-        if file_path.exists() and file_path.stat().st_size > start:
-            self.touch_cache(file_path)
-            with open(file_path, "rb") as f:
+        # Determine which path to open (completed cache file or active .part file)
+        actual_path = file_path if file_path.exists() else part_path
+
+        # 1. Fast path: if start is already available on disk, stream directly from disk
+        if actual_path.exists() and actual_path.stat().st_size > start:
+            self.touch_cache(actual_path)
+            with open(actual_path, "rb") as f:
                 f.seek(start)
                 while bytes_sent < bytes_to_send:
-                    read_len = min(chunk_size, bytes_to_send - bytes_sent)
+                    current_file_size = actual_path.stat().st_size
+                    available_bytes = current_file_size - (start + bytes_sent)
+
+                    if available_bytes <= 0:
+                        if file_hash in self._inflight_downloads:
+                            await asyncio.sleep(0.05)
+                            continue
+                        else:
+                            break
+
+                    read_len = min(chunk_size, bytes_to_send - bytes_sent, available_bytes)
+                    data = f.read(read_len)
+                    if not data:
+                        if file_hash in self._inflight_downloads:
+                            await asyncio.sleep(0.05)
+                            continue
+                        break
+
+                    yield data
+                    bytes_sent += len(data)
+                    await asyncio.sleep(0)
+            return
+
+        # 2. Instant seek path: if start is far ahead of current disk cache and Telegram info is given,
+        # stream on-demand directly from Telegram MTProto without blocking on sequential download!
+        if message_id is not None and channel_id is not None:
+            client = get_telegram_client()
+            async for chunk in client.iter_document_chunks(
+                message_id=message_id,
+                channel_id=channel_id,
+                offset=start,
+                limit=bytes_to_send,
+                chunk_size=chunk_size,
+            ):
+                yield chunk
+            return
+
+        # 3. Fallback: wait briefly on in-flight sequential download
+        wait_cycles = 0
+        while not actual_path.exists() or actual_path.stat().st_size <= start:
+            if file_path.exists():
+                actual_path = file_path
+                break
+            if file_hash not in self._inflight_downloads and not actual_path.exists():
+                break
+            await asyncio.sleep(0.05)
+            wait_cycles += 1
+            if wait_cycles > 40:  # 2s timeout
+                break
+
+        if actual_path.exists():
+            with open(actual_path, "rb") as f:
+                f.seek(start)
+                while bytes_sent < bytes_to_send:
+                    current_file_size = actual_path.stat().st_size
+                    available_bytes = current_file_size - (start + bytes_sent)
+                    if available_bytes <= 0:
+                        if file_hash in self._inflight_downloads:
+                            await asyncio.sleep(0.05)
+                            continue
+                        else:
+                            break
+                    read_len = min(chunk_size, bytes_to_send - bytes_sent, available_bytes)
                     data = f.read(read_len)
                     if not data:
                         break
                     yield data
                     bytes_sent += len(data)
                     await asyncio.sleep(0)
-            return
-
-        # 2. Live MTProto streaming with simultaneous passthrough disk cache writer
-        if message_id is not None and channel_id is not None:
-            client = get_telegram_client()
-            temp_cache = self.cache_dir / f"{file_hash}.streamtmp"
-            writer = None
-            if start == 0 and not file_path.exists():
-                try:
-                    writer = open(temp_cache, "wb")
-                except Exception:
-                    writer = None
-
-            try:
-                async for chunk in client.iter_document_chunks(
-                    message_id=message_id,
-                    channel_id=channel_id,
-                    offset=start,
-                    limit=bytes_to_send,
-                    chunk_size=chunk_size,
-                ):
-                    if writer:
-                        try:
-                            writer.write(chunk)
-                        except Exception:
-                            pass
-                    yield chunk
-                    bytes_sent += len(chunk)
-
-                if writer:
-                    writer.flush()
-                    writer.close()
-                    writer = None
-                    if bytes_sent >= bytes_to_send and temp_cache.exists():
-                        temp_cache.replace(file_path)
-                        self.touch_cache(file_path)
-                        self.prune_lru_cache()
-            finally:
-                if writer:
-                    try:
-                        writer.close()
-                    except Exception:
-                        pass
-            return
 
 
 _cache_manager_instance: Optional[StreamCacheManager] = None

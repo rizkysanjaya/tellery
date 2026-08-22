@@ -1,4 +1,4 @@
-"""
+﻿"""
 =============================================================================
 Module: src.api.routes.system
 Purpose: System telemetry, local disk cache management, and storage diagnostics.
@@ -13,7 +13,7 @@ Side Effects: Deletes cached stream media files on disk during purge requests.
 
 from fastapi import APIRouter, HTTPException
 from src.services.stream_cache import get_stream_cache
-from src.database.connection import get_db_connection
+from src.database.connection import get_db
 
 router = APIRouter(prefix="/api/system", tags=["system"])
 
@@ -52,7 +52,7 @@ async def get_system_stats():
     cache = get_stream_cache()
     cache_stats = cache.get_cache_stats()
 
-    async with get_db_connection() as db:
+    async with get_db() as db:
         async with db.execute("SELECT COUNT(*), COALESCE(SUM(file_size), 0) FROM media_items WHERE is_deleted = 0") as cursor:
             row = await cursor.fetchone()
             total_items = row[0] if row else 0
