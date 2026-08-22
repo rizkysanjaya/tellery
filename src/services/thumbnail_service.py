@@ -3,18 +3,54 @@
 Module: src.services.thumbnail_service
 Purpose: High-performance local WebP thumbnail generation & disk caching for
          both images (Pillow EXIF-aware) and videos (OpenCV frame extraction).
-Used by: src.services.archive_service, src.cli.import_folder, FastAPI thumbnail routes.
-Dependencies: PIL.Image, PIL.ImageOps, cv2, pathlib, src.config
-Public Members: generate_thumbnail(), generate_image_thumbnail(), generate_video_thumbnail()
-Side Effects: Reads source media file from disk, creates and saves WebP thumbnail in storage/thumbnails.
+Used by: src.services.archive_service, src.services.sync_service, src.cli.import_folder, FastAPI thumbnail routes.
+Dependencies: PIL.Image, PIL.ImageOps, cv2, io, pathlib, src.config
+Public Members: generate_thumbnail(), generate_image_thumbnail(), generate_video_thumbnail(), generate_thumbnail_from_bytes()
+Side Effects: Reads source media file from disk/bytes, creates and saves WebP thumbnail in storage/thumbnails.
 =============================================================================
 """
 
+import io
 from pathlib import Path
 from typing import Optional, Union
 import cv2
 from PIL import Image, ImageOps
 from src.config import get_settings
+
+
+def generate_thumbnail_from_bytes(
+    data: bytes,
+    file_hash: str,
+    max_dimension: int = 480,
+    quality: int = 80,
+) -> Optional[str]:
+    """
+    Generates a high-quality, compact WebP thumbnail directly from image bytes in memory.
+    Useful for ingesting Telegram photo/document previews without saving full raw files to disk.
+    """
+    settings = get_settings()
+    thumb_dir = settings.thumbnails_path
+    target_thumb_file = thumb_dir / f"{file_hash}.webp"
+
+    if target_thumb_file.exists() and target_thumb_file.stat().st_size > 0:
+        return str(target_thumb_file.as_posix())
+
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            img = ImageOps.exif_transpose(img)
+            if img.mode in ("RGBA", "LA", "P"):
+                if img.mode == "P":
+                    img = img.convert("RGBA")
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+
+            img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+            target_thumb_file.parent.mkdir(parents=True, exist_ok=True)
+            img.save(target_thumb_file, "WEBP", quality=quality, method=4)
+            return str(target_thumb_file.as_posix())
+    except Exception as e:
+        print(f"[Thumbnail] Failed to generate thumbnail from bytes for hash {file_hash}: {e}")
+        return None
 
 
 def generate_image_thumbnail(

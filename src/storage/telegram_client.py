@@ -2,7 +2,7 @@
 =============================================================================
 Module: src.storage.telegram_client
 Purpose: Telegram MTProto Client wrapper for raw document storage & chunked streaming.
-Used by: src.services.archive_service, src.cli.verify_pipeline
+Used by: src.services.archive_service, src.services.sync_service, src.cli.verify_pipeline
 Dependencies: telethon, src.config
 Public Members: TelegramStorageClient, get_telegram_client()
 Side Effects: Network MTProto calls to Telegram servers, reads/writes session file.
@@ -16,6 +16,7 @@ from telethon import TelegramClient
 from telethon.tl.custom.message import Message
 from telethon.tl.types import Document, MessageMediaDocument
 from src.config import get_settings
+from src.storage.fast_upload import fast_upload_file
 
 
 class TelegramStorageClient:
@@ -48,6 +49,11 @@ class TelegramStorageClient:
         self._client = TelegramClient(str(session_path), self.api_id, self.api_hash)
         self._is_started = False
         self._entity_cache: dict[Any, Any] = {}
+
+    @property
+    def raw_client(self) -> TelegramClient:
+        """Returns the underlying Telethon client instance for advanced operations and event subscriptions."""
+        return self._client
 
     async def start(self) -> None:
         """Starts client session, prompting for phone/code if not yet authorized."""
@@ -131,24 +137,13 @@ class TelegramStorageClient:
         await self.start()
         entity = await self.get_target_entity(channel_id)
         path_obj = Path(file_path)
-        file_size = path_obj.stat().st_size
-
-        # Direct 1-RPC fast upload for small files (<10MB)
-        if file_size < 10 * 1024 * 1024:
-            message = await self._client.send_file(
-                entity=entity,
-                file=str(path_obj),
-                force_document=True,
-                progress_callback=progress_callback,
-                silent=True,
-            )
-            return message
-
-        # Chunked multi-part upload for large files (>=10MB)
-        uploaded_file = await self._client.upload_file(
-            file=str(path_obj),
-            part_size_kb=512,
+        # High-speed parallel multi-part MTProto upload for all media files
+        uploaded_file = await fast_upload_file(
+            client=self._client,
+            file_path=path_obj,
             progress_callback=progress_callback,
+            workers=6,
+            part_size=512 * 1024,
         )
         message = await self._client.send_file(
             entity=entity,
@@ -240,7 +235,7 @@ class TelegramStorageClient:
         channel_id: Union[int, str],
         offset: int = 0,
         limit: Optional[int] = None,
-        chunk_size: int = 128 * 1024,
+        chunk_size: int = 512 * 1024,
     ) -> AsyncIterator[bytes]:
         """
         Streams document chunks directly from Telegram MTProto servers.
@@ -251,7 +246,7 @@ class TelegramStorageClient:
             channel_id: Target channel ID.
             offset: Byte offset to start streaming from.
             limit: Maximum number of bytes to stream (None for until EOF).
-            chunk_size: MTProto chunk read size (default 128KB).
+            chunk_size: MTProto chunk read size (default 512KB).
         """
         await self.start()
         entity = await self.get_target_entity(channel_id)
@@ -259,13 +254,36 @@ class TelegramStorageClient:
         if not message or not message.media:
             raise ValueError(f"No media found for message {message_id}")
 
+        align = 4096
+        aligned_offset = (offset // align) * align
+        skip_initial_bytes = offset - aligned_offset
+
+        total_yielded = 0
         async for chunk in self._client.iter_download(
             message.media,
-            offset=offset,
-            limit=limit,
+            offset=aligned_offset,
             chunk_size=chunk_size,
+            request_size=chunk_size,
         ):
+            if skip_initial_bytes > 0:
+                if len(chunk) <= skip_initial_bytes:
+                    skip_initial_bytes -= len(chunk)
+                    continue
+                else:
+                    chunk = chunk[skip_initial_bytes:]
+                    skip_initial_bytes = 0
+
+            if limit is not None and total_yielded + len(chunk) > limit:
+                chunk = chunk[: limit - total_yielded]
+
+            if not chunk:
+                continue
+
+            total_yielded += len(chunk)
             yield chunk
+
+            if limit is not None and total_yielded >= limit:
+                break
 
 
 _client_instance: Optional[TelegramStorageClient] = None
