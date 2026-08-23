@@ -13,7 +13,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from src.api.schemas import (
     MediaItemResponse,
     StatsResponse,
@@ -22,7 +22,6 @@ from src.api.schemas import (
 )
 from src.database.repository import MediaRepository
 from src.services.archive_service import ArchiveService
-from src.services.upload_tracker import get_upload_tracker
 
 router = APIRouter(prefix="/api/media", tags=["Media Catalog"])
 
@@ -164,63 +163,28 @@ async def get_stats():
     )
 
 
-@router.get("/upload/progress/{upload_id}")
-async def get_upload_progress(upload_id: str):
-    """
-    Returns real-time byte transfer progress, percent, and operational status for an active upload.
-    """
-    tracker = get_upload_tracker()
-    data = tracker.get_progress(upload_id)
-    if not data:
-        return {"status": "not_found", "percent": 0.0, "speed_mbps": 0.0}
-    return data
-
-
 @router.post("/upload")
-async def upload_media(
-    file: UploadFile = File(...),
-    upload_id: Optional[str] = Form(None),
-):
+async def upload_media(file: UploadFile = File(...)):
     """
     Accepts direct multipart file upload from web UI,
-    spools to temporary buffer, and archives into Telegram MTProto vault with deduplication
-    and real-time parallel MTProto upload tracking.
+    spools to temporary buffer, and archives into Telegram MTProto vault with deduplication.
     """
-    tracker = get_upload_tracker()
     temp_dir = Path("data/upload_temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
     temp_path = temp_dir / file.filename
 
     try:
-        # 1. Stream incoming browser bytes to disk buffer (O(1) memory footprint)
+        # Stream incoming bytes to disk buffer (O(1) memory footprint)
         with open(temp_path, "wb") as f:
             while chunk := await file.read(1024 * 1024):
                 f.write(chunk)
-
-        total_bytes = temp_path.stat().st_size
-        if upload_id:
-            tracker.start_tracking(upload_id, total_bytes, file.filename)
-
-        # 2. Progress callback forwarding live Telegram MTProto transfer bytes to UI tracker
-        def on_telegram_progress(curr: int, tot: int):
-            if upload_id:
-                tracker.update_progress(upload_id, curr, tot)
 
         archive_service = ArchiveService()
         result = await archive_service.archive_file(
             file_path=temp_path,
             mime_type=file.content_type,
-            progress_callback=on_telegram_progress,
         )
-
-        if upload_id:
-            tracker.set_status(upload_id, "completed")
-
         return result
-    except Exception as e:
-        if upload_id:
-            tracker.set_status(upload_id, "error", str(e))
-        raise e
     finally:
         if temp_path.exists():
             try:
@@ -321,27 +285,3 @@ async def create_duplicate_alias(media_id: int, payload: dict):
     )
 
     return {"status": "alias_created", "new_id": alias_id, "file_name": new_name.strip()}
-
-
-@router.patch("/{media_id:int}/metadata")
-async def update_media_metadata(media_id: int, payload: dict):
-    """
-    Updates client-extracted video metadata (duration_seconds, width, height) in SQLite.
-    """
-    duration_seconds = payload.get("duration_seconds")
-    width = payload.get("width")
-    height = payload.get("height")
-
-    item = await MediaRepository.get_by_id(media_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Media item not found")
-
-    await MediaRepository.update_media_metadata(
-        media_id=media_id,
-        duration_seconds=float(duration_seconds) if duration_seconds is not None else None,
-        width=int(width) if width is not None else None,
-        height=int(height) if height is not None else None,
-    )
-
-    return {"status": "updated", "media_id": media_id}
-

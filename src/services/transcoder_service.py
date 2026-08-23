@@ -74,32 +74,20 @@ def get_video_codec(file_path: Union[str, Path]) -> str:
 
 def is_web_compatible(file_path: Union[str, Path]) -> bool:
     """
-    Returns True if the video is encoded with a universal browser-compatible codec (H.264 / AVC)
-    and does not exceed browser hardware decoding dimension limits (e.g. 2160x3840 vertical 4K).
+    Returns True if the video is encoded with a universal browser-compatible codec (H.264 / AVC).
+    Returns False for HEVC/H.265, ProRes, VC1, MPEG-2, or unknown codecs requiring transcoding.
     """
     codec = get_video_codec(file_path)
-
-    # Incompatible codecs that freeze on Windows/Android/iOS browsers
-    incompatible_codecs = {"hevc", "hvc1", "hev1", "apcn", "apch", "ap4h", "ap4x", "prores"}
-    if codec in incompatible_codecs:
-        return False
-
-    # Check for oversized vertical 4K dimensions (height > 2160) which crash browser GPU decoders on seek
-    try:
-        cap = cv2.VideoCapture(str(file_path))
-        if cap.isOpened():
-            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            cap.release()
-            if h > 2160 or w > 2160:
-                return False
-    except Exception:
-        pass
 
     # Universally supported web codecs across all modern browsers
     web_codecs = {"h264", "avc1", "avc3", "vp80", "vp90", "av01", "mp4v"}
     if codec in web_codecs:
         return True
+
+    # Incompatible codecs that freeze on Windows/Android/iOS browsers
+    incompatible_codecs = {"hevc", "hvc1", "hev1", "apcn", "apch", "ap4h", "ap4x", "prores"}
+    if codec in incompatible_codecs:
+        return False
 
     # Default to compatible if standard mp4/webm container
     suffix = Path(file_path).suffix.lower()
@@ -111,7 +99,7 @@ def transcode_to_web_h264(
     output_path: Union[str, Path],
 ) -> bool:
     """
-    Transcodes an unsupported video (HEVC/ProRes/Oversized 4K) to high-quality, fast-start H.264 MP4.
+    Transcodes an unsupported video (HEVC/ProRes) to high-quality, fast-start H.264 MP4.
     Applies +faststart for instantaneous 0ms HTTP range seek initiation.
     """
     in_file = Path(input_path)
@@ -129,7 +117,6 @@ def transcode_to_web_h264(
             ffmpeg_exe,
             "-y",
             "-i", str(in_file),
-            "-vf", "scale='min(1080,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", "22",

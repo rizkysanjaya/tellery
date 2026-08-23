@@ -211,30 +211,6 @@ class MediaRepository:
             await conn.commit()
             return cursor.rowcount > 0
 
-    @staticmethod
-    async def update_media_metadata(
-        media_id: int,
-        duration_seconds: Optional[float] = None,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
-    ) -> bool:
-        """
-        Updates duration and dimensions metadata for a media item.
-        Cost: O(1) point update on primary key id.
-        """
-        query = """
-            UPDATE media_items 
-            SET 
-                duration_seconds = COALESCE(?, duration_seconds),
-                width = COALESCE(?, width),
-                height = COALESCE(?, height)
-            WHERE id = ?;
-        """
-        async with get_db_connection() as conn:
-            cursor = await conn.execute(query, (duration_seconds, width, height, media_id))
-            await conn.commit()
-            return cursor.rowcount > 0
-
     # =========================================================================
     # Folder & Album Repository Methods
     # =========================================================================

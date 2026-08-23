@@ -19,7 +19,6 @@ from src.api.routes import (
     media_router,
     stream_router,
     sync_router,
-    system_router,
     thumbnail_router,
 )
 from src.database.connection import init_db
@@ -79,7 +78,6 @@ def create_app() -> FastAPI:
     app.include_router(stream_router)
     app.include_router(folders_router)
     app.include_router(sync_router)
-    app.include_router(system_router)
 
     @app.get("/api/health", tags=["Health"])
     async def health_check():

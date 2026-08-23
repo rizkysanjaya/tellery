@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Sidebar.tsx
- * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
+ * Purpose: Raycast/Linear-inspired modern sidebar with live MTProto telemetry,
  *          album drop targets, keyboard shortcut tags, storage stats, and vault sync.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -11,8 +11,9 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
+  Layers,
   Clock,
   Folder,
   FolderPlus,
@@ -28,11 +29,8 @@ import {
   Check,
   Cloud,
   RefreshCw,
-  HardDrive,
 } from "lucide-react";
-import { CacheStats, FolderItem, MainView, StatsResponse } from "../types";
-import { clearLocalCache, fetchCacheStats } from "../api";
-import { TeleGalleryLogo } from "./ui/TeleGalleryLogo";
+import { FolderItem, MainView, StatsResponse } from "../types";
 
 interface SidebarProps {
   currentView: MainView;
@@ -74,37 +72,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [newAlbumName, setNewAlbumName] = useState("");
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [dragOverSidebarFolderId, setDragOverSidebarFolderId] = useState<number | null>(null);
-  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
-  const [isClearingCache, setIsClearingCache] = useState(false);
-  const [cacheToast, setCacheToast] = useState<string | null>(null);
-
-  const loadCacheStats = async () => {
-    try {
-      const data = await fetchCacheStats();
-      setCacheStats(data);
-    } catch {}
-  };
-
-  useEffect(() => {
-    loadCacheStats();
-    const interval = setInterval(loadCacheStats, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleClearCache = async () => {
-    if (isClearingCache) return;
-    setIsClearingCache(true);
-    try {
-      const result = await clearLocalCache();
-      setCacheToast(`Reclaimed ${result.freed_formatted}`);
-      setTimeout(() => setCacheToast(null), 3000);
-      await loadCacheStats();
-    } catch (err) {
-      console.error("Failed to clear cache:", err);
-    } finally {
-      setIsClearingCache(false);
-    }
-  };
 
   const handleCreateAlbumSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,67 +133,75 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpenMobile && (
         <div
           onClick={onCloseMobile}
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm md:hidden animate-in fade-in duration-200"
         />
       )}
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 md:z-20 w-64 bg-background border-r border-outline-variant/15 flex flex-col transition-transform duration-300 ease-in-out select-none ${
+        className={`fixed top-0 bottom-0 left-0 z-50 md:z-20 w-64 bg-zinc-950/90 md:backdrop-blur-2xl border-r border-white/[0.08] flex flex-col transition-transform duration-300 ease-in-out select-none ${
           isOpenMobile ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center space-x-3 px-5 py-4 mb-2">
-          <TeleGalleryLogo className="w-8 h-8" size={32} />
-          <div>
-            <h1 className="font-semibold text-lg text-primary tracking-tight">TeleGallery</h1>
-            <p className="text-xs text-on-surface-variant font-medium">Cloud Vault</p>
+        <div className="h-16 px-5 flex items-center justify-between border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 via-sky-400 to-indigo-600 flex items-center justify-center shadow-[0_0_20px_rgba(14,165,233,0.3)] ring-1 ring-white/20">
+              <Layers className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
+                TeleGallery
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  Cloud
+                </span>
+              </h1>
+            </div>
           </div>
-          
+
           {/* Mobile Close Button */}
           <button
             onClick={onCloseMobile}
-            className="ml-auto p-1.5 text-on-surface-variant hover:text-on-surface rounded-neo md:hidden neo-raised active:neo-pressed cursor-pointer transition-all"
+            className="p-1.5 text-zinc-400 hover:text-white rounded-lg md:hidden hover:bg-zinc-800/60 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Primary New Upload Button */}
-        <div className="px-4 mb-4">
+        <div className="p-3">
           <button
             onClick={() => {
               onTriggerUpload();
               onCloseMobile();
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 neo-button-primary rounded-neo-lg text-sm font-semibold transition-all duration-200 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl text-xs font-semibold shadow-[0_0_20px_rgba(14,165,233,0.25)] hover:shadow-[0_0_25px_rgba(14,165,233,0.4)] active:scale-[0.98] transition-all cursor-pointer border border-sky-400/30"
           >
-            <Upload className="w-4 h-4" />
-            <span>Upload Media</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span>Upload Photos & Videos</span>
           </button>
         </div>
 
         {/* Navigation Section */}
-        <div className="flex-1 overflow-y-auto px-4 space-y-1">
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
           {/* Photos / Timeline */}
           <button
             onClick={() => {
               onSelectTimeline();
               onCloseMobile();
             }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               isTimelineActive
-                ? "neo-pressed bg-surface-base text-primary"
-                : "text-on-surface-variant hover:text-on-surface"
+                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.1)]"
+                : "text-zinc-400 hover:text-white hover:bg-zinc-900/60"
             }`}
           >
-            <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5" />
+            <div className="flex items-center gap-2.5">
+              <Clock className={`w-4 h-4 ${isTimelineActive ? "text-sky-400" : "text-zinc-500"}`} />
               <span>Timeline</span>
             </div>
             {stats && (
-              <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400 font-mono">
                 {stats.total_items}
               </span>
             )}
@@ -234,22 +209,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Albums Section */}
           <div className="pt-4">
-            <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-on-surface-variant tracking-wider uppercase">
+            <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-bold text-zinc-500 tracking-wider">
               <button
                 onClick={() => setIsAlbumsExpanded((p) => !p)}
-                className="flex items-center gap-1.5 hover:text-on-surface cursor-pointer transition-colors duration-200"
+                className="flex items-center gap-1.5 hover:text-zinc-300 cursor-pointer"
               >
                 {isAlbumsExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="w-3.5 h-3.5 text-zinc-500" />
                 ) : (
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
                 )}
-                <span>Collections</span>
+                <span>COLLECTIONS</span>
               </button>
 
               <button
                 onClick={() => setShowInlineNewAlbum(true)}
-                className="p-1.5 neo-raised active:neo-pressed rounded-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                className="p-1 hover:bg-zinc-800/80 rounded-md text-zinc-500 hover:text-sky-400 transition-colors cursor-pointer"
                 title="Create New Album"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -260,7 +235,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {showInlineNewAlbum && (
               <form
                 onSubmit={handleCreateAlbumSubmit}
-                className="flex items-center gap-2 px-3 py-2 mt-1 mb-2 neo-pressed bg-surface-base rounded-neo-lg transition-all duration-200"
+                className="flex items-center gap-1 px-3 py-1.5 mt-1 mb-2 bg-zinc-900/90 rounded-xl border border-sky-500/40 shadow-lg animate-in fade-in duration-150"
               >
                 <input
                   type="text"
@@ -268,49 +243,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onChange={(e) => setNewAlbumName(e.target.value)}
                   placeholder="Album name..."
                   autoFocus
-                  className="flex-1 px-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant outline-none"
+                  className="flex-1 px-1.5 py-1 bg-transparent text-xs text-zinc-100 placeholder-zinc-500 outline-none"
                 />
                 <button
                   type="submit"
                   disabled={isCreatingAlbum || !newAlbumName.trim()}
-                  className="p-1.5 neo-raised active:neo-pressed disabled:opacity-50 text-primary rounded-md cursor-pointer transition-all"
+                  className="p-1 bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white rounded-md cursor-pointer"
                 >
                   {isCreatingAlbum ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-3 h-3 animate-spin" />
                   ) : (
-                    <Check className="w-3.5 h-3.5" />
+                    <Check className="w-3 h-3" />
                   )}
                 </button>
                 <button
                   type="button"
                   onClick={() => setShowInlineNewAlbum(false)}
-                  className="p-1.5 neo-raised active:neo-pressed text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer transition-all"
+                  className="p-1 text-zinc-400 hover:text-white rounded-md cursor-pointer"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3" />
                 </button>
               </form>
             )}
 
             {/* Albums List */}
             {isAlbumsExpanded && (
-              <div className="space-y-1 mt-1">
+              <div className="space-y-0.5 mt-1">
                 {/* All Albums Overview Link */}
                 <button
                   onClick={() => {
                     onSelectAlbumsOverview();
                     onCloseMobile();
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                     isAlbumsOverviewActive
-                      ? "neo-pressed bg-surface-base text-primary"
-                      : "text-on-surface-variant hover:text-on-surface"
+                      ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
+                      : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <FolderPlus className="w-5 h-5" />
+                  <div className="flex items-center gap-2">
+                    <FolderPlus className="w-3.5 h-3.5 text-zinc-500" />
                     <span>All Albums</span>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-900 border border-zinc-800/80 text-zinc-500 font-mono">
                     {folders.length}
                   </span>
                 </button>
@@ -330,32 +305,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         onSelectFolder(folder);
                         onCloseMobile();
                       }}
-                      className={`group flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                      className={`group flex items-center justify-between px-3 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
                         isDragTarget
-                          ? "neo-pressed bg-surface-base text-primary ring-2 ring-primary scale-[1.02]"
+                          ? "bg-sky-500/25 text-sky-200 border border-sky-400 ring-2 ring-sky-500/30 scale-[1.02] shadow-[0_0_15px_rgba(14,165,233,0.3)]"
                           : isSelected
-                            ? "neo-pressed bg-surface-base text-primary"
-                            : "text-on-surface-variant hover:text-on-surface"
+                            ? "bg-sky-500/15 text-sky-300 border border-sky-500/30 shadow-[0_0_15px_rgba(14,165,233,0.1)]"
+                            : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/60"
                       }`}
                     >
-                      <div className="flex items-center gap-3 truncate pr-2">
+                      <div className="flex items-center gap-2 truncate pr-2">
                         <Folder
-                          className={`w-5 h-5 shrink-0 transition-colors ${
+                          className={`w-3.5 h-3.5 shrink-0 transition-colors ${
                             isDragTarget || isSelected
-                              ? "text-primary"
-                              : "text-on-surface-variant group-hover:text-on-surface"
+                              ? "text-sky-400"
+                              : "text-zinc-500 group-hover:text-zinc-400"
                           }`}
                         />
                         <span className="truncate">{folder.name}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {isDragTarget ? (
-                          <span className="text-xs font-bold text-primary animate-pulse">
+                          <span className="text-[10px] font-bold text-sky-300 animate-pulse">
                             Drop
                           </span>
                         ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-900/80 border border-zinc-800/80 text-zinc-500 font-mono">
                             {folder.item_count}
                           </span>
                         )}
@@ -371,10 +346,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               onDeleteFolder(folder.id);
                             }
                           }}
-                          className="p-1 text-on-surface-variant hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                          className="p-1 text-zinc-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                           title="Delete Album"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </button>
                       </div>
                     </div>
@@ -386,114 +361,65 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Vault Storage Stats Widget at Bottom */}
-        <div className="p-4 m-3 neo-card rounded-neo-xl space-y-3">
-          <div className="flex items-center justify-between">
+        <div className="p-3.5 m-3 border border-white/[0.08] rounded-2xl bg-zinc-900/60 backdrop-blur-md shadow-lg">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Cloud className="w-4 h-4 text-primary" />
-              <span className="text-sm font-bold text-on-surface">Telegram Vault</span>
+              <Cloud className="w-3.5 h-3.5 text-sky-400" />
+              <span className="text-xs font-bold text-zinc-200">Telegram Vault</span>
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full neo-pressed bg-surface-base text-[10px] font-semibold text-primary font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              <span>MTProto</span>
+            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-[10px] font-semibold text-emerald-400">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>MTProto Live</span>
             </div>
           </div>
 
           {stats ? (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {/* Storage archived & Unlimited badge */}
               <div className="flex items-baseline justify-between">
                 <div>
-                  <span className="text-xl font-bold font-mono text-on-surface tracking-tight drop-shadow-sm">
+                  <span className="text-lg font-bold font-mono text-white tracking-tight">
                     {stats.total_size_formatted}
                   </span>
-                  <span className="text-xs text-on-surface-variant block mt-0.5">Archived in Cloud</span>
+                  <span className="text-[10px] text-zinc-400 block -mt-0.5">Archived in Cloud</span>
                 </div>
-                <div className="flex items-center gap-1 px-2 py-1 rounded-lg neo-pressed bg-surface-base text-xs font-bold text-primary font-mono">
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-sky-500/10 border border-sky-500/25 text-[10px] font-bold text-sky-400 font-mono">
                   <span>∞</span>
-                  <span>Unlmt</span>
+                  <span>Unlimited</span>
                 </div>
               </div>
 
               {/* Photos & Videos Breakdown */}
-              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-surface-container-high text-xs">
-                <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
-                  <Images className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">{stats.total_photos} items</span>
+              <div className="grid grid-cols-2 gap-1.5 pt-2.5 border-t border-white/[0.06] text-[10px]">
+                <div className="flex items-center gap-1.5 text-zinc-300 bg-zinc-950/40 px-2 py-1 rounded-lg border border-white/[0.04]">
+                  <Images className="w-3 h-3 text-sky-400 shrink-0" />
+                  <span className="truncate">{stats.total_photos} photos</span>
                 </div>
-                <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
-                  <Video className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="truncate">{stats.total_videos} items</span>
+                <div className="flex items-center gap-1.5 text-zinc-300 bg-zinc-950/40 px-2 py-1 rounded-lg border border-white/[0.04]">
+                  <Video className="w-3 h-3 text-indigo-400 shrink-0" />
+                  <span className="truncate">{stats.total_videos} videos</span>
                 </div>
               </div>
-
-              {/* Local Disk Cache Meter & 1-Click Purge */}
-              {cacheStats && (
-                <div className="pt-2 border-t border-surface-container-high space-y-1.5">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-1.5 text-on-surface-variant">
-                      <HardDrive className="w-3.5 h-3.5 text-primary" />
-                      <span>Local Cache</span>
-                    </div>
-                    <span className="font-mono text-on-surface font-medium">
-                      {cacheStats.cache_formatted} / {cacheStats.max_formatted}
-                    </span>
-                  </div>
-
-                  {/* Cache Progress Bar */}
-                  <div className="h-1.5 w-full bg-surface-base neo-pressed rounded-full overflow-hidden">
-                    <div
-                      className={`h-full transition-all duration-300 rounded-full ${
-                        cacheStats.percent_used > 85
-                          ? "bg-error"
-                          : cacheStats.percent_used > 60
-                          ? "bg-amber-400"
-                          : "bg-glow-indigo"
-                      }`}
-                      style={{ width: `${Math.min(100, Math.max(3, cacheStats.percent_used))}%` }}
-                    />
-                  </div>
-
-                  {/* Clear Cache Action Button */}
-                  <div className="flex items-center justify-between pt-0.5">
-                    <span className="text-[10px] text-on-surface-variant">
-                      {cacheToast ? (
-                        <span className="text-emerald-400 font-medium animate-pulse">{cacheToast}</span>
-                      ) : (
-                        `LRU Auto-Eviction (${cacheStats.file_count} files)`
-                      )}
-                    </span>
-                    <button
-                      onClick={handleClearCache}
-                      disabled={isClearingCache || cacheStats.cache_bytes === 0}
-                      className="flex items-center gap-1 text-[10px] font-semibold text-on-surface-variant hover:text-emerald-400 disabled:opacity-40 cursor-pointer transition-colors"
-                      title="Clear local streaming cache to free disk space"
-                    >
-                      <Trash2 className={`w-3 h-3 ${isClearingCache ? "animate-spin text-emerald-400" : ""}`} />
-                      <span>{isClearingCache ? "Purging..." : "Clear Cache"}</span>
-                    </button>
-                  </div>
-                </div>
-              )}
 
               {/* Sync Vault Action Button */}
               {onSyncVault && (
                 <button
                   onClick={() => onSyncVault()}
                   disabled={isSyncing}
-                  className={`w-full mt-2 flex items-center justify-center gap-2 py-2 px-4 rounded-neo-lg text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                  className={`w-full mt-1.5 flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl border text-[11px] font-semibold transition-all duration-200 cursor-pointer ${
                     isSyncing
-                      ? "neo-pressed bg-surface-base text-primary cursor-wait"
-                      : "neo-button text-on-surface hover:text-primary"
+                      ? "bg-sky-500/10 border-sky-500/30 text-sky-400 cursor-wait"
+                      : "bg-white/[0.04] hover:bg-white/[0.08] border-white/[0.06] hover:border-white/[0.15] text-zinc-300 hover:text-white"
                   }`}
                   title="Scan Telegram Channel for new media"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary" : ""}`} />
-                  <span>{isSyncing ? "Syncing..." : "Sync Vault"}</span>
+                  <RefreshCw className={`w-3 h-3 ${isSyncing ? "animate-spin text-sky-400" : "text-zinc-400"}`} />
+                  <span>{isSyncing ? "Syncing with Telegram..." : "Sync Vault"}</span>
                 </button>
               )}
             </div>
           ) : (
-            <div className="text-xs text-on-surface-variant py-2">Connecting to Telegram...</div>
+            <div className="text-[11px] text-zinc-500 py-1">Connecting to Telegram...</div>
           )}
         </div>
       </aside>

@@ -1,10 +1,10 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Header.tsx
- * Purpose: Neomorphic top navigation header with spotlight search,
+ * Purpose: 21st.dev Command-bar top navigation header with spotlight search,
  *          segmented filter pills, sort popover menu, and layout switchers.
  * Used by: frontend/src/App.tsx
- * Dependencies: lucide-react, frontend/src/types.ts, AnimatedTabs
+ * Dependencies: lucide-react, frontend/src/types.ts
  * Public Members: Header
  * Side Effects: Dispatches search, filter, sort, and layout change events.
  * =============================================================================
@@ -18,14 +18,14 @@ import {
   Layers,
   Menu,
   LayoutGrid,
+  Grid3X3,
+  List,
   Columns3,
   ArrowUpDown,
   Check,
   ChevronDown,
   X,
   Command,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { DisplayLayout, FilterType, MainView, SortOption } from "../types";
 import { AnimatedTabs, TabItem } from "./ui/AnimatedTabs";
@@ -42,8 +42,6 @@ interface HeaderProps {
   onSortChange?: (sort: SortOption) => void;
   onOpenCommandPalette?: () => void;
   onToggleMobileSidebar: () => void;
-  theme?: "dark" | "light";
-  onToggleTheme?: () => void;
 }
 
 const SORT_LABELS: Record<SortOption, { label: string; group: string }> = {
@@ -67,8 +65,6 @@ export const Header: React.FC<HeaderProps> = ({
   onSortChange,
   onOpenCommandPalette,
   onToggleMobileSidebar,
-  theme = "dark",
-  onToggleTheme,
 }) => {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
@@ -109,45 +105,47 @@ export const Header: React.FC<HeaderProps> = ({
   }, [showSortMenu]);
 
   const filterTabs: TabItem<FilterType>[] = [
-    { id: "all", label: "All", icon: <Layers className="w-4 h-4" /> },
-    { id: "photo", label: "Photos", icon: <ImageIcon className="w-4 h-4" /> },
-    { id: "video", label: "Videos", icon: <Video className="w-4 h-4" /> },
+    { id: "all", label: "All", icon: <Layers className="w-3.5 h-3.5" /> },
+    { id: "photo", label: "Photos", icon: <ImageIcon className="w-3.5 h-3.5" /> },
+    { id: "video", label: "Videos", icon: <Video className="w-3.5 h-3.5" /> },
   ];
 
   const layoutTabs: TabItem<DisplayLayout>[] = [
-    { id: "grid", label: "Grid", icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: "masonry", label: "Natural", icon: <Columns3 className="w-4 h-4" /> },
+    { id: "grid", label: "", icon: <LayoutGrid className="w-4 h-4" /> },
+    { id: "dense", label: "", icon: <Grid3X3 className="w-4 h-4" /> },
+    { id: "masonry", label: "", icon: <Columns3 className="w-4 h-4" /> },
+    { id: "list", label: "", icon: <List className="w-4 h-4" /> },
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-outline-variant/10 px-4 lg:px-8 py-3 transition-all">
-      <div className="flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-30 bg-zinc-950/80 backdrop-blur-2xl border-b border-white/[0.06] px-4 lg:px-8 py-2.5 transition-all">
+      <div className="flex items-center justify-between gap-3">
         {/* Mobile Hamburger Menu Toggle */}
         <button
           onClick={onToggleMobileSidebar}
-          className="p-2 -ml-2 neo-button rounded-full text-on-surface-variant hover:text-primary md:hidden cursor-pointer transition-all w-10 h-10 flex items-center justify-center shrink-0"
+          className="p-2 -ml-2 text-zinc-400 hover:text-white rounded-xl hover:bg-zinc-900 md:hidden cursor-pointer"
           title="Open Navigation"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        {/* Spotlight Search Input */}
+        {/* Spotlight Search Input (21st.dev Command-Bar style) */}
         <div className="relative flex-1 max-w-xl group">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant group-focus-within:text-primary transition-colors z-10" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-sky-400 transition-colors" />
           <input
             ref={searchInputRef}
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search vault (photos, videos, cameras, 2026)..."
-            className="w-full pl-10 pr-20 py-2.5 bg-surface-base rounded-neo-lg text-sm font-medium text-on-surface placeholder-on-surface-variant outline-none transition-all neo-pressed focus:ring-1 focus:ring-primary/40"
+            className="w-full pl-10 pr-20 py-2 bg-zinc-900/60 hover:bg-zinc-900/90 border border-white/[0.08] focus:border-sky-500/60 focus:bg-zinc-900 rounded-xl text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all focus:ring-2 focus:ring-sky-500/20 shadow-inner"
           />
 
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
             {searchQuery ? (
               <button
                 onClick={() => onSearchChange("")}
-                className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-md transition-colors cursor-pointer"
+                className="p-1 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-md transition-colors cursor-pointer"
                 title="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -155,10 +153,10 @@ export const Header: React.FC<HeaderProps> = ({
             ) : (
               <button
                 onClick={onOpenCommandPalette}
-                className="hidden sm:inline-flex items-center gap-0.5 px-2 py-1 rounded-neo bg-surface-container neo-raised text-[10px] font-mono font-bold text-on-surface-variant hover:text-primary cursor-pointer select-none transition-all"
+                className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 text-[10px] font-mono text-zinc-400 hover:text-white cursor-pointer select-none"
                 title="Open Command Palette (Ctrl+K)"
               >
-                <Command className="w-3 h-3" />K
+                <Command className="w-2.5 h-2.5" />K
               </button>
             )}
           </div>
@@ -166,8 +164,8 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Controls: Filter Pills, Sort Dropdown & Layout Switcher */}
         {currentView === "timeline" && (
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Neomorphic Filter Pills (All / Photos / Videos) */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Animated Sliding Filter Pills (All / Photos / Videos) */}
             <AnimatedTabs<FilterType>
               tabs={filterTabs}
               activeId={activeFilter}
@@ -180,27 +178,27 @@ export const Header: React.FC<HeaderProps> = ({
               <div className="relative" ref={sortMenuRef}>
                 <button
                   onClick={() => setShowSortMenu((p) => !p)}
-                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-neo-lg text-sm font-semibold transition-all cursor-pointer ${
+                  className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
                     showSortMenu
-                      ? "neo-pressed text-primary bg-surface-base"
-                      : "neo-raised text-on-surface-variant hover:text-on-surface bg-surface-container hover:scale-[1.02]"
+                      ? "bg-sky-500/15 border-sky-500/40 text-sky-300 shadow-[0_0_15px_rgba(14,165,233,0.15)]"
+                      : "bg-zinc-900/70 border-white/[0.06] text-zinc-300 hover:text-white hover:bg-zinc-800/80"
                   }`}
                   title="Sort media by date, name, or size"
                 >
-                  <ArrowUpDown className="w-4 h-4" />
+                  <ArrowUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   <span className="hidden md:inline">
                     {SORT_LABELS[sortBy]?.label || "Sort"}
                   </span>
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <ChevronDown className="w-3 h-3 text-zinc-500" />
                 </button>
 
                 {showSortMenu && (
-                  <div className="absolute right-0 top-12 w-56 bg-surface-base rounded-neo-xl neo-card p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-3 py-2">
+                  <div className="absolute right-0 top-11 w-56 bg-zinc-900/95 border border-white/[0.1] rounded-2xl shadow-2xl backdrop-blur-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-2.5 py-1">
                       Sort Timeline By
                     </div>
 
-                    <div className="space-y-1 mt-1">
+                    <div className="space-y-0.5 mt-0.5">
                       {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => {
                         const isCurrent = sortBy === key;
                         return (
@@ -210,15 +208,15 @@ export const Header: React.FC<HeaderProps> = ({
                               onSortChange(key);
                               setShowSortMenu(false);
                             }}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo text-sm font-medium transition-all text-left cursor-pointer ${
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all text-left cursor-pointer ${
                               isCurrent
-                                ? "neo-pressed text-primary bg-surface-container-high"
-                                : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+                                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30 font-semibold"
+                                : "text-zinc-300 hover:bg-zinc-800/80 hover:text-white"
                             }`}
                           >
                             <span>{SORT_LABELS[key].label}</span>
                             {isCurrent && (
-                              <Check className="w-4 h-4 text-primary shrink-0" />
+                              <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />
                             )}
                           </button>
                         );
@@ -229,42 +227,17 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Neomorphic Layout Switcher */}
+            {/* Animated Sliding Display Layout Switcher */}
             {onDisplayLayoutChange && (
-              <div className="hidden sm:flex items-center gap-1.5 p-1 bg-surface-base rounded-full neo-pressed">
-                {layoutTabs.map(tab => {
-                   const isActive = displayLayout === tab.id;
-                   return (
-                     <button
-                       key={tab.id}
-                       onClick={() => onDisplayLayoutChange(tab.id)}
-                       className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
-                         isActive 
-                           ? "neo-raised bg-surface-container text-primary"
-                           : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
-                       }`}
-                       title={`Layout: ${tab.id}`}
-                     >
-                       {tab.icon}
-                     </button>
-                   );
-                })}
+              <div className="hidden sm:block">
+                <AnimatedTabs<DisplayLayout>
+                  tabs={layoutTabs}
+                  activeId={displayLayout}
+                  onChange={onDisplayLayoutChange}
+                  layoutIdPrefix="display-layout"
+                  tabClassName="px-2"
+                />
               </div>
-            )}
-
-            {/* Light / Dark Mode Toggle Button */}
-            {onToggleTheme && (
-              <button
-                onClick={onToggleTheme}
-                className="w-10 h-10 flex items-center justify-center rounded-full neo-button bg-surface-base text-on-surface hover:text-primary transition-all duration-200 cursor-pointer"
-                title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4 text-amber-300" />
-                ) : (
-                  <Moon className="w-4 h-4 text-indigo-600" />
-                )}
-              </button>
             )}
           </div>
         )}

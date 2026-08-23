@@ -13,7 +13,7 @@
  * =============================================================================
  */
 
-import { CacheStats, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse } from "./types";
+import { FilterType, FolderItem, MediaItem, StatsResponse, TimelineResponse } from "./types";
 
 const API_BASE = "";
 
@@ -68,77 +68,30 @@ export async function fetchMediaItem(id: number): Promise<MediaItem> {
 
 export function uploadMediaFile(
   file: File,
-  onProgress?: (progressPercent: number, loadedBytes: number, totalBytes: number, speedMbps?: number) => void,
+  onProgress?: (progressPercent: number, loadedBytes: number, totalBytes: number) => void,
   onProcessing?: () => void
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
-    const uploadId = "upl_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
     formData.append("file", file);
-    formData.append("upload_id", uploadId);
 
-    let pollInterval: any = null;
-    let isFinished = false;
-
-    const stopPolling = () => {
-      isFinished = true;
-      if (pollInterval) {
-        clearInterval(pollInterval);
-        pollInterval = null;
-      }
-    };
-
-    let maxReportedBytes = 0;
-
-    // 1. Initial browser-to-server spool progress
-    xhr.upload.addEventListener("progress", () => {
-      if (isFinished) return;
-      if (onProgress) {
-        onProgress(1, 0, file.size, 0);
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        // Scale browser-to-server progress to 0-95%
+        const percent = Math.min(95, Math.round((e.loaded / e.total) * 100));
+        onProgress(percent, e.loaded, e.total);
       }
     });
 
-    // 2. Actively poll real-time MTProto upload to Telegram Cloud
     xhr.upload.addEventListener("load", () => {
-      if (isFinished) return;
       if (onProcessing) {
         onProcessing();
       }
-
-      pollInterval = setInterval(async () => {
-        if (isFinished) {
-          stopPolling();
-          return;
-        }
-        try {
-          const res = await fetch(`${API_BASE}/api/media/upload/progress/${uploadId}`);
-          if (isFinished) return;
-          if (res.ok) {
-            const data = await res.json();
-            if (isFinished) return;
-            if (data.status === "uploading_to_telegram" && onProgress) {
-              const currentBytes = Math.max(maxReportedBytes, data.bytes_uploaded || 0);
-              maxReportedBytes = currentBytes;
-              const percent = Math.min(99, Math.max(1, Math.round((currentBytes / file.size) * 100)));
-              onProgress(
-                percent,
-                currentBytes,
-                file.size,
-                data.speed_mbps || 0
-              );
-            }
-          }
-        } catch {}
-      }, 200);
     });
 
     xhr.addEventListener("load", () => {
-      stopPolling();
       if (xhr.status >= 200 && xhr.status < 300) {
-        if (onProgress) {
-          onProgress(100, file.size, file.size, 0);
-        }
         try {
           const res = JSON.parse(xhr.responseText);
           resolve(res);
@@ -156,12 +109,10 @@ export function uploadMediaFile(
     });
 
     xhr.addEventListener("error", () => {
-      stopPolling();
       reject(new Error("Network error during upload"));
     });
 
     xhr.addEventListener("abort", () => {
-      stopPolling();
       reject(new Error("Upload aborted"));
     });
 
@@ -306,47 +257,3 @@ export async function fetchSyncStatus(): Promise<{
   }
   return response.json();
 }
-
-export async function updateMediaMetadata(
-  mediaId: number,
-  metadata: { duration_seconds?: number; width?: number; height?: number }
-): Promise<void> {
-  await fetch(`${API_BASE}/api/media/${mediaId}/metadata`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(metadata),
-  });
-}
-
-export async function fetchCacheStats(): Promise<CacheStats> {
-  const response = await fetch(`${API_BASE}/api/system/cache`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch cache stats: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function clearLocalCache(): Promise<{
-  status: string;
-  message: string;
-  freed_bytes: number;
-  freed_formatted: string;
-  files_deleted: number;
-}> {
-  const response = await fetch(`${API_BASE}/api/system/cache`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    throw new Error(`Failed to clear local cache: ${response.statusText}`);
-  }
-  return response.json();
-}
-
-export async function fetchSystemStats(): Promise<SystemStats> {
-  const response = await fetch(`${API_BASE}/api/system/stats`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch system stats: ${response.statusText}`);
-  }
-  return response.json();
-}
-

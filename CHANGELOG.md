@@ -7,31 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.9.0] - 2026-09-01
-
-### 🎨 Silk Cloud — Dynamic Light & Dark Neomorphic UI Redesign (from Stitch Vanguard Modern Gallery)
-- **Dynamic Light & Dark Neomorphic Themes (`tailwind.config.js`, `index.css`, `index.html`)**:
-  - Implemented reactive CSS variable architecture supporting both **Light Mode** (cool-gray clay `#e8eaf0`, `#f0f2f8`, `#2e3040`, with soft dual-tone ambient shadows) and **Dark Mode** (deep midnight navy `#0b1326`, `#0f172a`, `#dae2fd`), derived directly from the Stitch design system.
-  - Added one-click **Light/Dark Mode toggle** in the Header navigation, Sidebar bottom bar, and Command Palette (`Ctrl+K` / `⌘K`) with localStorage persistence.
-  - Added utility classes for pure-shadow dual-tone depth: `.neo-raised`, `.neo-pressed`, `.neo-card`, `.neo-frame`, `.neo-image-wrapper`, `.neo-button`, and `.neo-button-primary`.
-  - Migrated primary typography to **Plus Jakarta Sans** with a dedicated font scale (`headline-xl`, `headline-lg`, `headline-md`, `body-lg`, `body-md`, `body-sm`, `label-lg`, `label-md`).
-- **Sidebar & Header Overhaul (`Sidebar.tsx`, `Header.tsx`, `AnimatedTabs.tsx`)**:
-  - Brand header featuring glowing cloud emblem with `text-primary` gradient and "Silk Cloud / Media Vault" wordmark.
-  - Active navigation items styled with `.neo-pressed` inset shadow on `bg-surface-base`.
-  - Top search bar redesigned with inset `.neo-pressed` container and focused primary ring.
-  - Neomorphic pill toggles for media type filtering and layout mode switcher.
-- **Elimination of 14-Second Video Thumbnail Bottleneck (`src/api/routes/thumbnails.py`)**:
-  - Identified and fixed critical blocking issue where missing video thumbnails (e.g. 847MB videos) triggered synchronous whole-file MTProto downloads inside the HTTP request handler, blocking the Python async event loop.
-  - Implemented ultra-fast partial 3MB header chunk streaming via `iter_document_chunks` for instant keyframe extraction, reducing thumbnail generation time from 14,000ms to **sub-25ms**.
-  - Added native Telegram preview byte detection (`download_media(..., thumb=-1)`) for instant 5ms thumbnail generation.
-- **UI & Controls Streamlining (`Header.tsx`, `MediaLightbox.tsx`)**:
-  - Simplified layout switcher to two essential modes (Square Grid vs Natural Aspect), removing clutter.
-  - Replaced dummy buttons in Lightbox with one-click direct URL copy-to-clipboard functionality with interactive confirmation.
-- **Utility Modals & Controls (`CommandPalette.tsx`, `FolderGrid.tsx`, `UploadManager.tsx`, `ContextMenu.tsx`, `SelectionToolbar.tsx`, `FloatingDock.tsx`, `AuroraBackground.tsx`)**:
-  - Replaced flat dark glass surfaces across all dialogs, toolbars, and context menus with matching dark neomorphic cards and buttons.
-
----
-
 ## [0.8.0] - 2026-08-31
 
 ### 🚀 Telegram Channel Ingestion & Real-Time Auto-Ingest Engine
