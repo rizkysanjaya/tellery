@@ -128,23 +128,23 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
       className="space-y-6 pb-20 select-none"
     >
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant/20">
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2.5">
-            <Folder className="w-5 h-5 text-sky-400" />
-            Collections
+          <h2 className="text-headline-lg text-on-surface font-semibold tracking-tight flex items-center gap-2.5">
+            <Folder className="w-5 h-5 text-primary" />
+            Albums
           </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
+          <p className="text-sm text-on-surface-variant mt-0.5">
             Organize your media into albums, collections, and highlights (drag & drop media here)
           </p>
         </div>
 
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 text-white rounded-xl text-xs font-semibold shadow-[0_0_20px_rgba(14,165,233,0.25)] active:scale-95 transition-all cursor-pointer border border-sky-400/30"
+          className="flex items-center gap-2 neo-button-primary rounded-neo px-4 py-2 text-sm font-medium transition-all cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>New Collection</span>
+          <span>New Album</span>
         </button>
       </div>
 
@@ -193,64 +193,61 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                 onDragOver={(e) => handleFolderDragOver(e, folder.id)}
                 onDragLeave={handleFolderDragLeave}
                 onDrop={(e) => handleFolderDrop(e, folder.id)}
-                className={`folder-card-item group relative h-full w-full rounded-2xl overflow-hidden cursor-pointer shadow-lg transition-all duration-300 flex flex-col justify-end ${
-                  isDragOver
-                    ? "border-sky-400 ring-4 ring-sky-500/40 scale-[1.03] shadow-2xl shadow-sky-500/30"
-                    : "border-white/[0.08] hover:border-sky-500/50 hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]"
+                className={`folder-card-item group flex flex-col h-full w-full neo-card bg-surface-base rounded-neo-lg overflow-hidden cursor-pointer transition-all duration-300 ${
+                  isDragOver ? "ring-2 ring-primary scale-[1.03]" : "hover:scale-[1.01]"
                 }`}
               >
-                {/* Cover Image or Placeholder */}
-                {folder.cover_thumbnail_url ? (
-                  <img
-                    src={folder.cover_thumbnail_url}
-                    alt={folder.name}
-                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${
-                      isDragOver ? "scale-110" : "group-hover:scale-105"
-                    }`}
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="absolute inset-0 bg-gradient-to-tr from-zinc-950 to-zinc-900 flex items-center justify-center">
-                    <Folder
-                      className={`w-14 h-14 transition-colors ${
-                        isDragOver ? "text-sky-400 scale-110" : "text-zinc-700 group-hover:text-sky-400"
+                <div className="relative flex-1 w-full min-h-[120px] neo-image-wrapper overflow-hidden bg-surface-container">
+                  {/* Cover Image or Placeholder */}
+                  {folder.cover_thumbnail_url ? (
+                    <img
+                      src={folder.cover_thumbnail_url}
+                      alt={folder.name}
+                      className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ${
+                        isDragOver ? "scale-110" : "group-hover:scale-105"
                       }`}
+                      loading="lazy"
                     />
-                  </div>
-                )}
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center bg-surface-container">
+                      <Folder
+                        className={`w-12 h-12 transition-colors ${
+                          isDragOver ? "text-primary scale-110" : "text-on-surface-variant group-hover:text-primary"
+                        }`}
+                      />
+                    </div>
+                  )}
 
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+                  {/* Drag Over Active Overlay */}
+                  {isDragOver && (
+                    <div className="absolute inset-0 bg-primary/20 backdrop-blur-xs flex flex-col items-center justify-center z-20 animate-in fade-in duration-150">
+                      <ArrowDownToLine className="w-8 h-8 text-primary animate-pulse mb-1" />
+                      <span className="text-xs font-bold bg-primary text-on-primary px-2.5 py-1 rounded-neo shadow-lg">
+                        Drop to Add
+                      </span>
+                    </div>
+                  )}
 
-                {/* Drag Over Active Overlay */}
-                {isDragOver && (
-                  <div className="absolute inset-0 bg-sky-600/30 backdrop-blur-xs flex flex-col items-center justify-center text-white z-20 animate-in fade-in duration-150">
-                    <ArrowDownToLine className="w-8 h-8 text-white animate-pulse mb-1" />
-                    <span className="text-xs font-bold bg-sky-500 text-white px-2.5 py-1 rounded-lg shadow-lg">
-                      Drop to Add
-                    </span>
-                  </div>
-                )}
-
-                {/* Delete Button (Hover) */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFolderToDelete(folder);
-                  }}
-                  className="absolute top-2.5 right-2.5 z-20 p-2 rounded-xl bg-zinc-950/70 hover:bg-red-600 text-white/70 hover:text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer shadow-md"
-                  title="Delete Collection"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                  {/* Delete Button (Hover) */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFolderToDelete(folder);
+                    }}
+                    className="absolute top-2.5 right-2.5 z-20 p-2 rounded-neo bg-surface-container hover:bg-error/20 text-on-surface-variant hover:text-error backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-200 cursor-pointer shadow-md"
+                    title="Delete Album"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
 
                 {/* Folder Details */}
-                <div className="relative z-10 p-3.5 sm:p-4">
-                  <h3 className="text-sm font-bold text-white truncate drop-shadow-md group-hover:text-sky-300 transition-colors">
+                <div className="p-3 sm:p-4 border-t border-outline-variant/10">
+                  <h3 className="text-sm font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
                     {folder.name}
                   </h3>
-                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 mt-0.5 font-mono">
-                    <Images className="w-3 h-3 text-sky-400" />
+                  <div className="flex items-center gap-1.5 text-[11px] text-on-surface-variant mt-1 font-mono">
+                    <Images className="w-3 h-3 text-primary" />
                     <span>{folder.item_count} items</span>
                   </div>
                 </div>

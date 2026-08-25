@@ -116,7 +116,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   return (
     <div
-      className={`relative transition-transform duration-150 ease-out hover:-translate-y-1 active:scale-[0.98] ${
+      className={`relative group transition-transform duration-200 ease-out hover:scale-[1.02] ${
         aspectMode === "natural" ? "w-full min-h-[140px]" : "aspect-square"
       }`}
     >
@@ -126,87 +126,89 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         onClick={handleClick}
         onContextMenu={(e) => onContextMenu(e, item)}
         style={aspectRatioStyle}
-        className={`media-card-item group relative h-full w-full rounded-2xl overflow-hidden cursor-pointer border transition-all duration-300 ${
-          isSelected
-            ? "border-sky-500 ring-2 ring-sky-500/50 shadow-[0_0_25px_rgba(14,165,233,0.35)] scale-[0.98]"
-            : "border-white/[0.08] hover:border-sky-500/40 hover:shadow-[0_12px_32px_rgba(0,0,0,0.45)]"
+        className={`media-card-item neo-frame bg-surface-base p-[10px] rounded-neo h-full w-full cursor-pointer transition-all duration-200 ${
+          isSelected ? "bg-surface-container-high" : ""
         }`}
       >
-        {/* Selection Checkbox (top-left) */}
-        <div
-          onClick={handleCheckboxClick}
-          className={`absolute top-2.5 left-2.5 z-20 w-6 h-6 rounded-lg flex items-center justify-center transition-all duration-200 cursor-pointer ${
-            isSelected
-              ? "bg-sky-500 border border-sky-400 shadow-[0_0_12px_rgba(14,165,233,0.5)] scale-105"
-              : isSelectionMode
-                ? "bg-zinc-950/70 border border-white/20 backdrop-blur-md hover:border-sky-400"
-                : "bg-zinc-950/70 border border-white/20 backdrop-blur-md opacity-0 group-hover:opacity-100 hover:border-sky-400"
-          }`}
-        >
-          {isSelected && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
-        </div>
-
-        {/* Selected Dimming Overlay */}
-        {isSelected && (
-          <div className="absolute inset-0 bg-sky-500/15 z-[1] pointer-events-none" />
-        )}
-
-        {/* Thumbnail Image */}
-        {item.thumbnail_url ? (
-          <img
-            src={item.thumbnail_url}
-            alt={item.file_name}
-            draggable={false}
-            loading="lazy"
-            onLoad={() => setLoaded(true)}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none select-none ${
-              loaded ? "opacity-100" : "opacity-0"
+        <div className="neo-image-wrapper relative w-full h-full rounded-lg overflow-hidden">
+          {/* Selection Checkbox (top-left) */}
+          <div
+            onClick={handleCheckboxClick}
+            className={`absolute top-2.5 left-2.5 z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+              isSelected
+                ? "bg-primary-container text-on-surface scale-105"
+                : isSelectionMode
+                  ? "neo-button hover:text-on-surface"
+                  : "neo-button opacity-0 group-hover:opacity-100 hover:text-on-surface"
             }`}
-          />
-        ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center text-zinc-600 bg-zinc-900/50">
-            <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
-            <span className="text-[10px] text-zinc-500 truncate max-w-[80%]">
-              {item.file_name}
-            </span>
+          >
+            {isSelected && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
           </div>
-        )}
 
-        {/* File Format / Video Duration Pill Badge */}
-        <div className="absolute top-2.5 right-2.5 z-20 bg-black/60 backdrop-blur-xl px-2 py-0.5 rounded-lg flex items-center gap-1.5 text-[10px] font-semibold text-white shadow-sm border border-white/10 select-none">
-          <span className={isVideo ? "font-bold text-sky-400" : "font-bold text-zinc-200"}>
-            {fileExt}
-          </span>
-          {isVideo && (
-            <>
-              <span className="w-0.5 h-2.5 bg-white/20 rounded-full" />
-              <Play className="w-2.5 h-2.5 fill-white text-white shrink-0" />
-              {item.duration_seconds && (
-                <span className="font-mono text-zinc-200">
+          {/* Selected Dimming Overlay */}
+          {isSelected && (
+            <div className="absolute inset-0 bg-primary/10 z-[1] pointer-events-none" />
+          )}
+
+          {/* Thumbnail Image */}
+          {item.thumbnail_url ? (
+            <img
+              src={item.thumbnail_url}
+              alt={item.file_name}
+              draggable={false}
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none select-none ${
+                loaded ? "opacity-100" : "opacity-0"
+              }`}
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center text-on-surface-variant bg-surface-container">
+              <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
+              <span className="text-[10px] truncate max-w-[80%]">
+                {item.file_name}
+              </span>
+            </div>
+          )}
+
+          {/* File Format / Video Duration Pill Badge */}
+          <div className="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5 pointer-events-none">
+            {/* File type badge */}
+            <div className="bg-surface-container text-on-surface-variant px-2 py-0.5 rounded-full text-label-md font-semibold flex items-center shadow-sm">
+              <span className={isVideo ? "text-primary" : ""}>
+                {fileExt}
+              </span>
+            </div>
+            
+            {/* Video overlay pill */}
+            {isVideo && item.duration_seconds && (
+              <div className="bg-surface-base/80 text-on-surface text-label-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                <Play className="w-2.5 h-2.5 fill-current shrink-0" />
+                <span className="font-mono">
                   {formatDuration(item.duration_seconds)}
                 </span>
-              )}
-            </>
-          )}
-        </div>
+              </div>
+            )}
+          </div>
 
-        {/* Overlay details on hover */}
-        <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
-          <p className="text-xs font-semibold text-white truncate drop-shadow-sm">
-            {item.file_name}
-          </p>
-          <div className="flex items-center gap-2 text-[10px] text-zinc-300 mt-0.5 font-mono">
-            {item.camera_model && (
-              <span className="flex items-center gap-1 font-sans">
-                <Camera className="w-3 h-3 text-sky-400" />
-                {item.camera_model}
-              </span>
-            )}
-            {item.width && item.height && (
-              <span>
-                {item.width}×{item.height}
-              </span>
-            )}
+          {/* Overlay details on hover */}
+          <div className="absolute inset-0 z-10 bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
+            <p className="text-body-sm font-semibold text-on-surface truncate">
+              {item.file_name}
+            </p>
+            <div className="flex items-center gap-2 text-label-md text-on-surface-variant mt-0.5 font-mono">
+              {item.camera_model && (
+                <span className="flex items-center gap-1 font-sans">
+                  <Camera className="w-3 h-3 text-primary" />
+                  {item.camera_model}
+                </span>
+              )}
+              {item.width && item.height && (
+                <span>
+                  {item.width}×{item.height}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </SpotlightCard>

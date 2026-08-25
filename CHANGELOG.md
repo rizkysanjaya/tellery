@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-09-01
+
+### 🎨 Silk Cloud — Dark Neomorphic UI Redesign (from Stitch Vanguard Modern Gallery)
+- **Neomorphic Visual Identity & Design Tokens (`tailwind.config.js`, `index.css`, `index.html`)**:
+  - Implemented the "Silk Cloud" dark neomorphic aesthetic with deep navy palette (`bg-background: #0b1326`, `surface-base: #0f172a`, `surface-container: #171f33`).
+  - Added utility classes for pure-shadow dual-tone depth: `.neo-raised`, `.neo-pressed`, `.neo-card`, `.neo-frame`, `.neo-image-wrapper`, `.neo-button`, and `.neo-button-primary`.
+  - Migrated primary typography to **Plus Jakarta Sans** with a dedicated font scale (`headline-xl`, `headline-lg`, `headline-md`, `body-lg`, `body-md`, `body-sm`, `label-lg`, `label-md`).
+- **Sidebar & Header Overhaul (`Sidebar.tsx`, `Header.tsx`, `AnimatedTabs.tsx`)**:
+  - Brand header featuring glowing cloud emblem with `text-primary` gradient and "Silk Cloud / Media Vault" wordmark.
+  - Active navigation items styled with `.neo-pressed` inset shadow on `bg-surface-base`.
+  - Top search bar redesigned with inset `.neo-pressed` container and focused primary ring.
+  - Neomorphic pill toggles for media type filtering and layout mode switcher.
+- **Photo Grid & Card Frames (`MediaCard.tsx`, `TimelineGrid.tsx`)**:
+  - Each photo card is hosted in a `.neo-frame` inset bezel with `.neo-image-wrapper` subtle drop shadows.
+  - Date section headers in bold Plus Jakarta Sans with location labels and section-level select buttons.
+- **Media Lightbox & Video Player (`MediaLightbox.tsx`, `VideoPlayer.tsx`)**:
+  - Central photo canvas framed in a recessed neomorphic container with top navigation bar (Back arrow, Synced badge, Info toggle, More menu).
+  - Integrated right-side metadata & action panel with neomorphic action pills (Download, Share, Favorite, Delete) and camera EXIF breakdown.
+  - Video player redesigned with large circular `.neo-button` transport controls, inset timeline scrubber with indigo glow, and volume slider.
+- **Utility Modals & Controls (`CommandPalette.tsx`, `FolderGrid.tsx`, `UploadManager.tsx`, `ContextMenu.tsx`, `SelectionToolbar.tsx`, `FloatingDock.tsx`, `AuroraBackground.tsx`)**:
+  - Replaced flat dark glass surfaces across all dialogs, toolbars, and context menus with matching dark neomorphic cards and buttons.
+
+---
+
 ## [0.8.0] - 2026-08-31
 
 ### 🚀 Telegram Channel Ingestion & Real-Time Auto-Ingest Engine

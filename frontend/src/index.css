@@ -1,11 +1,13 @@
 /**
  * =============================================================================
  * Module: frontend/src/index.css
- * Purpose: Global Tailwind CSS styling, dark theme customization & scrollbar rules.
+ * Purpose: Global Tailwind CSS styling, Silk Cloud dark neomorphic utility classes,
+ *          custom scrollbars, and text selection.
  * Used by: frontend/src/main.tsx
  * Dependencies: tailwindcss
- * Public Members: None
- * Side Effects: Applies global styling to HTML body and custom scrollbars.
+ * Public Members: .neo-raised, .neo-pressed, .neo-card, .neo-frame, .neo-image-wrapper,
+ *                .neo-button, .neo-button-primary
+ * Side Effects: Applies global body styling and neomorphic shadow utilities.
  * =============================================================================
  */
 
@@ -15,39 +17,102 @@
 
 @layer base {
   body {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background-color: #09090b;
-    color: #f4f4f5;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #0b1326;
+    color: #dae2fd;
     overflow-y: scroll;
     letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Ambient 21st.dev background mesh glow */
-.bg-ambient-glow {
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(14, 165, 233, 0.07) 0px, transparent 50%),
-    radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.05) 0px, transparent 50%),
-    radial-gradient(at 50% 100%, rgba(14, 165, 233, 0.03) 0px, transparent 50%);
+/* ═══════════════════════════════════════════════════════════════════
+   Silk Cloud — Dark Neomorphic Utility Classes
+   ═══════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* Raised surface — appears extruded from background */
+  .neo-raised {
+    box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  /* Pressed/inset surface — appears carved into background */
+  .neo-pressed {
+    box-shadow: inset 6px 6px 12px #060910, inset -4px -4px 10px rgba(30, 41, 59, 0.4);
+  }
+
+  /* Card — raised neomorphic card with matching surface bg */
+  .neo-card {
+    box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(30, 41, 59, 0.5);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: #0f172a;
+  }
+
+  /* Frame — inset container for embedding media */
+  .neo-frame {
+    padding: 10px;
+    border-radius: 0.75rem;
+    background: #0f172a;
+    box-shadow: inset 6px 6px 12px #060910, inset -4px -4px 10px rgba(30, 41, 59, 0.4);
+  }
+
+  /* Image wrapper — subtle outer shadow on media elements */
+  .neo-image-wrapper {
+    position: relative;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 4px 4px 10px #060910, -2px -2px 5px rgba(30, 41, 59, 0.3);
+  }
+
+  /* Interactive button — raised with hover/active states */
+  .neo-button {
+    box-shadow: 6px 6px 12px #060910, -3px -3px 8px rgba(30, 41, 59, 0.4);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .neo-button:hover {
+    box-shadow: 8px 8px 16px #060910, -4px -4px 12px rgba(30, 41, 59, 0.5);
+    transform: translateY(-1px);
+  }
+
+  .neo-button:active {
+    box-shadow: inset 4px 4px 8px #060910, inset -3px -3px 6px rgba(30, 41, 59, 0.3);
+    transform: translateY(0);
+    border-top-color: transparent;
+    border-left-color: transparent;
+  }
+
+  /* Primary accent button — indigo glow */
+  .neo-button-primary {
+    background: linear-gradient(135deg, #494bd6, #2f2ebe);
+    box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(129, 140, 248, 0.2);
+    border-top: 1px solid rgba(192, 193, 255, 0.3);
+    border-left: 1px solid rgba(192, 193, 255, 0.3);
+    color: #e0e2ff;
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+  }
+
+  .neo-button-primary:hover {
+    box-shadow: 10px 10px 20px #060910, -5px -5px 15px rgba(129, 140, 248, 0.35), 0 0 15px rgba(129, 140, 248, 0.3);
+    transform: translateY(-1px);
+  }
+
+  .neo-button-primary:active {
+    box-shadow: inset 4px 4px 8px rgba(0, 0, 0, 0.3), inset -3px -3px 6px rgba(129, 140, 248, 0.15);
+    transform: translateY(0);
+  }
 }
 
-/* Glassmorphism surfaces */
-.glass-panel {
-  background: rgba(18, 18, 22, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
+/* ═══════════════════════════════════════════════════════════════════
+   Custom Scrollbars (Dark Neomorphic)
+   ═══════════════════════════════════════════════════════════════════ */
 
-.glass-panel-elevated {
-  background: rgba(24, 24, 27, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-/* Custom modern scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -58,16 +123,16 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: #2d3449;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #464554;
 }
 
-/* Custom text selection */
+/* Custom text selection — indigo glow */
 ::selection {
-  background: rgba(14, 165, 233, 0.35);
+  background: rgba(129, 140, 248, 0.35);
   color: #ffffff;
 }

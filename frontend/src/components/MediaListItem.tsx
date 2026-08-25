@@ -104,10 +104,10 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
       onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
-      className={`media-card-item group flex items-center justify-between px-3 py-2 rounded-xl border transition-all duration-150 cursor-pointer select-none ${
+      className={`media-card-item group flex items-center justify-between px-3 py-2 neo-card rounded-neo transition-all duration-150 cursor-pointer select-none ${
         isSelected
-          ? "bg-sky-500/15 border-sky-500/50 shadow-[0_0_15px_rgba(14,165,233,0.15)]"
-          : "bg-zinc-900/40 hover:bg-zinc-900/80 border-white/[0.05] hover:border-white/[0.12]"
+          ? "bg-surface-container-high ring-2 ring-primary"
+          : "bg-surface-base hover:bg-surface-container hover:-translate-y-[1px]"
       }`}
     >
       {/* Left: Checkbox + Thumbnail + Filename */}
@@ -115,21 +115,21 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
         {/* Selection Checkbox */}
         <div
           onClick={handleCheckboxClick}
-          className={`w-5 h-5 rounded-md flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+          className={`w-5 h-5 rounded-[4px] flex items-center justify-center transition-all shrink-0 cursor-pointer ${
             isSelected
-              ? "bg-sky-500 border border-sky-400 shadow-[0_0_10px_rgba(14,165,233,0.4)]"
+              ? "bg-primary text-on-primary"
               : isSelectionMode
-                ? "bg-zinc-800 border border-zinc-600 hover:border-sky-400"
-                : "bg-zinc-800/80 border border-zinc-700 opacity-0 group-hover:opacity-100 hover:border-sky-400"
+                ? "bg-surface-container-highest border border-outline-variant hover:border-primary"
+                : "bg-surface-container border border-outline-variant opacity-0 group-hover:opacity-100 hover:border-primary"
           }`}
         >
           {isSelected && (
-            <Check className="w-3 h-3 text-white" strokeWidth={3} />
+            <Check className="w-3 h-3 text-on-primary" strokeWidth={3} />
           )}
         </div>
 
         {/* Small Rounded Thumbnail */}
-        <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-zinc-900 shrink-0 border border-white/[0.08] shadow-inner">
+        <div className="relative w-10 h-10 rounded-lg overflow-hidden bg-surface-container shrink-0 neo-image-wrapper">
           <img
             src={item.thumbnail_url}
             alt={item.file_name}
@@ -147,11 +147,11 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
         <div className="min-w-0 flex-1 pr-2">
           <div className="flex items-center gap-1.5">
             {isVideo ? (
-              <Film className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+              <Film className="w-3.5 h-3.5 text-primary shrink-0" />
             ) : (
-              <ImageIcon className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+              <ImageIcon className="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
             )}
-            <span className="text-xs font-semibold text-zinc-200 truncate group-hover:text-white transition-colors">
+            <span className="text-xs font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
               {item.file_name}
             </span>
           </div>
@@ -159,8 +159,8 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
           {/* Folder Tag Badge */}
           {item.folder_name && (
             <div className="flex items-center gap-1 mt-0.5">
-              <Folder className="w-2.5 h-2.5 text-amber-400 shrink-0" />
-              <span className="text-[10px] text-amber-300 font-medium truncate max-w-[140px] px-1 py-0.2 rounded bg-amber-500/10 border border-amber-500/20">
+              <Folder className="w-2.5 h-2.5 text-glow-indigo shrink-0" />
+              <span className="text-[10px] text-glow-indigo font-medium truncate max-w-[140px] px-1 py-0.2 rounded bg-surface-container border border-outline-variant/30">
                 {item.folder_name}
               </span>
             </div>
@@ -169,14 +169,14 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
       </div>
 
       {/* Center & Right Metadata Columns */}
-      <div className="flex items-center gap-4 sm:gap-8 shrink-0 text-xs text-zinc-400">
+      <div className="flex items-center gap-4 sm:gap-8 shrink-0 text-xs text-on-surface-variant">
         {/* Date Taken */}
-        <span className="hidden sm:inline w-24 text-right font-mono text-[11px] text-zinc-400">
+        <span className="hidden sm:inline w-24 text-right font-mono text-[11px] text-on-surface-variant">
           {formatDate(item.date_taken || item.created_at)}
         </span>
 
         {/* Specs / Duration */}
-        <span className="hidden md:inline w-24 text-right text-zinc-400 font-mono text-[11px]">
+        <span className="hidden md:inline w-24 text-right text-on-surface-variant font-mono text-[11px]">
           {isVideo && item.duration_seconds
             ? formatDuration(item.duration_seconds)
             : item.width && item.height
@@ -185,7 +185,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
         </span>
 
         {/* File Size */}
-        <span className="w-16 text-right font-mono text-[11px] text-zinc-300 font-semibold">
+        <span className="w-16 text-right font-mono text-[11px] text-on-surface font-semibold">
           {formatFileSize(item.file_size)}
         </span>
 
@@ -195,7 +195,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
             e.stopPropagation();
             onContextMenu(e, item);
           }}
-          className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
           title="More options"
         >
           <MoreVertical className="w-4 h-4" />

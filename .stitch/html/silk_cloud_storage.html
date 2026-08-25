@@ -1,0 +1,300 @@
+<!--
+  Screen: Silk Cloud - Storage
+  Project: Vanguard Modern Gallery (6279234504831182909)
+  Screen ID: 0c8e6070b6fd4d7187f1ad640fa4fa9c
+  Device: DESKTOP (2560x2048)
+  Fetched via StitchMCP
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Silk Cloud - Storage Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-highest": "#d6d8de",
+                    "tertiary-fixed": "#ede9fe",
+                    "surface-container-lowest": "#f0f2f8",
+                    "on-primary-fixed-variant": "#4338ca",
+                    "on-secondary-fixed": "#1a1b26",
+                    "inverse-primary": "#a5b4fc",
+                    "primary-fixed-dim": "#a5b4fc",
+                    "on-error": "#ffffff",
+                    "on-primary-fixed": "#1e1b4b",
+                    "surface-dim": "#d4d6dc",
+                    "surface-container": "#e2e4ea",
+                    "on-secondary-container": "#585a68",
+                    "tertiary-fixed-dim": "#c4b5fd",
+                    "on-primary-container": "#e0e2ff",
+                    "secondary-container": "#d8dae6",
+                    "surface-tint": "#6366f1",
+                    "secondary-fixed-dim": "#b8baca",
+                    "on-tertiary-fixed-variant": "#5b21b6",
+                    "primary": "#6366f1",
+                    "secondary": "#6c6e7e",
+                    "tertiary-container": "#a78bfa",
+                    "surface": "#e8eaf0",
+                    "on-secondary-fixed-variant": "#404252",
+                    "error": "#dc2626",
+                    "surface-variant": "#dcdee4",
+                    "secondary-fixed": "#d8dae6",
+                    "primary-container": "#818cf8",
+                    "on-secondary": "#ffffff",
+                    "on-surface": "#2e3040",
+                    "on-tertiary-fixed": "#2e1065",
+                    "on-tertiary-container": "#3b1f63",
+                    "on-tertiary": "#ffffff",
+                    "outline": "#8a8c9a",
+                    "primary-fixed": "#e0e2ff",
+                    "on-error-container": "#991b1b",
+                    "on-surface-variant": "#585a68",
+                    "background": "#e8eaf0",
+                    "error-container": "#fee2e2",
+                    "inverse-surface": "#2e3040",
+                    "on-background": "#2e3040",
+                    "surface-container-low": "#e5e7ed",
+                    "surface-container-high": "#dcdee4",
+                    "surface-bright": "#edeef4",
+                    "inverse-on-surface": "#e8eaf0",
+                    "tertiary": "#7c3aed",
+                    "on-primary": "#ffffff",
+                    "outline-variant": "#d0d2dc"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.5rem",
+                    "lg": "1rem",
+                    "xl": "1.5rem",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "display": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "body": [
+                            "Plus Jakarta Sans"
+                    ],
+                    "label": [
+                            "Plus Jakarta Sans"
+                    ]
+            },
+            "fontSize": {}
+    },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #e8eaf0; /* Fallback for surface */
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        
+        .neo-raised {
+            box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+            border-radius: 1.5rem;
+        }
+        
+        .neo-inset {
+            box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+            border-radius: 1.5rem;
+        }
+
+        .neo-button-raised {
+             box-shadow: 6px 6px 12px rgba(0,0,0,0.08), -6px -6px 12px rgba(255,255,255,0.6);
+             border-radius: 1rem;
+             transition: all 0.2s ease-in-out;
+        }
+
+        .neo-button-raised:active {
+            box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5);
+        }
+        
+        /* Specific override for active state from JSON requirement */
+        .nav-item-active {
+            box-shadow: inset 4px 4px 8px rgba(0,0,0,0.06), inset -4px -4px 8px rgba(255,255,255,0.5) !important;
+            color: #6366f1 !important; /* text-primary */
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface min-h-screen flex antialiased">
+<!-- SideNavBar -->
+<nav class="hidden md:flex flex-col h-screen w-64 fixed left-0 top-0 py-8 gap-4 bg-surface dark:bg-surface shadow-[6px_0px_12px_rgba(0,0,0,0.08)] z-50">
+<!-- Header -->
+<div class="px-6 mb-8 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full neo-raised flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud</span>
+</div>
+<div>
+<h1 class="text-lg font-semibold text-primary dark:text-primary tracking-tight">Silk Cloud</h1>
+<p class="text-sm font-medium text-on-surface-variant">Personal Vault</p>
+</div>
+</div>
+<!-- Main Navigation -->
+<div class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-on-surface-variant hover:shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.6)] transition-shadow" href="#">
+<span class="material-symbols-outlined">image</span>
+<span class="font-body font-medium">Photos</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-on-surface-variant hover:shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.6)] transition-shadow" href="#">
+<span class="material-symbols-outlined">library_books</span>
+<span class="font-body font-medium">Albums</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-on-surface-variant hover:shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.6)] transition-shadow" href="#">
+<span class="material-symbols-outlined">share</span>
+<span class="font-body font-medium">Sharing</span>
+</a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-primary shadow-[inset_4px_4px_8px_rgba(0,0,0,0.06),inset_-4px_-4px_8px_rgba(255,255,255,0.5)] active:scale-95 transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud</span>
+<span class="font-body font-medium">Storage</span>
+</a>
+</div>
+<!-- Footer Navigation -->
+<div class="mt-auto flex flex-col gap-2 mb-6">
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-on-surface-variant hover:shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.6)] transition-shadow" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="font-body font-medium">Help</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 mx-2 rounded-xl text-on-surface-variant hover:shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.6)] transition-shadow" href="#">
+<span class="material-symbols-outlined">delete</span>
+<span class="font-body font-medium">Trash</span>
+</a>
+</div>
+<!-- CTA -->
+<div class="px-6 mb-4">
+<button class="w-full py-3 neo-button-raised text-primary font-semibold flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">upgrade</span>
+                Upgrade Storage
+            </button>
+</div>
+</nav>
+<!-- TopNavBar (Mobile Only for Navigation Shell requirement, but serving as Header here for responsive layout) -->
+<div class="md:hidden flex justify-between items-center px-6 py-4 w-full top-0 sticky bg-surface dark:bg-surface shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.6)] z-40">
+<h1 class="text-xl font-semibold text-primary dark:text-primary tracking-tight">Silk Cloud</h1>
+<div class="flex gap-4">
+<button class="w-10 h-10 rounded-full neo-button-raised flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">cloud_upload</span>
+</button>
+<button class="w-10 h-10 rounded-full neo-button-raised flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+<!-- Main Canvas -->
+<main class="flex-1 md:ml-64 p-6 md:p-10 h-screen overflow-y-auto">
+<header class="hidden md:flex justify-between items-center mb-10 w-full">
+<div>
+<h2 class="text-3xl font-bold tracking-tight text-on-surface">Storage Dashboard</h2>
+<p class="text-on-surface-variant mt-1">Manage your space and connected devices.</p>
+</div>
+<div class="flex gap-4">
+<button class="w-12 h-12 rounded-full neo-button-raised flex items-center justify-center text-primary hover:scale-[1.02] transition-transform duration-200">
+<span class="material-symbols-outlined">cloud_upload</span>
+</button>
+<button class="w-12 h-12 rounded-full neo-button-raised flex items-center justify-center text-primary hover:scale-[1.02] transition-transform duration-200">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-12 h-12 rounded-full neo-raised overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A close up, highly detailed portrait of a modern professional, well lit in a bright, soft white studio setting, evoking a clean, neomorphic light-mode aesthetic. Smooth shadows, minimalist backdrop." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbgZlW99ELjEtIb6LjP2KukJXHyHbv52sUFcx-teVTwk8DHFcCcC0m_yzSs8l6q9Q5PiEIjkX2_U-d9N4vqo0V_jIRRqj9xHXkGNf2DbYw4ftBD7DhbABsAvjXgScG2cfVCJNW6RTHmSguwD2d2BoEmDPuAcfm2yuzyglvLVi0TpnTjea1wP_lj7S9aecbawoWw0kI4wFQ0aKimniaPNkWOug6elZ9CePiHo4XK0rULFii5MjWCste"/>
+</div>
+</div>
+</header>
+<!-- Dashboard Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Storage Overview (Spans 2 columns) -->
+<div class="md:col-span-2 neo-raised p-8 flex flex-col justify-between relative overflow-hidden">
+<div class="flex justify-between items-start mb-8 z-10">
+<div>
+<h3 class="text-xl font-semibold text-on-surface">Cloud Storage</h3>
+<p class="text-on-surface-variant">Silk Personal Plan</p>
+</div>
+<div class="text-right">
+<span class="text-3xl font-bold text-primary">45.2 GB</span>
+<span class="text-on-surface-variant block text-sm">of 100 GB used</span>
+</div>
+</div>
+<!-- Dimensional Progress Bar -->
+<div class="w-full h-8 neo-inset relative overflow-hidden z-10 rounded-full mb-6">
+<!-- Progress Fill (Simulated with neo styling) -->
+<div class="absolute top-0 left-0 h-full w-[45%] bg-primary rounded-full shadow-[inset_2px_2px_4px_rgba(255,255,255,0.4),inset_-2px_-2px_4px_rgba(0,0,0,0.2)]"></div>
+</div>
+<div class="flex justify-between text-sm text-on-surface-variant font-medium z-10">
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-primary inline-block"></span> Photos (20GB)</div>
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-tertiary inline-block"></span> Videos (15GB)</div>
+<div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-outline inline-block"></span> Documents (10.2GB)</div>
+</div>
+</div>
+<!-- Upgrade Card -->
+<div class="neo-raised p-8 flex flex-col justify-center items-center text-center">
+<div class="w-16 h-16 rounded-full neo-inset flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined text-3xl">rocket_launch</span>
+</div>
+<h3 class="text-lg font-semibold text-on-surface mb-2">Need More Space?</h3>
+<p class="text-sm text-on-surface-variant mb-6">Upgrade to Silk Premium for 1TB of storage and advanced sharing.</p>
+<button class="px-6 py-3 neo-button-raised text-primary font-semibold w-full">Upgrade Now</button>
+</div>
+<!-- Backup Status -->
+<div class="neo-raised p-6 flex items-center gap-6">
+<div class="w-14 h-14 rounded-full neo-inset flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">cloud_sync</span>
+</div>
+<div>
+<h3 class="text-lg font-semibold text-on-surface">Auto Backup</h3>
+<p class="text-sm text-on-surface-variant flex items-center gap-1 mt-1">
+<span class="w-2 h-2 rounded-full bg-green-500 inline-block"></span> Last backup 2 hours ago
+                    </p>
+</div>
+<button class="ml-auto w-10 h-10 neo-button-raised flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">sync</span>
+</button>
+</div>
+<!-- Security Settings -->
+<div class="neo-raised p-6 flex items-center gap-6">
+<div class="w-14 h-14 rounded-full neo-inset flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">shield_person</span>
+</div>
+<div>
+<h3 class="text-lg font-semibold text-on-surface">Vault Security</h3>
+<p class="text-sm text-on-surface-variant mt-1">End-to-end encryption active</p>
+</div>
+<button class="ml-auto w-10 h-10 neo-button-raised flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<!-- Connected Devices -->
+<div class="md:col-span-1 neo-raised p-6 flex flex-col">
+<h3 class="text-lg font-semibold text-on-surface mb-4">Devices</h3>
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-4 p-3 neo-inset rounded-xl">
+<span class="material-symbols-outlined text-primary">smartphone</span>
+<div class="flex-1">
+<p class="text-sm font-semibold text-on-surface">iPhone 14 Pro</p>
+<p class="text-xs text-on-surface-variant">Syncing...</p>
+</div>
+</div>
+<div class="flex items-center gap-4 p-3 rounded-xl border border-transparent">
+<span class="material-symbols-outlined text-on-surface-variant">laptop_mac</span>
+<div class="flex-1">
+<p class="text-sm font-semibold text-on-surface">MacBook Air</p>
+<p class="text-xs text-on-surface-variant">Last active yesterday</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body>
+</html>

@@ -60,14 +60,14 @@ function DockIcon({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={item.onClick}
-      className={`relative flex items-center justify-center rounded-2xl cursor-pointer transition-colors ${
+      className={`relative flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 neo-button bg-surface-base ${
         item.variant === "primary"
-          ? "bg-sky-500 hover:bg-sky-400 text-white shadow-[0_0_20px_rgba(14,165,233,0.5)]"
+          ? "neo-button-primary"
           : item.variant === "danger"
-            ? "bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30"
+            ? "text-error hover:bg-error-container/20"
             : item.active
-              ? "bg-sky-500/20 text-sky-400 border border-sky-500/40"
-              : "bg-zinc-800/80 hover:bg-zinc-750 text-zinc-300 hover:text-white border border-white/[0.08]"
+              ? "bg-surface-container-high text-primary"
+              : "text-on-surface-variant hover:text-glow-indigo hover:bg-surface-container"
       }`}
     >
       <AnimatePresence>
@@ -76,7 +76,7 @@ function DockIcon({
             initial={{ opacity: 0, y: 10, x: "-50%" }}
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: 5, x: "-50%" }}
-            className="absolute -top-9 left-1/2 px-2.5 py-1 bg-zinc-950/90 border border-white/[0.12] backdrop-blur-xl text-white text-[11px] font-semibold rounded-lg shadow-xl whitespace-nowrap pointer-events-none z-50"
+            className="absolute -top-9 left-1/2 px-2.5 py-1 neo-card bg-surface-base text-on-surface text-[11px] font-medium rounded-neo whitespace-nowrap pointer-events-none z-50"
           >
             {item.title}
           </motion.div>
@@ -86,7 +86,7 @@ function DockIcon({
       <div className="flex items-center justify-center pointer-events-none">{item.icon}</div>
 
       {item.badge !== undefined && (
-        <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-sky-500 text-white text-[10px] font-mono font-bold rounded-full shadow-md border border-zinc-950">
+        <span className="absolute -top-1 -right-1 px-1.5 py-0.2 bg-primary-container text-on-primary text-[10px] font-mono font-medium rounded-full shadow-md">
           {item.badge}
         </span>
       )}
@@ -105,7 +105,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({ items, className = "
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-zinc-950/85 backdrop-blur-2xl border border-white/[0.12] rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.6)] ring-1 ring-white/5 select-none ${className}`}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 neo-raised bg-surface-base rounded-neo-xl select-none transition-all duration-200 ${className}`}
     >
       {items.map((item) => (
         <DockIcon key={item.id} mouseX={mouseX} item={item} />
