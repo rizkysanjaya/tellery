@@ -5,7 +5,8 @@ Purpose: Pydantic schemas and serialization models for TeleGallery REST API.
 Used by: src.api.routes.media, src.api.routes.stream, src.api.routes.folders.
 Dependencies: pydantic, typing
 Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse,
-                FolderResponse, CreateFolderRequest, AddMediaToFolderRequest
+                FolderResponse, CreateFolderRequest, AddMediaToFolderRequest,
+                UpdateFolderColorRequest
 Side Effects: None
 =============================================================================
 """
@@ -59,6 +60,11 @@ class StatsResponse(BaseModel):
     total_videos: int
     total_size_bytes: int
     total_size_formatted: str
+    account_name: Optional[str] = None
+    account_username: Optional[str] = None
+    channel_name: Optional[str] = None
+    channel_avatar_url: Optional[str] = None
+    user_avatar_url: Optional[str] = None
 
 
 class FolderResponse(BaseModel):
@@ -67,6 +73,10 @@ class FolderResponse(BaseModel):
     id: int
     name: str
     parent_id: Optional[int] = None
+    color: Optional[str] = None
+    icon: Optional[str] = "Folder"
+    is_favorite: bool = False
+    is_collection: bool = False
     item_count: int = 0
     cover_thumbnail_url: Optional[str] = None
     created_at: str
@@ -77,9 +87,29 @@ class CreateFolderRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=100, description="Folder display name")
     parent_id: Optional[int] = Field(None, description="Optional parent folder ID")
+    color: Optional[str] = Field(None, description="Optional hex color string")
+    icon: Optional[str] = Field("Folder", description="Optional icon identifier")
+    is_favorite: Optional[bool] = Field(False, description="Pin to favorites")
+    is_collection: Optional[bool] = Field(False, description="Set as collection parent")
+
+
+class UpdateFolderRequest(BaseModel):
+    """Payload for updating folder attributes (partial)."""
+
+    name: Optional[str] = Field(None, min_length=1, max_length=100, description="New folder name")
+    color: Optional[str] = Field(None, description="Hex color or empty string to reset")
+    icon: Optional[str] = Field(None, description="Icon identifier e.g. 'Heart', 'Star', 'Folder'")
+    is_favorite: Optional[bool] = Field(None, description="Favorite toggle")
+    parent_id: Optional[int] = Field(None, description="Collection / parent folder ID (or null to ungroup)")
 
 
 class AddMediaToFolderRequest(BaseModel):
     """Payload for assigning one or more media items to a folder."""
 
     media_ids: list[int] = Field(min_length=1, description="List of media IDs to assign")
+
+
+class UpdateFolderColorRequest(BaseModel):
+    """Payload for updating a folder's icon color. Send null to reset."""
+
+    color: Optional[str] = Field(None, description="Hex color string e.g. '#6366f1', or null to reset")

@@ -56,7 +56,11 @@ CREATE INDEX IF NOT EXISTS idx_media_channel_msg
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,                       -- Folder / Album display name
-    parent_id INTEGER,                        -- Nullable parent folder for nested hierarchies
+    parent_id INTEGER,                        -- Nullable parent folder for nested hierarchies / collections
+    color TEXT,                               -- Optional hex color for folder icon (e.g. '#6366f1')
+    icon TEXT DEFAULT 'Folder',               -- Optional icon identifier (e.g. 'Folder', 'Heart', 'Star')
+    is_favorite INTEGER NOT NULL DEFAULT 0,   -- 1 if pinned to favorites, 0 otherwise
+    is_collection INTEGER NOT NULL DEFAULT 0, -- 1 if this acts as a parent collection group, 0 if standard album
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
 );

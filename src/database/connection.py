@@ -45,3 +45,17 @@ async def init_db() -> None:
     async with get_db_connection() as conn:
         await conn.executescript(schema_sql)
         await conn.commit()
+
+    # ---------- lightweight migrations for existing databases ----------
+    async with get_db_connection() as conn:
+        cursor = await conn.execute("PRAGMA table_info(folders);")
+        cols = [row[1] for row in await cursor.fetchall()]
+        if "color" not in cols:
+            await conn.execute("ALTER TABLE folders ADD COLUMN color TEXT;")
+        if "icon" not in cols:
+            await conn.execute("ALTER TABLE folders ADD COLUMN icon TEXT DEFAULT 'Folder';")
+        if "is_favorite" not in cols:
+            await conn.execute("ALTER TABLE folders ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
+        if "is_collection" not in cols:
+            await conn.execute("ALTER TABLE folders ADD COLUMN is_collection INTEGER NOT NULL DEFAULT 0;")
+        await conn.commit()

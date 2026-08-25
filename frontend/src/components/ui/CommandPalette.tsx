@@ -26,6 +26,8 @@ import {
   X,
   Check,
   RefreshCw,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { DisplayLayout, FolderItem, MainView, SortOption } from "../../types";
 
@@ -54,6 +56,8 @@ interface CommandPaletteProps {
   onSortChange: (sort: SortOption) => void;
   onTriggerUpload: () => void;
   onSyncVault?: () => Promise<void>;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
 }
 
 export const CommandPalette: React.FC<CommandPaletteProps> = ({
@@ -71,6 +75,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onSortChange,
   onTriggerUpload,
   onSyncVault,
+  theme = "dark",
+  onToggleTheme,
 }) => {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -114,6 +120,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     },
 
     // Actions
+    {
+      id: "action-theme",
+      category: "Actions",
+      title: theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
+      subtitle: `Toggle ${theme === "dark" ? "soft light" : "midnight dark"} neomorphic appearance`,
+      icon: theme === "dark" ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-indigo-500" />,
+      action: () => {
+        if (onToggleTheme) onToggleTheme();
+        onClose();
+      },
+    },
     {
       id: "action-sync",
       category: "Actions",

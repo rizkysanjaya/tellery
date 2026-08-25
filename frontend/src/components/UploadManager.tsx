@@ -172,6 +172,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                         {task.status === "uploading" && (
                           <span>
                             {formatBytes(task.loadedBytes)} of {formatBytes(task.size)} • {task.progress}%
+                            {task.speedMbps && task.speedMbps > 0 ? ` • ${task.speedMbps} MB/s` : ""}
                           </span>
                         )}
                         {task.status === "processing" && (
@@ -181,7 +182,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                         )}
                         {task.status === "pending" && <span>In queue...</span>}
                         {task.status === "completed" && (
-                          <span className="text-tertiary">{formatBytes(task.size)} • Saved in Vault</span>
+                          <span className="text-emerald-400 font-medium">{formatBytes(task.size)} • Saved in Vault</span>
                         )}
                         {task.status === "duplicate" && (
                           <span className="text-glow-indigo">
@@ -208,7 +209,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                       <div className="w-2 h-2 rounded-full bg-surface-variant" />
                     )}
                     {task.status === "completed" && (
-                      <CheckCircle2 className="w-4 h-4 text-tertiary" />
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     )}
                     {task.status === "duplicate" && (
                       <Copy className="w-4 h-4 text-glow-indigo" />

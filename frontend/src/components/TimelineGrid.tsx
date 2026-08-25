@@ -91,48 +91,52 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
 
         return (
           <section key={group.period_key} className="space-y-3.5">
-            {/* Sticky Month/Year Header */}
-            <div className="sticky top-[57px] z-20 bg-background/90 backdrop-blur-md py-3 flex items-center justify-between group/header">
-              <div className="flex items-center gap-3">
-                <Calendar className="w-5 h-5 text-primary" />
-                <div className="flex flex-col">
-                  <h2 className="text-headline-md font-semibold text-on-surface tracking-tight">
-                    {group.period}
-                  </h2>
-                  <span className="text-on-surface-variant text-body-sm">
-                    {group.count} {group.count === 1 ? "item" : "items"}
-                  </span>
+            {/* Floating Rounded Month/Year Header Card */}
+            <div className="sticky top-[68px] z-30 py-2">
+              <div className="flex items-center justify-between w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl px-4 py-2.5 neo-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] group/header">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0">
+                    <Calendar className="w-4 h-4" />
+                  </div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <h2 className="text-headline-md font-semibold text-on-surface tracking-tight truncate">
+                      {group.period}
+                    </h2>
+                    <span className="text-headline-md font-medium text-on-surface-variant shrink-0">
+                      • {group.count} {group.count === 1 ? "item" : "items"}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex items-center gap-3">
-                {/* Section Select All / Deselect All Toggle */}
-                <button
-                  onClick={() => {
-                    if (allSelected) {
-                      onDeselectAllInGroup(groupItemIds);
-                    } else {
-                      onSelectAllInGroup(groupItemIds);
+                <div className="flex items-center gap-2 shrink-0">
+                  {/* Section Select All / Deselect All Toggle */}
+                  <button
+                    onClick={() => {
+                      if (allSelected) {
+                        onDeselectAllInGroup(groupItemIds);
+                      } else {
+                        onSelectAllInGroup(groupItemIds);
+                      }
+                    }}
+                    className={`neo-button flex items-center gap-1.5 px-3 py-1 rounded-neo text-label-md font-medium transition-all cursor-pointer ${
+                      allSelected
+                        ? "text-primary bg-surface-container-high"
+                        : "text-on-surface-variant opacity-0 group-hover/header:opacity-100 hover:text-on-surface"
+                    } ${isSelectionMode || someSelected ? "!opacity-100" : ""}`}
+                    title={
+                      allSelected
+                        ? "Deselect all in this section"
+                        : "Select all in this section"
                     }
-                  }}
-                  className={`neo-button flex items-center gap-2 px-3 py-1.5 rounded-neo-lg text-label-md font-medium transition-all cursor-pointer ${
-                    allSelected
-                      ? "text-primary bg-surface-container-high"
-                      : "text-on-surface-variant opacity-0 group-hover/header:opacity-100"
-                  } ${isSelectionMode || someSelected ? "!opacity-100" : ""}`}
-                  title={
-                    allSelected
-                      ? "Deselect all in this section"
-                      : "Select all in this section"
-                  }
-                >
-                  {allSelected ? (
-                    <CheckSquare className="w-4 h-4 text-primary" />
-                  ) : (
-                    <Square className="w-4 h-4 text-on-surface-variant" />
-                  )}
-                  <span>{allSelected ? "Deselect" : "Select"}</span>
-                </button>
+                  >
+                    {allSelected ? (
+                      <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                    ) : (
+                      <Square className="w-3.5 h-3.5 text-on-surface-variant" />
+                    )}
+                    <span className="text-xs">{allSelected ? "Deselect" : "Select"}</span>
+                  </button>
+                </div>
               </div>
             </div>
 

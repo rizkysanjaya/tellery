@@ -1,17 +1,18 @@
 /**
  * =============================================================================
  * Module: frontend/tailwind.config.js
- * Purpose: Tailwind CSS configuration with Silk Cloud dark neomorphic design tokens,
- *          color palette, typography scale, spacing, and border-radius.
+ * Purpose: Tailwind CSS configuration with Silk Cloud dynamic light & dark
+ *          neomorphic design tokens via CSS variables.
  * Used by: Tailwind CSS PostCSS pipeline
  * Dependencies: tailwindcss
  * Public Members: theme.extend.colors, theme.extend.fontSize, theme.extend.fontFamily
- * Side Effects: Defines design system tokens for all Tailwind utility classes.
+ * Side Effects: Defines reactive design system tokens for both Light and Dark modes.
  * =============================================================================
  */
 
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -19,55 +20,52 @@ export default {
   theme: {
     extend: {
       colors: {
-        /* ── Silk Cloud Dark Neomorphic Palette ── */
-        background: "#0b1326",
-        "surface-base": "#0f172a",
-        "surface-container": "#171f33",
-        "surface-container-low": "#131b2e",
-        "surface-container-high": "#222a3d",
-        "surface-container-highest": "#2d3449",
-        "surface-container-lowest": "#060e20",
-        "surface-elevated": "#161e2e",
-        "surface-variant": "#2d3449",
-        "surface-bright": "#31394d",
+        /* ── Silk Cloud Dynamic Light & Dark Neomorphic Palette (via CSS Variables) ── */
+        background: "rgb(var(--color-background) / <alpha-value>)",
+        "surface-base": "rgb(var(--color-surface-base) / <alpha-value>)",
+        "surface-container": "rgb(var(--color-surface-container) / <alpha-value>)",
+        "surface-container-low": "rgb(var(--color-surface-container-low) / <alpha-value>)",
+        "surface-container-high": "rgb(var(--color-surface-container-high) / <alpha-value>)",
+        "surface-container-highest": "rgb(var(--color-surface-container-highest) / <alpha-value>)",
+        "surface-container-lowest": "rgb(var(--color-surface-container-lowest) / <alpha-value>)",
+        "surface-elevated": "rgb(var(--color-surface-elevated) / <alpha-value>)",
+        "surface-variant": "rgb(var(--color-surface-variant) / <alpha-value>)",
+        "surface-bright": "rgb(var(--color-surface-bright) / <alpha-value>)",
 
-        "on-surface": "#dae2fd",
-        "on-surface-variant": "#c7c4d7",
+        "on-surface": "rgb(var(--color-on-surface) / <alpha-value>)",
+        "on-surface-variant": "rgb(var(--color-on-surface-variant) / <alpha-value>)",
 
-        primary: "#c0c1ff",
-        "primary-container": "#8083ff",
-        "on-primary": "#1000a9",
-        "inverse-primary": "#494bd6",
-        "glow-indigo": "#818cf8",
+        primary: "rgb(var(--color-primary) / <alpha-value>)",
+        "primary-container": "rgb(var(--color-primary-container) / <alpha-value>)",
+        "on-primary": "rgb(var(--color-on-primary) / <alpha-value>)",
+        "inverse-primary": "rgb(var(--color-inverse-primary) / <alpha-value>)",
+        "glow-indigo": "rgb(var(--color-glow-indigo) / <alpha-value>)",
 
-        secondary: "#bcc7de",
-        "secondary-container": "#3e495d",
-        "on-secondary": "#263143",
+        secondary: "rgb(var(--color-secondary) / <alpha-value>)",
+        "secondary-container": "rgb(var(--color-secondary-container) / <alpha-value>)",
+        "on-secondary": "rgb(var(--color-on-secondary) / <alpha-value>)",
 
-        tertiary: "#ffb783",
-        "tertiary-container": "#d97721",
-        "on-tertiary": "#4f2500",
+        tertiary: "rgb(var(--color-tertiary) / <alpha-value>)",
+        "tertiary-container": "rgb(var(--color-tertiary-container) / <alpha-value>)",
+        "on-tertiary": "rgb(var(--color-on-tertiary) / <alpha-value>)",
 
-        error: "#ffb4ab",
-        "error-container": "#93000a",
-        "on-error": "#690005",
+        error: "rgb(var(--color-error) / <alpha-value>)",
+        "error-container": "rgb(var(--color-error-container) / <alpha-value>)",
+        "on-error": "rgb(var(--color-on-error) / <alpha-value>)",
 
-        outline: "#908fa0",
-        "outline-variant": "#464554",
+        outline: "rgb(var(--color-outline) / <alpha-value>)",
+        "outline-variant": "rgb(var(--color-outline-variant) / <alpha-value>)",
 
-        "shadow-dark": "#060910",
-        "shadow-light": "#1e293b",
+        "shadow-dark": "var(--color-shadow-dark)",
+        "shadow-light": "var(--color-shadow-light)",
 
-        "inverse-surface": "#dae2fd",
-        "inverse-on-surface": "#283044",
-
-        /* ── Legacy brand (keep for backwards compat) ── */
+        /* ── Legacy brand tokens ── */
         brand: {
           50: "#f0f9ff",
           100: "#e0f2fe",
-          500: "#818cf8",
-          600: "#6366f1",
-          700: "#4f46e5",
+          500: "rgb(var(--color-primary) / <alpha-value>)",
+          600: "rgb(var(--color-primary) / <alpha-value>)",
+          700: "rgb(var(--color-primary) / <alpha-value>)",
         },
       },
       fontFamily: {

@@ -7,14 +7,13 @@
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/api.ts, frontend/src/components/VideoPlayer.tsx
  * Public Members: MediaLightbox
- * Side Effects: Listens for window keydown events, executes folder membership changes and deletion over HTTP.
+ * Side Effects: Listens for window keydown events, executes deletion over HTTP.
  * =============================================================================
  */
 
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  X,
   ChevronLeft,
   ChevronRight,
   Info,
@@ -24,18 +23,16 @@ import {
   Loader2,
   Check,
   ArrowLeft,
-  Cloud,
-  MoreVertical,
-  Heart,
   Share2,
 } from "lucide-react";
-import { FolderItem, MediaItem } from "../types";
-import { addMediaToFolder, fetchMediaFolders, removeMediaFromFolder } from "../api";
+import { MediaItem } from "../types";
 import { VideoPlayer } from "./VideoPlayer";
+import { getFileTypeBadge } from "../utils/fileTypes";
 
 interface MediaLightboxProps {
   item: MediaItem;
-  allFolders: FolderItem[];
+  prevItem?: MediaItem;
+  nextItem?: MediaItem;
   onClose: () => void;
   onPrev: () => void;
   onNext: () => void;
@@ -46,7 +43,8 @@ interface MediaLightboxProps {
 
 export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   item,
-  allFolders,
+  prevItem,
+  nextItem,
   onClose,
   onPrev,
   onNext,
@@ -54,65 +52,52 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   hasNext,
   onDelete,
 }) => {
-  const [showInfo, setShowInfo] = useState(true);
-  const [showFolderMenu, setShowFolderMenu] = useState(false);
-  const [assignedFolderIds, setAssignedFolderIds] = useState<number[]>([]);
-  const [loadingFolders, setLoadingFolders] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const isVideo = item.mime_type.startsWith("video/");
 
-  // Load assigned folders for current media item
   useEffect(() => {
-    let isMounted = true;
-    setLoadingFolders(true);
-    fetchMediaFolders(item.id)
-      .then((folders) => {
-        if (isMounted) {
-          setAssignedFolderIds(folders.map((f) => f.id));
-          setLoadingFolders(false);
-        }
-      })
-      .catch((err) => {
-        console.error(err);
-        if (isMounted) setLoadingFolders(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [item.id]);
+    setIsImageLoaded(false);
+  }, [item.id, item.stream_url]);
+
+  // Proactive Adjacent Pre-Fetching (Pre-loads previous and next photos into browser cache)
+  useEffect(() => {
+    const targets = [nextItem, prevItem].filter(Boolean) as MediaItem[];
+    for (const target of targets) {
+      if (!target.mime_type.startsWith("video/")) {
+        const img = new Image();
+        img.src = target.stream_url;
+      }
+    }
+  }, [nextItem?.id, prevItem?.id]);
+
+  const handleCopyLink = async () => {
+    try {
+      const fullUrl = `${window.location.origin}${item.stream_url}`;
+      await navigator.clipboard.writeText(fullUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // fallback
+    }
+  };
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showDeleteConfirm || showFolderMenu) return;
+      if (showDeleteConfirm) return;
       if (e.key === "Escape") onClose();
       if (!isVideo) {
         if (e.key === "ArrowLeft" && hasPrev) onPrev();
         if (e.key === "ArrowRight" && hasNext) onNext();
       }
-      if (e.key === "i" || e.key === "I") setShowInfo((prev) => !prev);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm, showFolderMenu, isVideo]);
-
-  const handleToggleFolder = async (folderId: number) => {
-    const isCurrentlyIn = assignedFolderIds.includes(folderId);
-    try {
-      if (isCurrentlyIn) {
-        await removeMediaFromFolder(folderId, item.id);
-        setAssignedFolderIds((prev) => prev.filter((id) => id !== folderId));
-      } else {
-        await addMediaToFolder(folderId, [item.id]);
-        setAssignedFolderIds((prev) => [...prev, folderId]);
-      }
-    } catch (err) {
-      console.error("Failed to update folder membership", err);
-      alert("Failed to update folder assignment.");
-    }
-  };
+  }, [hasPrev, hasNext, isVideo, onClose, onPrev, onNext, showDeleteConfirm]);
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -121,8 +106,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       setShowDeleteConfirm(false);
       onClose();
     } catch (err) {
-      console.error(err);
-      alert("Failed to delete media item.");
+      console.error("Failed to delete media item:", err);
     } finally {
       setIsDeleting(false);
     }
@@ -135,13 +119,28 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
     return `${bytes} B`;
   };
 
+  const formatDuration = (seconds: number) => {
+    if (!seconds || isNaN(seconds) || seconds <= 0) return "--:--";
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) {
+      return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    }
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
   const formatDate = (iso: string | null) => {
     if (!iso) return "Unknown Date";
     try {
       const d = new Date(iso);
-      return d.toLocaleDateString(undefined, {
-        dateStyle: "long",
-        timeStyle: "short",
+      if (isNaN(d.getTime())) return iso;
+      return d.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
     } catch {
       return iso;
@@ -157,135 +156,84 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       className="fixed inset-0 z-50 bg-background/95 flex flex-col select-none font-sans text-on-surface"
     >
       {/* Top Action Bar */}
-      <header className="w-full flex justify-between items-center px-6 py-4 bg-surface-base shadow-[6px_6px_12px_rgba(0,0,0,0.08),-6px_-6px_12px_rgba(255,255,255,0.05)] z-10">
-        <div className="flex items-center gap-4">
+      <header className="w-full flex justify-between items-center px-6 py-4 bg-surface-base/90 backdrop-blur-md border-b border-outline-variant/10 z-10">
+        <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full neo-button flex items-center justify-center text-on-surface hover:scale-[1.02] transition-transform duration-200 cursor-pointer"
+            className="w-10 h-10 rounded-full neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shrink-0"
             title="Back (Esc)"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
           
-          <div className="flex items-center gap-2 text-on-surface-variant font-medium">
-            <Cloud className="w-4 h-4" />
-            <span className="text-sm">Synced</span>
-          </div>
-        </div>
-
-        <div className="flex gap-3 relative items-center">
-          <button
-            onClick={() => setShowInfo((prev) => !prev)}
-            className={`w-10 h-10 rounded-full neo-button flex items-center justify-center transition-transform duration-200 cursor-pointer ${
-              showInfo ? "text-primary neo-pressed" : "text-on-surface hover:scale-[1.02]"
-            }`}
-            title="Toggle Info Panel (i)"
-          >
-            <Info className="w-5 h-5" />
-          </button>
-
-          <button
-            onClick={() => setShowFolderMenu((prev) => !prev)}
-            className="w-10 h-10 rounded-full neo-button flex items-center justify-center text-on-surface hover:scale-[1.02] transition-transform duration-200 cursor-pointer"
-            title="More Options"
-          >
-            <MoreVertical className="w-5 h-5" />
-          </button>
-
-          {/* Folder Assignment Dropdown (Moved to kebab for preservation) */}
-          <AnimatePresence>
-            {showFolderMenu && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                transition={{ duration: 0.15 }}
-                className="absolute right-0 top-12 w-64 bg-surface-container border border-white/[0.05] rounded-neo-lg p-3 shadow-[10px_10px_20px_#060910,-5px_-5px_15px_rgba(30,41,59,0.5)] z-50"
-              >
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/[0.05]">
-                  <span className="text-xs font-bold text-on-surface">Organize in Collection</span>
-                  <button
-                    onClick={() => setShowFolderMenu(false)}
-                    className="p-1 text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {loadingFolders ? (
-                  <div className="py-4 text-center">
-                    <Loader2 className="w-4 h-4 text-primary animate-spin mx-auto" />
-                  </div>
-                ) : allFolders.length === 0 ? (
-                  <p className="text-xs text-on-surface-variant py-3 text-center">No collections created yet.</p>
-                ) : (
-                  <div className="max-h-48 overflow-y-auto space-y-1">
-                    {allFolders.map((folder) => {
-                      const isChecked = assignedFolderIds.includes(folder.id);
-                      return (
-                        <button
-                          key={folder.id}
-                          onClick={() => handleToggleFolder(folder.id)}
-                          className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-neo text-xs font-medium transition-all text-left cursor-pointer ${
-                            isChecked
-                              ? "bg-primary/10 text-primary neo-pressed font-semibold"
-                              : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
-                          }`}
-                        >
-                          <span className="truncate">{folder.name}</span>
-                          {isChecked && <Check className="w-3.5 h-3.5 text-primary shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <span className="text-sm font-semibold text-on-surface truncate">
+            {item.file_name}
+          </span>
         </div>
       </header>
 
       {/* Main Content Canvas */}
       <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden">
         {/* Image/Video Container */}
-        <div className="flex-1 p-6 md:p-12 flex items-center justify-center relative bg-surface-container-lowest">
-          <div className="relative w-full max-w-5xl aspect-auto max-h-[85vh] rounded-neo-xl neo-raised p-2 bg-surface-base">
-            <div className="w-full h-full rounded-neo-lg overflow-hidden neo-pressed bg-surface-container-highest relative flex items-center justify-center">
-              {isVideo ? (
-                <VideoPlayer item={item} />
-              ) : (
+        <div className="flex-1 p-2 md:p-6 flex items-center justify-center relative bg-surface-container-lowest overflow-hidden">
+          {isVideo ? (
+            <div className="w-full h-full flex items-center justify-center">
+              <VideoPlayer key={item.id} item={item} />
+            </div>
+          ) : (
+            <div className="relative max-w-5xl max-h-[88vh] rounded-neo-xl neo-raised p-2 bg-surface-base flex items-center justify-center min-w-[320px] min-h-[320px]">
+              <div className="w-full h-full rounded-neo-lg overflow-hidden neo-pressed bg-surface-container-highest relative flex items-center justify-center min-w-[300px] min-h-[300px]">
+                {/* Instant Low-Res / High-Res Thumbnail Base Layer (0ms visual rendering) */}
+                {item.thumbnail_url && !isImageLoaded && (
+                  <img
+                    src={item.thumbnail_url}
+                    alt={item.file_name}
+                    className="absolute inset-0 w-full h-full object-contain filter blur-[2px] opacity-75 z-0"
+                  />
+                )}
+
+                {!isImageLoaded && !item.thumbnail_url && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-surface-base/50 z-10">
+                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                  </div>
+                )}
+
                 <motion.img
                   key={item.id}
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: isImageLoaded ? 1 : 0, scale: isImageLoaded ? 1 : 0.98 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
                   src={item.stream_url}
                   alt={item.file_name}
-                  className="object-contain w-full h-full rounded-neo-lg shadow-inner z-0"
+                  onLoad={() => setIsImageLoaded(true)}
+                  className="relative object-contain max-h-[84vh] w-auto max-w-full rounded-neo-lg shadow-inner z-10"
                 />
-              )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Navigation Arrows */}
           {hasPrev && (
-            <button
-              onClick={onPrev}
-              className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors z-20 cursor-pointer"
-              title="Previous (Left Arrow)"
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </button>
+            <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20">
+              <button
+                onClick={onPrev}
+                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer"
+                title="Previous (Left Arrow)"
+              >
+                <ChevronLeft className="w-6 h-6" />
+              </button>
+            </div>
           )}
           {hasNext && (
-            <button
-              onClick={onNext}
-              className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors z-20 cursor-pointer"
-              title="Next (Right Arrow)"
-            >
-              <ChevronRight className="w-6 h-6" />
-            </button>
+            <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20">
+              <button
+                onClick={onNext}
+                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer"
+                title="Next (Right Arrow)"
+              >
+                <ChevronRight className="w-6 h-6" />
+              </button>
+            </div>
           )}
 
           {/* Delete Confirmation Modal Overlay */}
@@ -301,7 +249,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="max-w-sm w-full bg-surface-base rounded-neo-xl p-6 shadow-[10px_10px_20px_#060910,-5px_-5px_15px_rgba(30,41,59,0.5)] text-center space-y-4 border-t border-l border-white/[0.05]"
+                  className="max-w-sm w-full bg-surface-base rounded-neo-xl p-6 neo-card text-center space-y-4 border border-outline-variant/15"
                 >
                   <div className="w-12 h-12 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mx-auto shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
                     <AlertTriangle className="w-6 h-6" />
@@ -336,37 +284,36 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
         </div>
 
         {/* Info Panel (Right Side Desktop / Bottom Mobile) */}
-        <aside className={`w-full md:w-80 bg-surface-base flex-col gap-6 p-6 neo-raised md:shadow-[-6px_0_12px_rgba(0,0,0,0.05)] z-10 shrink-0 overflow-y-auto ${showInfo ? 'flex' : 'hidden md:flex'}`}>
+        <aside className="w-full md:w-80 bg-surface-base flex flex-col gap-6 p-6 neo-raised md:shadow-[-6px_0_12px_rgba(0,0,0,0.05)] z-10 shrink-0 overflow-y-auto animate-in fade-in duration-200">
           {/* File Meta */}
           <div className="flex flex-col gap-1 px-2">
             <h2 className="text-xl font-semibold text-on-surface break-words">{item.file_name}</h2>
             <p className="text-sm text-on-surface-variant">{formatDate(item.date_taken)} • {formatBytes(item.file_size)}</p>
           </div>
 
-          {/* Action Grid */}
-          <div className="grid grid-cols-4 md:grid-cols-2 gap-4 mt-2">
+          {/* Action Grid (Download, Copy Link, Delete) */}
+          <div className="grid grid-cols-3 gap-3 mt-2">
             <a
               href={item.stream_url}
               download={item.file_name}
-              className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 p-3 md:p-4 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all"
+              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
             >
-              <Download className="w-5 h-5" />
-              <span className="text-xs md:text-sm font-medium">Download</span>
+              <Download className="w-4 h-4" />
+              <span className="text-xs font-semibold">Download</span>
             </a>
-            <button className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 p-3 md:p-4 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all">
-              <Share2 className="w-5 h-5" />
-              <span className="text-xs md:text-sm font-medium">Share</span>
-            </button>
-            <button className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 p-3 md:p-4 rounded-neo-xl bg-surface-base neo-pressed text-primary transition-all">
-              <Heart className="w-5 h-5 fill-primary" />
-              <span className="text-xs md:text-sm font-medium">Favorite</span>
+            <button
+              onClick={handleCopyLink}
+              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+            >
+              {copied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
+              <span className="text-xs font-semibold">{copied ? "Copied!" : "Share"}</span>
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex flex-col md:flex-row items-center justify-center md:justify-start gap-2 p-3 md:p-4 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all"
+              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
             >
-              <Trash2 className="w-5 h-5" />
-              <span className="text-xs md:text-sm font-medium">Delete</span>
+              <Trash2 className="w-4 h-4" />
+              <span className="text-xs font-semibold">Delete</span>
             </button>
           </div>
 
@@ -390,15 +337,24 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                   <span className="text-on-surface font-medium">{item.width} × {item.height}</span>
                 </div>
               )}
-              <div className="flex justify-between">
+              {Boolean(item.duration_seconds || isVideo) && (
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">Duration</span>
+                  <span className="text-on-surface font-medium">
+                    {formatDuration(item.duration_seconds || 0)}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
                 <span className="text-on-surface-variant">Format</span>
-                <span className="text-on-surface font-medium uppercase">{item.mime_type.split('/').pop()}</span>
-              </div>
-              <div className="flex justify-between items-center mt-2 pt-2 border-t border-white/[0.05]">
-                <span className="text-on-surface-variant flex items-center gap-1">
-                  <Cloud className="w-3.5 h-3.5" /> Backend
-                </span>
-                <span className="text-primary font-medium text-xs">MTProto Vault</span>
+                {(() => {
+                  const badge = getFileTypeBadge(item.file_name, item.mime_type);
+                  return (
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full uppercase font-mono ${badge.pillClass}`}>
+                      {badge.extension}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           </div>

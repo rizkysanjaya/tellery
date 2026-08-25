@@ -21,7 +21,7 @@ export const AuroraBackground: React.FC<AuroraBackgroundProps> = ({
   className = "",
 }) => {
   return (
-    <div className={`relative min-h-screen w-full bg-background text-on-surface overflow-x-hidden ${className}`}>
+    <div className={`relative min-h-screen w-full bg-background text-on-surface ${className}`}>
       {/* Foreground Content Container */}
       <div className="relative z-10">{children}</div>
     </div>

@@ -18,14 +18,14 @@ import {
   Layers,
   Menu,
   LayoutGrid,
-  Grid3X3,
-  List,
   Columns3,
   ArrowUpDown,
   Check,
   ChevronDown,
   X,
   Command,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { DisplayLayout, FilterType, MainView, SortOption } from "../types";
 import { AnimatedTabs, TabItem } from "./ui/AnimatedTabs";
@@ -42,6 +42,8 @@ interface HeaderProps {
   onSortChange?: (sort: SortOption) => void;
   onOpenCommandPalette?: () => void;
   onToggleMobileSidebar: () => void;
+  theme?: "dark" | "light";
+  onToggleTheme?: () => void;
 }
 
 const SORT_LABELS: Record<SortOption, { label: string; group: string }> = {
@@ -65,6 +67,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSortChange,
   onOpenCommandPalette,
   onToggleMobileSidebar,
+  theme = "dark",
+  onToggleTheme,
 }) => {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
@@ -111,14 +115,12 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const layoutTabs: TabItem<DisplayLayout>[] = [
-    { id: "grid", label: "", icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: "dense", label: "", icon: <Grid3X3 className="w-4 h-4" /> },
-    { id: "masonry", label: "", icon: <Columns3 className="w-4 h-4" /> },
-    { id: "list", label: "", icon: <List className="w-4 h-4" /> },
+    { id: "grid", label: "Grid", icon: <LayoutGrid className="w-4 h-4" /> },
+    { id: "masonry", label: "Natural", icon: <Columns3 className="w-4 h-4" /> },
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-surface-container/95 backdrop-blur-xl shadow-[0_10px_30px_rgba(0,0,0,0.4)] px-4 lg:px-8 py-3 transition-all">
+    <header className="sticky top-0 z-40 bg-surface-base border-b border-outline-variant/15 px-4 lg:px-8 py-3 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
       <div className="flex items-center justify-between gap-4">
         {/* Mobile Hamburger Menu Toggle */}
         <button
@@ -248,6 +250,21 @@ export const Header: React.FC<HeaderProps> = ({
                    );
                 })}
               </div>
+            )}
+
+            {/* Light / Dark Mode Toggle Button */}
+            {onToggleTheme && (
+              <button
+                onClick={onToggleTheme}
+                className="w-10 h-10 flex items-center justify-center rounded-full neo-button bg-surface-base text-on-surface hover:text-primary transition-all duration-200 cursor-pointer"
+                title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-4 h-4 text-amber-300" />
+                ) : (
+                  <Moon className="w-4 h-4 text-indigo-600" />
+                )}
+              </button>
             )}
           </div>
         )}

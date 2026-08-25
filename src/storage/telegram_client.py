@@ -9,6 +9,7 @@ Side Effects: Network MTProto calls to Telegram servers, reads/writes session fi
 =============================================================================
 """
 
+import asyncio
 import io
 from pathlib import Path
 from typing import AsyncIterator, Callable, Optional, Union
@@ -16,6 +17,7 @@ from telethon import TelegramClient
 from telethon.tl.custom.message import Message
 from telethon.tl.types import Document, MessageMediaDocument
 from src.config import get_settings
+from src.storage.fast_upload import fast_upload_file
 
 
 class TelegramStorageClient:
@@ -136,24 +138,13 @@ class TelegramStorageClient:
         await self.start()
         entity = await self.get_target_entity(channel_id)
         path_obj = Path(file_path)
-        file_size = path_obj.stat().st_size
-
-        # Direct 1-RPC fast upload for small files (<10MB)
-        if file_size < 10 * 1024 * 1024:
-            message = await self._client.send_file(
-                entity=entity,
-                file=str(path_obj),
-                force_document=True,
-                progress_callback=progress_callback,
-                silent=True,
-            )
-            return message
-
-        # Chunked multi-part upload for large files (>=10MB)
-        uploaded_file = await self._client.upload_file(
-            file=str(path_obj),
-            part_size_kb=512,
+        # High-speed parallel multi-part MTProto upload for all media files
+        uploaded_file = await fast_upload_file(
+            client=self._client,
+            file_path=path_obj,
             progress_callback=progress_callback,
+            workers=6,
+            part_size=512 * 1024,
         )
         message = await self._client.send_file(
             entity=entity,
@@ -245,7 +236,7 @@ class TelegramStorageClient:
         channel_id: Union[int, str],
         offset: int = 0,
         limit: Optional[int] = None,
-        chunk_size: int = 128 * 1024,
+        chunk_size: int = 512 * 1024,
     ) -> AsyncIterator[bytes]:
         """
         Streams document chunks directly from Telegram MTProto servers.
@@ -256,7 +247,7 @@ class TelegramStorageClient:
             channel_id: Target channel ID.
             offset: Byte offset to start streaming from.
             limit: Maximum number of bytes to stream (None for until EOF).
-            chunk_size: MTProto chunk read size (default 128KB).
+            chunk_size: MTProto chunk read size (default 1MB).
         """
         await self.start()
         entity = await self.get_target_entity(channel_id)
@@ -264,13 +255,69 @@ class TelegramStorageClient:
         if not message or not message.media:
             raise ValueError(f"No media found for message {message_id}")
 
-        async for chunk in self._client.iter_download(
-            message.media,
-            offset=offset,
-            limit=limit,
-            chunk_size=chunk_size,
-        ):
-            yield chunk
+        align = 4096
+        aligned_offset = (offset // align) * align
+        skip_initial_bytes = offset - aligned_offset
+
+        # High-speed asynchronous chunk read-ahead pipeline queue (pre-buffers 4MB in RAM)
+        queue: asyncio.Queue = asyncio.Queue(maxsize=4)
+        producer_done = asyncio.Event()
+        producer_error: list = []
+
+        async def producer():
+            try:
+                async for raw_chunk in self._client.iter_download(
+                    message.media,
+                    offset=aligned_offset,
+                    chunk_size=chunk_size,
+                    request_size=chunk_size,
+                ):
+                    if raw_chunk:
+                        await queue.put(raw_chunk)
+            except Exception as e:
+                producer_error.append(e)
+            finally:
+                producer_done.set()
+
+        producer_task = asyncio.create_task(producer())
+
+        try:
+            total_yielded = 0
+            while not (producer_done.is_set() and queue.empty()):
+                try:
+                    chunk = await asyncio.wait_for(queue.get(), timeout=0.1)
+                except asyncio.TimeoutError:
+                    if producer_error:
+                        raise producer_error[0]
+                    continue
+
+                if skip_initial_bytes > 0:
+                    if len(chunk) <= skip_initial_bytes:
+                        skip_initial_bytes -= len(chunk)
+                        queue.task_done()
+                        continue
+                    else:
+                        chunk = chunk[skip_initial_bytes:]
+                        skip_initial_bytes = 0
+
+                if limit is not None and total_yielded + len(chunk) > limit:
+                    chunk = chunk[: limit - total_yielded]
+
+                if chunk:
+                    total_yielded += len(chunk)
+                    yield chunk
+
+                queue.task_done()
+
+                if limit is not None and total_yielded >= limit:
+                    break
+        finally:
+            if not producer_task.done():
+                producer_task.cancel()
+                try:
+                    await producer_task
+                except (asyncio.CancelledError, Exception):
+                    pass
 
 
 _client_instance: Optional[TelegramStorageClient] = None

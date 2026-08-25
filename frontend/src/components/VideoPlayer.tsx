@@ -3,6 +3,7 @@
  * Module: frontend/src/components/VideoPlayer.tsx
  * Purpose: Top-tier custom dark studio video player with custom scrubber, hover preview,
  *          buffered range tracking, playback speed controls, picture-in-picture,
+ *          custom right-click context menu (Loop, Speed, PiP, URL copy, Stats for Nerds),
  *          keyboard shortcuts (YouTube/Netflix style), and auto-hiding controls.
  *          Updated to match Silk Cloud dark neomorphic design system.
  * Used by: frontend/src/components/MediaLightbox.tsx
@@ -23,13 +24,20 @@ import {
   VolumeX,
   Maximize,
   Minimize,
-  PictureInPicture,
   Settings,
   Check,
   Loader2,
   AlertCircle,
+  Repeat,
+  Link,
+  Activity,
+  Gauge,
+  Download,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { MediaItem } from "../types";
+import { updateMediaMetadata } from "../api";
 
 interface VideoPlayerProps {
   item: MediaItem;
@@ -40,6 +48,9 @@ const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const rafScrubRef = useRef<number | null>(null);
   const scrubBarRef = useRef<HTMLDivElement>(null);
   const playedBarRef = useRef<HTMLDivElement>(null);
   const bufferedBarRef = useRef<HTMLDivElement>(null);
@@ -49,6 +60,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
   // Playback States (macro states only - 0 re-renders during playback)
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isEnded, setIsEnded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [duration, setDuration] = useState(item.duration_seconds || 0);
@@ -71,6 +83,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   const [hoverPosition, setHoverPosition] = useState(0);
   const isScrubbingRef = useRef(false);
 
+  // Context Menu & Advanced Options States
+  const [isLooping, setIsLooping] = useState(() => localStorage.getItem("telegallery_video_loop") === "true");
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showSpeedSubmenu, setShowSpeedSubmenu] = useState(false);
+  const [showStatsOverlay, setShowStatsOverlay] = useState(false);
+  const [copiedToast, setCopiedToast] = useState(false);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
+
   // Ripple Animation State
   const [centerRipple, setCenterRipple] = useState<"play" | "pause" | null>(null);
 
@@ -85,11 +105,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
+  // Close context menu on outside click or scroll
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null);
+        setShowSpeedSubmenu(false);
+      }
+    };
+    if (contextMenu) {
+      window.addEventListener("mousedown", handleOutsideClick);
+      window.addEventListener("scroll", () => setContextMenu(null), true);
+    }
+    return () => {
+      window.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [contextMenu]);
+
   // Reset states on item change
   useEffect(() => {
     setIsLoading(true);
     setIsPlaying(false);
+    setIsEnded(false);
     setHasError(false);
+    setContextMenu(null);
+    setShowSpeedSubmenu(false);
     setDuration(item.duration_seconds || 0);
     if (playedBarRef.current) playedBarRef.current.style.width = "0%";
     if (bufferedBarRef.current) bufferedBarRef.current.style.width = "0%";
@@ -122,14 +162,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     resetHideTimer();
   };
 
+  // Replay from beginning when video ends
+  const handleReplay = useCallback(() => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = 0;
+    videoRef.current
+      .play()
+      .then(() => {
+        setIsEnded(false);
+        setIsPlaying(true);
+        setCenterRipple("play");
+        setTimeout(() => setCenterRipple(null), 500);
+      })
+      .catch((err) => console.error("Replay error:", err));
+    resetHideTimer();
+  }, [resetHideTimer]);
+
   // Toggle Play / Pause with ripple animation
   const togglePlay = useCallback(() => {
     if (!videoRef.current) return;
+
+    if (isEnded || videoRef.current.ended) {
+      handleReplay();
+      return;
+    }
 
     if (videoRef.current.paused) {
       videoRef.current
         .play()
         .then(() => {
+          setIsEnded(false);
           setIsPlaying(true);
           setCenterRipple("play");
           setTimeout(() => setCenterRipple(null), 500);
@@ -142,10 +204,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       setTimeout(() => setCenterRipple(null), 500);
     }
     resetHideTimer();
-  }, [resetHideTimer]);
+  }, [isEnded, handleReplay, resetHideTimer]);
 
   const handleSkip = useCallback((seconds: number) => {
     if (!videoRef.current) return;
+    setIsEnded(false);
     videoRef.current.currentTime = Math.max(
       0,
       Math.min(videoRef.current.duration || duration, videoRef.current.currentTime + seconds)
@@ -207,6 +270,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     }
   };
 
+  const toggleLoop = () => {
+    setIsLooping((prev) => {
+      const next = !prev;
+      localStorage.setItem("telegallery_video_loop", String(next));
+      return next;
+    });
+    setContextMenu(null);
+  };
+
+  const handleCopyVideoUrl = () => {
+    const fullUrl = window.location.origin + item.stream_url;
+    navigator.clipboard.writeText(fullUrl).then(() => {
+      setCopiedToast(true);
+      setTimeout(() => setCopiedToast(false), 2000);
+    });
+    setContextMenu(null);
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const menuWidth = 230;
+    const menuHeight = 320;
+    const rawX = e.clientX - rect.left;
+    const rawY = e.clientY - rect.top;
+    const x = Math.min(Math.max(10, rawX), rect.width - menuWidth - 10);
+    const y = Math.min(Math.max(10, rawY), rect.height - menuHeight - 10);
+    setContextMenu({ x, y });
+    setShowSpeedSubmenu(false);
+  };
+
   // Fullscreen change listener
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -217,6 +313,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   }, []);
 
   // Time & Buffer Update Listeners (Direct DOM Mutation, 0 React Re-renders during 60fps playback)
+  const handleProgress = () => {
+    if (!videoRef.current) return;
+    const dur = videoRef.current.duration || duration || 0;
+    if (bufferedBarRef.current && videoRef.current.buffered.length > 0 && dur > 0) {
+      const cur = videoRef.current.currentTime;
+      let bufferEnd = 0;
+      for (let i = 0; i < videoRef.current.buffered.length; i++) {
+        if (
+          videoRef.current.buffered.start(i) <= cur + 0.5 &&
+          videoRef.current.buffered.end(i) >= cur
+        ) {
+          bufferEnd = videoRef.current.buffered.end(i);
+          break;
+        }
+      }
+      if (bufferEnd === 0 && videoRef.current.buffered.length > 0) {
+        bufferEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
+      }
+      bufferedBarRef.current.style.width = `${Math.min(100, (bufferEnd / dur) * 100)}%`;
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (!videoRef.current || isScrubbingRef.current) return;
     const cur = videoRef.current.currentTime;
@@ -229,22 +347,61 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     if (currentTimeDisplayRef.current) {
       currentTimeDisplayRef.current.textContent = formatTime(cur);
     }
-    if (bufferedBarRef.current && videoRef.current.buffered.length > 0 && dur > 0) {
-      const bufferedEnd = videoRef.current.buffered.end(videoRef.current.buffered.length - 1);
-      bufferedBarRef.current.style.width = `${Math.min(100, (bufferedEnd / dur) * 100)}%`;
-    }
+    handleProgress();
   };
 
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       const dur = videoRef.current.duration;
+      const vW = videoRef.current.videoWidth;
+      const vH = videoRef.current.videoHeight;
       setDuration(dur);
       if (durationDisplayRef.current) {
         durationDisplayRef.current.textContent = formatTime(dur);
       }
       setIsLoading(false);
+
+      // Auto-capture and persist missing duration or dimensions to catalog
+      if (dur > 0 && (!item.duration_seconds || item.duration_seconds === 0 || !item.width || !item.height)) {
+        item.duration_seconds = dur;
+        if (vW && vH) {
+          item.width = vW;
+          item.height = vH;
+        }
+        updateMediaMetadata(item.id, {
+          duration_seconds: dur,
+          width: vW || undefined,
+          height: vH || undefined,
+        });
+      }
     }
   };
+
+  const isPortrait = Boolean(item.height && item.width && item.height > item.width);
+
+  // Render preview frame on canvas with dynamic aspect-ratio preservation
+  const renderPreviewFrame = useCallback(() => {
+    if (!previewVideoRef.current || !previewCanvasRef.current) return;
+    const video = previewVideoRef.current;
+    const canvas = previewCanvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx || video.readyState < 2) return;
+
+    const vW = video.videoWidth || (isPortrait ? 9 : 16);
+    const vH = video.videoHeight || (isPortrait ? 16 : 9);
+    const portrait = vH > vW;
+
+    const targetW = portrait ? 90 : 160;
+    const targetH = portrait ? 160 : 90;
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+
+    ctx.clearRect(0, 0, targetW, targetH);
+    ctx.drawImage(video, 0, 0, targetW, targetH);
+  }, [isPortrait]);
 
   // Scrub bar interactions
   const calculateScrubTime = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -258,15 +415,25 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     if (!scrubBarRef.current) return;
     const rect = scrubBarRef.current.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const targetHoverTime = ratio * (duration || 1);
     setHoverPosition(ratio * 100);
-    setHoverTime(ratio * (duration || 1));
+    setHoverTime(targetHoverTime);
+
+    if (previewVideoRef.current) {
+      previewVideoRef.current.currentTime = targetHoverTime;
+    }
   };
 
   const handleScrubMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     const targetTime = calculateScrubTime(e);
     isScrubbingRef.current = true;
     if (videoRef.current) {
-      videoRef.current.currentTime = targetTime;
+      const vid = videoRef.current as HTMLVideoElement & { fastSeek?: (t: number) => void };
+      if (typeof vid.fastSeek === "function") {
+        vid.fastSeek(targetTime);
+      } else {
+        vid.currentTime = targetTime;
+      }
       const dur = videoRef.current.duration || duration || 1;
       if (playedBarRef.current) {
         playedBarRef.current.style.width = `${(targetTime / dur) * 100}%`;
@@ -282,17 +449,33 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       const ratio = Math.max(0, Math.min(1, (moveEvent.clientX - rect.left) / rect.width));
       const dur = videoRef.current.duration || duration || 1;
       const newTime = ratio * dur;
-      videoRef.current.currentTime = newTime;
-      if (playedBarRef.current) {
-        playedBarRef.current.style.width = `${ratio * 100}%`;
+
+      if (rafScrubRef.current) {
+        cancelAnimationFrame(rafScrubRef.current);
       }
-      if (currentTimeDisplayRef.current) {
-        currentTimeDisplayRef.current.textContent = formatTime(newTime);
-      }
+
+      rafScrubRef.current = requestAnimationFrame(() => {
+        if (!videoRef.current) return;
+        const vid = videoRef.current as HTMLVideoElement & { fastSeek?: (t: number) => void };
+        if (typeof vid.fastSeek === "function") {
+          vid.fastSeek(newTime);
+        } else {
+          vid.currentTime = newTime;
+        }
+        if (playedBarRef.current) {
+          playedBarRef.current.style.width = `${ratio * 100}%`;
+        }
+        if (currentTimeDisplayRef.current) {
+          currentTimeDisplayRef.current.textContent = formatTime(newTime);
+        }
+      });
     };
 
     const onMouseUp = () => {
       isScrubbingRef.current = false;
+      if (rafScrubRef.current) {
+        cancelAnimationFrame(rafScrubRef.current);
+      }
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
       resetHideTimer();
@@ -356,85 +539,155 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [togglePlay, handleSkip, volume, isMuted]);
 
+  const handleRetry = () => {
+    setHasError(false);
+    setIsLoading(true);
+    if (videoRef.current) {
+      videoRef.current.load();
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
   return (
     <div
       ref={containerRef}
       onMouseMove={handleMouseMove}
-      className="relative w-full h-full max-h-[85vh] flex flex-col bg-surface-base rounded-neo-xl overflow-hidden neo-raised select-none group p-4 gap-4"
+      onContextMenu={handleContextMenu}
+      className={`relative w-full h-full max-h-[88vh] flex items-center justify-center select-none group rounded-neo-xl overflow-hidden bg-black/40 ${
+        isFullscreen ? "w-screen h-screen max-h-screen rounded-none bg-black" : ""
+      }`}
     >
-      {/* Video Screen Container */}
-      <div className="relative flex-1 neo-pressed rounded-neo-lg overflow-hidden bg-black flex items-center justify-center">
-        <video
-          ref={videoRef}
-          src={item.stream_url}
-          poster={item.thumbnail_url || undefined}
-          playsInline
-          preload="auto"
+      {/* Main Video Element - Fills all available viewport space with object-contain */}
+      <video
+        ref={videoRef}
+        src={item.stream_url}
+        poster={item.thumbnail_url || undefined}
+        playsInline
+        loop={isLooping}
+        preload="auto"
+        onClick={togglePlay}
+        onContextMenu={handleContextMenu}
+        onTimeUpdate={handleTimeUpdate}
+        onProgress={handleProgress}
+        onLoadedMetadata={handleLoadedMetadata}
+        onLoadedData={() => setIsLoading(false)}
+        onCanPlay={() => setIsLoading(false)}
+        onCanPlayThrough={() => setIsLoading(false)}
+        onWaiting={() => setIsLoading(true)}
+        onPlaying={() => {
+          setIsPlaying(true);
+          setIsEnded(false);
+          setIsLoading(false);
+        }}
+        onPause={() => {
+          setIsPlaying(false);
+          setIsLoading(false);
+        }}
+        onEnded={() => {
+          if (isLooping) {
+            handleReplay();
+            return;
+          }
+          setIsPlaying(false);
+          setIsEnded(true);
+          setIsLoading(false);
+          setShowControls(true);
+        }}
+        onError={(e) => {
+          console.error("Video error:", e);
+          setIsLoading(false);
+          setHasError(true);
+        }}
+        className="w-full h-full max-h-[88vh] object-contain cursor-pointer"
+      />
+
+      {/* Hidden Offscreen Preview Video for Fast Frame Canvas Painting */}
+      <video
+        ref={previewVideoRef}
+        src={item.stream_url}
+        playsInline
+        preload="auto"
+        muted
+        onSeeked={renderPreviewFrame}
+        className="hidden"
+      />
+
+      {/* Center Big Replay Button Overlay when Video Ends */}
+      {isEnded && !isLoading && !hasError && (
+        <button
+          onClick={handleReplay}
+          className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-surface-base/90 hover:bg-surface-base backdrop-blur-md border border-white/15 flex items-center justify-center neo-button shadow-[0_0_35px_rgba(129,140,248,0.5)] text-primary hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer group/replay animate-in fade-in zoom-in-75 duration-200"
+          title="Replay Video (Space / Click)"
+        >
+          <RotateCcw className="w-10 h-10 text-primary group-hover/replay:-rotate-90 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
+        </button>
+      )}
+
+      {/* Center Big Play Button Overlay when Paused */}
+      {!isPlaying && !isEnded && !isLoading && !hasError && (
+        <button
           onClick={togglePlay}
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onWaiting={() => setIsLoading(true)}
-          onPlaying={() => {
-            setIsPlaying(true);
-            setIsLoading(false);
-          }}
-          onPause={() => {
-            setIsPlaying(false);
-            setIsLoading(false);
-          }}
-          onError={(e) => {
-            console.error("Video error:", e);
-            setIsLoading(false);
-            setHasError(true);
-          }}
-          className="w-full h-full object-contain cursor-pointer"
-        />
+          className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-surface-base/80 hover:bg-surface-base backdrop-blur-md border border-white/10 flex items-center justify-center neo-button shadow-[0_0_30px_rgba(0,0,0,0.6)] text-primary hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer"
+          title="Play Video"
+        >
+          <Play className="w-10 h-10 fill-primary text-primary ml-1" />
+        </button>
+      )}
 
-        {/* Center Action Ripple Animation */}
-        {centerRipple && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 animate-in fade-in zoom-in-75 duration-300">
-            <div className="w-20 h-20 rounded-full bg-surface-base/80 backdrop-blur-md border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)]">
-              {centerRipple === "play" ? (
-                <Play className="w-9 h-9 fill-primary text-primary ml-1" />
-              ) : (
-                <Pause className="w-9 h-9 fill-primary text-primary" />
-              )}
-            </div>
+      {/* Center Action Ripple Animation */}
+      {centerRipple && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20 animate-in fade-in zoom-in-75 duration-300">
+          <div className="w-20 h-20 rounded-full bg-surface-base/80 backdrop-blur-md border border-white/10 flex items-center justify-center shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+            {centerRipple === "play" ? (
+              <Play className="w-9 h-9 fill-primary text-primary ml-1" />
+            ) : (
+              <Pause className="w-9 h-9 fill-primary text-primary" />
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Center Loading Spinner */}
-        {isLoading && !hasError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-xs pointer-events-none z-10 animate-in fade-in duration-150">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
+      {/* Center Loading Spinner */}
+      {isLoading && !hasError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-xs pointer-events-none z-10 animate-in fade-in duration-150">
+          <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        </div>
+      )}
+
+      {/* Playback Error Fallback */}
+      {hasError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-base text-center p-6 z-30 animate-in fade-in duration-200">
+          <div className="w-14 h-14 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mb-3 neo-pressed">
+            <AlertCircle className="w-7 h-7" />
           </div>
-        )}
-
-        {/* Playback Error Fallback */}
-        {hasError && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-base text-center p-6 z-30 animate-in fade-in duration-200">
-            <div className="w-14 h-14 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mb-3 neo-pressed">
-              <AlertCircle className="w-7 h-7" />
-            </div>
-            <h4 className="text-base font-bold text-on-surface">Playback Error</h4>
-            <p className="text-xs text-on-surface-variant mt-1 max-w-xs">
-              Unable to stream this video directly in your browser.
-            </p>
+          <h4 className="text-base font-bold text-on-surface">Playback Error</h4>
+          <p className="text-xs text-on-surface-variant mt-1 max-w-xs">
+            Unable to stream this video directly in your browser.
+          </p>
+          <div className="flex items-center gap-3 mt-4">
+            <button
+              onClick={handleRetry}
+              className="px-4 py-2 neo-button-primary rounded-neo-lg text-xs font-semibold shadow-[0_0_15px_rgba(129,140,248,0.3)] cursor-pointer"
+            >
+              Retry Playback
+            </button>
             <a
               href={item.stream_url}
               download={item.file_name}
-              className="mt-4 px-4 py-2 neo-button-primary rounded-neo-lg text-xs font-semibold shadow-[0_0_15px_rgba(129,140,248,0.3)] cursor-pointer"
+              className="px-4 py-2 neo-button rounded-neo-lg text-xs font-medium text-on-surface-variant hover:text-on-surface cursor-pointer"
             >
               Download Video
             </a>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Controls Area (Below Video) */}
+      {/* Floating Overlay Controls Bar (Bottom of video) */}
       <div
-        className={`flex flex-col gap-4 transition-opacity duration-300 ${
-          showControls || !isPlaying ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-3rem)] max-w-2xl bg-surface-base/90 backdrop-blur-md p-3.5 rounded-neo-xl neo-raised border border-white/[0.05] z-30 flex flex-col gap-3 transition-all duration-300 shadow-2xl ${
+          showControls || !isPlaying
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-4 pointer-events-none"
         }`}
       >
         {/* Scrubber Progress Bar Area */}
@@ -448,13 +701,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             onMouseDown={handleScrubMouseDown}
             className="flex-1 h-3 hover:h-4 neo-pressed rounded-full relative cursor-pointer transition-all duration-150 group/scrubber"
           >
-            {/* Hover Time Tooltip */}
+            {/* YouTube-Style Hover Thumbnail Preview Tooltip */}
             {hoverTime !== null && (
               <div
-                style={{ left: `${hoverPosition}%` }}
-                className="absolute bottom-6 -translate-x-1/2 z-30 px-2 py-1 bg-surface-base border border-white/[0.05] text-[11px] font-mono font-bold text-on-surface rounded-md shadow-xl pointer-events-none"
+                style={{ left: `${Math.max(14, Math.min(86, hoverPosition))}%` }}
+                className="absolute bottom-6 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 p-1.5 bg-surface-base/95 backdrop-blur-md border border-white/10 rounded-neo-lg shadow-[0_10px_30px_rgba(0,0,0,0.8)] pointer-events-none animate-in fade-in zoom-in-95 duration-100"
               >
-                {formatTime(hoverTime)}
+                <canvas
+                  ref={previewCanvasRef}
+                  width={isPortrait ? 90 : 160}
+                  height={isPortrait ? 160 : 90}
+                  className={`rounded-neo bg-black object-contain border border-white/5 shadow-inner ${
+                    isPortrait ? "w-24 h-40 sm:w-28 sm:h-48" : "w-36 h-20 sm:w-44 sm:h-26"
+                  }`}
+                />
+                <span className="text-[11px] font-mono font-bold text-on-surface bg-surface-container px-2 py-0.5 rounded-full shadow-inner">
+                  {formatTime(hoverTime)}
+                </span>
               </div>
             )}
 
@@ -493,13 +756,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
             <button
               onClick={togglePlay}
-              className="w-14 h-14 rounded-full neo-button flex items-center justify-center text-primary border border-white/[0.02] shadow-[10px_10px_20px_#060910,-5px_-5px_15px_rgba(30,41,59,0.5),inset_2px_2px_4px_rgba(255,255,255,0.05)] cursor-pointer"
+              className="w-14 h-14 rounded-full neo-button-primary flex items-center justify-center cursor-pointer"
               title={isPlaying ? "Pause (Space/K)" : "Play (Space/K)"}
             >
               {isPlaying ? (
-                <Pause className="w-6 h-6 fill-primary" />
+                <Pause className="w-6 h-6 fill-current" />
               ) : (
-                <Play className="w-6 h-6 fill-primary ml-1" />
+                <Play className="w-6 h-6 fill-current ml-1" />
               )}
             </button>
 
@@ -542,30 +805,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             </div>
           </div>
 
-          {/* Right Controls (Quality, Settings, PiP, Fullscreen) */}
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-flex bg-surface-base shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)] px-3 py-1 rounded-full text-[10px] font-bold text-on-surface tracking-wide uppercase">
-              HD
-            </span>
-
-            <div className="h-6 w-px bg-white/[0.05] hidden sm:block mx-1"></div>
-
-            {/* Settings */}
+          {/* Right Controls (Speed, Fullscreen) */}
+          <div className="flex items-center gap-2">
+            {/* Playback Speed Settings */}
             <div className="relative">
               <button
                 onClick={() => setShowSettingsMenu((p) => !p)}
                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                   showSettingsMenu ? "neo-pressed text-primary" : "neo-button text-on-surface-variant hover:text-on-surface"
                 }`}
-                title="Settings"
+                title="Playback Speed"
               >
                 <Settings className="w-4 h-4" />
               </button>
 
               {/* Speed Popover Menu */}
               {showSettingsMenu && (
-                <div className="absolute bottom-full right-0 mb-4 w-36 bg-surface-container border border-white/[0.05] rounded-neo-lg p-2 shadow-[10px_10px_20px_#060910,-5px_-5px_15px_rgba(30,41,59,0.5)] z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="text-[10px] font-bold text-on-surface-variant px-2 py-1 border-b border-white/[0.05] mb-1 uppercase tracking-wider">
+                <div className="absolute bottom-full right-0 mb-4 w-36 bg-surface-base border border-outline-variant/15 rounded-neo-lg p-2 neo-card z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="text-[10px] font-bold text-on-surface-variant px-2 py-1 border-b border-outline-variant/15 mb-1 uppercase tracking-wider">
                     Speed
                   </div>
                   {PLAYBACK_RATES.map((rate) => (
@@ -586,15 +843,6 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
               )}
             </div>
 
-            {/* PiP */}
-            <button
-              onClick={togglePiP}
-              className="w-10 h-10 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
-              title="Picture in Picture (P)"
-            >
-              <PictureInPicture className="w-4 h-4" />
-            </button>
-
             {/* Fullscreen */}
             <button
               onClick={toggleFullscreen}
@@ -610,6 +858,216 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           </div>
         </div>
       </div>
+
+      {/* Player Custom Context Menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
+          className="absolute z-50 w-56 bg-surface-base border border-outline-variant/20 rounded-neo-xl p-1.5 neo-card shadow-[0_10px_35px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 duration-100 select-none text-xs"
+        >
+          {/* Loop Toggle */}
+          <button
+            onClick={toggleLoop}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-neo transition-all cursor-pointer ${
+              isLooping
+                ? "bg-primary/10 text-primary font-bold neo-pressed"
+                : "text-on-surface hover:bg-surface-container"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Repeat className={`w-4 h-4 ${isLooping ? "text-primary" : "text-on-surface-variant"}`} />
+              <span>Loop Video</span>
+            </div>
+            {isLooping ? (
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-primary/20 text-primary font-mono font-bold">ON</span>
+            ) : (
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-surface-container text-on-surface-variant font-mono">OFF</span>
+            )}
+          </button>
+
+          {/* Play / Pause Toggle */}
+          <button
+            onClick={() => {
+              togglePlay();
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              {isPlaying ? (
+                <Pause className="w-4 h-4 text-on-surface-variant" />
+              ) : (
+                <Play className="w-4 h-4 text-primary fill-primary" />
+              )}
+              <span>{isPlaying ? "Pause" : "Play"}</span>
+            </div>
+            <span className="text-[10px] text-on-surface-variant font-mono">Space</span>
+          </button>
+
+          {/* Speed Submenu Item */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSpeedSubmenu((p) => !p)}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-neo transition-all cursor-pointer ${
+                showSpeedSubmenu ? "bg-surface-container text-primary" : "text-on-surface hover:bg-surface-container"
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Gauge className="w-4 h-4 text-on-surface-variant" />
+                <span>Speed</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-surface-container text-primary font-bold font-mono">
+                {playbackRate === 1 ? "Normal" : `${playbackRate}x`}
+              </span>
+            </button>
+
+            {/* Speed Inline Grid */}
+            {showSpeedSubmenu && (
+              <div className="my-1 p-1 bg-surface-container-lowest rounded-neo grid grid-cols-3 gap-1">
+                {PLAYBACK_RATES.map((rate) => (
+                  <button
+                    key={rate}
+                    onClick={() => {
+                      handleRateChange(rate);
+                      setContextMenu(null);
+                    }}
+                    className={`py-1 px-1 rounded text-[11px] font-mono text-center transition-all cursor-pointer ${
+                      playbackRate === rate
+                        ? "bg-primary text-on-primary font-bold"
+                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                    }`}
+                  >
+                    {rate === 1 ? "1x" : `${rate}x`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="my-1 border-t border-outline-variant/15" />
+
+          {/* Picture in Picture */}
+          <button
+            onClick={() => {
+              togglePiP();
+              setContextMenu(null);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <ExternalLink className="w-4 h-4 text-on-surface-variant" />
+              <span>Picture in Picture</span>
+            </div>
+            <span className="text-[10px] text-on-surface-variant font-mono">P</span>
+          </button>
+
+          {/* Copy Video Stream Link */}
+          <button
+            onClick={handleCopyVideoUrl}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <Link className="w-4 h-4 text-on-surface-variant" />
+              <span>Copy Video URL</span>
+            </div>
+          </button>
+
+          {/* Stats for Nerds Toggle */}
+          <button
+            onClick={() => {
+              setShowStatsOverlay((prev) => !prev);
+              setContextMenu(null);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-neo transition-all cursor-pointer ${
+              showStatsOverlay
+                ? "bg-primary/10 text-primary font-bold neo-pressed"
+                : "text-on-surface hover:bg-surface-container"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <Activity className="w-4 h-4 text-on-surface-variant" />
+              <span>Stats for Nerds</span>
+            </div>
+            {showStatsOverlay && <Check className="w-3.5 h-3.5 text-primary" />}
+          </button>
+
+          <div className="my-1 border-t border-outline-variant/15" />
+
+          {/* Download Video */}
+          <a
+            href={item.stream_url}
+            download={item.file_name}
+            onClick={() => setContextMenu(null)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-neo text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4 text-on-surface-variant" />
+            <span>Download Video</span>
+          </a>
+        </div>
+      )}
+
+      {/* Stats for Nerds HUD Overlay */}
+      {showStatsOverlay && (
+        <div className="absolute top-4 left-4 z-40 bg-black/85 backdrop-blur-md border border-white/15 rounded-neo-lg p-3 text-[11px] font-mono text-zinc-300 shadow-2xl space-y-1.5 min-w-[270px] animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between pb-1.5 border-b border-white/10 text-primary font-sans font-bold text-xs">
+            <div className="flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5" />
+              <span>Stats for Nerds</span>
+            </div>
+            <button
+              onClick={() => setShowStatsOverlay(false)}
+              className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Item ID:</span>
+            <span className="text-zinc-200">#{item.id}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Resolution:</span>
+            <span className="text-zinc-200">
+              {item.width && item.height ? `${item.width}×${item.height}` : "Auto"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Duration:</span>
+            <span className="text-zinc-200">{formatTime(duration)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Format:</span>
+            <span className="text-indigo-400 uppercase">{item.mime_type}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">File Size:</span>
+            <span className="text-zinc-200">{(item.file_size / (1024 * 1024)).toFixed(2)} MB</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Speed:</span>
+            <span className="text-zinc-200">{playbackRate}x</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Looping:</span>
+            <span className={isLooping ? "text-emerald-400 font-bold" : "text-zinc-400"}>
+              {isLooping ? "Active" : "Off"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-zinc-500">Volume:</span>
+            <span className="text-zinc-200">{Math.round(volume * 100)}% {isMuted ? "(Muted)" : ""}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Copied URL Toast */}
+      {copiedToast && (
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface-base/95 border border-primary/30 rounded-full neo-card text-xs font-semibold text-primary shadow-xl flex items-center gap-2 animate-in fade-in duration-150">
+          <Check className="w-4 h-4 text-primary" />
+          <span>Video stream URL copied to clipboard!</span>
+        </div>
+      )}
     </div>
   );
 };

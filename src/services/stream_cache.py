@@ -1,37 +1,163 @@
 """
 =============================================================================
 Module: src.services.stream_cache
-Purpose: High-performance progressive streaming cache manager for instant seekable media playback.
-         Eliminates Telegram MTProto network latency by caching streamed media locally,
-         supporting progressive chunk-by-chunk playback without waiting for full download,
-         and deduplicating in-flight network fetches.
-Used by: src.api.routes.stream, src.services.archive_service
-Dependencies: asyncio, pathlib, src.config, src.storage.telegram_client
+Purpose: High-performance progressive streaming cache manager with LRU auto-eviction.
+         Provides 0ms seekable media playback while strictly enforcing a maximum local disk
+         cache ceiling (default 1.5 GB), automatically evicting least-recently-used video
+         buffers to prevent local drive bloat.
+Used by: src.api.routes.stream, src.api.routes.system, src.services.archive_service
+Dependencies: asyncio, pathlib, shutil, src.config, src.storage.tdlib_client, src.storage.telegram_client
 Public Members: StreamCacheManager, get_stream_cache()
-Side Effects: Reads/writes cached binary media files in data/cache/.
+Side Effects: Reads, writes, and evicts cached media binary files in data/cache/.
 =============================================================================
 """
 
 import asyncio
+import shutil
 from pathlib import Path
 from typing import AsyncIterator, Dict, Optional, Union
 from src.config import get_settings
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
+from src.storage.tdlib_client import get_tdlib_client
 
 
 class StreamCacheManager:
     """
     Manages progressive local disk caching for media streams to provide 0ms latency video playback.
-    Coalesces concurrent range requests for the same media into a single MTProto download.
+    Coalesces concurrent range requests and enforces LRU auto-eviction to protect local disk space.
     """
 
-    def __init__(self, cache_dir: Optional[Union[str, Path]] = None) -> None:
+    def __init__(
+        self,
+        cache_dir: Optional[Union[str, Path]] = None,
+        max_cache_bytes: int = 1500 * 1024 * 1024,
+    ) -> None:
         self.cache_dir = Path(cache_dir or "data/cache")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.max_cache_bytes = max_cache_bytes  # 1.5 GB default ceiling
         self._inflight_downloads: Dict[str, asyncio.Task] = {}
         self._progress_events: Dict[str, asyncio.Event] = {}
         self._bytes_downloaded: Dict[str, int] = {}
         self._lock = asyncio.Lock()
+
+    def touch_cache(self, cache_path: Path) -> None:
+        """Updates file modification/access time for LRU tracking."""
+        try:
+            if cache_path.exists():
+                cache_path.touch()
+        except Exception:
+            pass
+
+    def _get_disposable_cache_dirs(self) -> list[Path]:
+        """Returns all disposable local media cache directories across the application."""
+        dirs: list[Path] = []
+        if self.cache_dir.exists():
+            dirs.append(self.cache_dir)
+
+        upload_temp = Path("data/upload_temp")
+        if upload_temp.exists():
+            dirs.append(upload_temp)
+
+        td_files = Path("data/tdlib/files")
+        if td_files.exists():
+            for sub in td_files.iterdir():
+                if sub.is_dir():
+                    dirs.append(sub)
+
+        return dirs
+
+    def get_cache_stats(self) -> dict:
+        """Returns total cache size, limit, file count, and formatted metrics across all cache folders."""
+        total_bytes = 0
+        file_count = 0
+        for d in self._get_disposable_cache_dirs():
+            for f in d.glob("*"):
+                if f.is_file():
+                    try:
+                        total_bytes += f.stat().st_size
+                        file_count += 1
+                    except Exception:
+                        pass
+
+        percent = round((total_bytes / max(1, self.max_cache_bytes)) * 100, 1)
+        return {
+            "cache_bytes": total_bytes,
+            "cache_formatted": self._format_bytes(total_bytes),
+            "max_bytes": self.max_cache_bytes,
+            "max_formatted": self._format_bytes(self.max_cache_bytes),
+            "percent_used": min(100.0, percent),
+            "file_count": file_count,
+        }
+
+    def clear_all_cache(self) -> dict:
+        """Purges 100% of stream cache and TDLib downloaded media files to immediately free local disk storage."""
+        freed_bytes = 0
+        files_deleted = 0
+        for d in self._get_disposable_cache_dirs():
+            for f in list(d.glob("*")):
+                if f.is_file():
+                    # Skip files actively downloading in memory
+                    is_inflight = any(f.name.startswith(h) for h in self._inflight_downloads.keys())
+                    if not is_inflight:
+                        try:
+                            size = f.stat().st_size
+                            f.unlink()
+                            freed_bytes += size
+                            files_deleted += 1
+                        except Exception:
+                            pass
+
+        return {
+            "freed_bytes": freed_bytes,
+            "freed_formatted": self._format_bytes(freed_bytes),
+            "files_deleted": files_deleted,
+        }
+
+    def prune_lru_cache(self, target_reduction_ratio: float = 0.7) -> int:
+        """
+        Evicts oldest cached files if cache size exceeds max_cache_bytes.
+        Returns total bytes freed.
+        """
+        files = []
+        total_size = 0
+        for d in self._get_disposable_cache_dirs():
+            for f in d.glob("*"):
+                if f.is_file():
+                    if any(f.name.startswith(h) for h in self._inflight_downloads.keys()):
+                        continue
+                    try:
+                        stat = f.stat()
+                        files.append((stat.st_mtime, stat.st_size, f))
+                        total_size += stat.st_size
+                    except Exception:
+                        pass
+
+        if total_size <= self.max_cache_bytes:
+            return 0
+
+        # Sort by oldest access/mtime first
+        files.sort(key=lambda x: x[0])
+        target_size = int(self.max_cache_bytes * target_reduction_ratio)
+        freed_bytes = 0
+
+        for _, size, file_path in files:
+            if total_size - freed_bytes <= target_size:
+                break
+            try:
+                file_path.unlink()
+                freed_bytes += size
+            except Exception:
+                pass
+
+        return freed_bytes
+
+    @staticmethod
+    def _format_bytes(size: int) -> str:
+        for unit in ["B", "KB", "MB", "GB"]:
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
 
     def get_cache_path(self, file_hash: str) -> Path:
         """Returns the local cache file path for a given SHA-256 file hash."""
@@ -58,79 +184,165 @@ class StreamCacheManager:
 
         # 1. Cache HIT (Full file on disk)
         if cache_path.exists() and cache_path.stat().st_size == file_size:
+            self.touch_cache(cache_path)
             return cache_path
 
         # 2. Initiate or attach to active in-flight progressive download
         async with self._lock:
             if file_hash not in self._inflight_downloads:
-                client = telegram_client or get_telegram_client()
-                event = asyncio.Event()
-                self._progress_events[file_hash] = event
-                self._bytes_downloaded[file_hash] = 0
-
                 download_task = asyncio.create_task(
                     self._do_progressive_download(
-                        client, message_id, channel_id, cache_path, file_hash, file_size
+                        message_id, channel_id, cache_path, file_hash, file_size
                     )
                 )
                 self._inflight_downloads[file_hash] = download_task
 
         return cache_path
 
+    def trigger_background_caching(
+        self,
+        message_id: int,
+        channel_id: Union[int, str],
+        file_hash: str,
+        file_size: int,
+    ) -> None:
+        """
+        Spawns background parallel download task if not already cached or downloading.
+        Runs completely non-blocking in the background without halting live stream responses.
+        """
+        cache_path = self.get_cache_path(file_hash)
+        if cache_path.exists() and cache_path.stat().st_size == file_size:
+            return
+
+        if file_hash not in self._inflight_downloads:
+            task = asyncio.create_task(
+                self._do_progressive_download(
+                    message_id, channel_id, cache_path, file_hash, file_size
+                )
+            )
+            self._inflight_downloads[file_hash] = task
+
     async def _do_progressive_download(
         self,
-        client: TelegramStorageClient,
         message_id: int,
         channel_id: Union[int, str],
         target_path: Path,
         file_hash: str,
         expected_size: int,
+        chunk_size: int = 1024 * 1024,
     ) -> None:
         """
-        Progressively streams chunks from Telegram MTProto into the cache file,
-        pulsing the progress event after each chunk to wake up active stream readers.
+        High-speed C++ TDLib background downloader with graceful Telethon fallback.
+        Downloads in 16 parallel hardware streams and promotes to target_path (.bin).
         """
-        temp_path = self.cache_dir / f"{file_hash}.part"
+        td_client = get_tdlib_client()
+        tdlib_success = False
+
+        # 1. Primary Engine: Official C++ TDLib
+        try:
+            await td_client.start()
+            if td_client.auth_state == "authorizationStateReady":
+                cid_raw = str(channel_id).lstrip("-").lstrip("100")
+                chat_id = int(f"-100{cid_raw}")
+                td_msg_id = message_id * (1 << 20)
+
+                msg = await td_client.send_request({
+                    "@type": "getMessage",
+                    "chat_id": chat_id,
+                    "message_id": td_msg_id,
+                })
+
+                content = msg.get("content", {})
+                file_info = None
+                if content.get("@type") == "messageVideo":
+                    file_info = content.get("video", {}).get("video")
+                elif content.get("@type") == "messageDocument":
+                    file_info = content.get("document", {}).get("document")
+                elif content.get("@type") == "messageAnimation":
+                    file_info = content.get("animation", {}).get("animation")
+                elif content.get("@type") == "messagePhoto":
+                    sizes = content.get("photo", {}).get("sizes", [])
+                    if sizes:
+                        file_info = sizes[-1].get("photo")
+
+                if file_info and file_info.get("id"):
+                    file_id = file_info["id"]
+                    # Trigger async download
+                    await td_client.download_file_fast(file_id=file_id, priority=32, synchronous=False)
+
+                    # Poll until TDLib finishes downloading file
+                    for _ in range(120): # up to 60s
+                        f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
+                        local = f_stat.get("local", {})
+                        if local.get("is_downloading_completed"):
+                            local_path = local.get("path")
+                            if local_path and Path(local_path).exists():
+                                shutil.copyfile(local_path, target_path)
+                                self.touch_cache(target_path)
+                                self.prune_lru_cache()
+                                tdlib_success = True
+                                print(f"[StreamCache] TDLib C++ fully cached media {file_hash} ({expected_size} bytes)")
+                            break
+                        await asyncio.sleep(0.5)
+        except Exception as e:
+            print(f"[StreamCache] TDLib C++ download background note: {e}")
+
+        if tdlib_success:
+            async with self._lock:
+                self._inflight_downloads.pop(file_hash, None)
+            return
+
+        # 2. Fallback Engine: Telethon sequential append
+        part_path = self.cache_dir / f"{file_hash}.part"
+        client = get_telegram_client()
         try:
             await client.start()
             entity = await client.get_target_entity(channel_id)
             message = await client._client.get_messages(entity, ids=message_id)
             if not message or not message.media:
-                raise ValueError(f"No media found for message {message_id}")
+                return
 
-            with open(temp_path, "wb") as f:
+            start_offset = part_path.stat().st_size if part_path.exists() else 0
+            if start_offset >= expected_size:
+                part_path.replace(target_path)
+                self.touch_cache(target_path)
+                self.prune_lru_cache()
+                return
+
+            align = 4096
+            aligned_offset = (start_offset // align) * align
+
+            with open(part_path, "ab" if start_offset > 0 else "wb") as f:
                 async for chunk in client._client.iter_download(
                     message.media,
-                    chunk_size=512 * 1024,  # Maximum MTProto throughput
+                    offset=aligned_offset,
+                    chunk_size=chunk_size,
+                    request_size=chunk_size,
                 ):
                     if not chunk:
                         break
                     f.write(chunk)
                     f.flush()
 
-                    # Notify waiting stream readers
-                    self._bytes_downloaded[file_hash] = f.tell()
-                    event = self._progress_events.get(file_hash)
-                    if event:
-                        event.set()
-                        event.clear()
-                    await asyncio.sleep(0)
+            if part_path.exists() and part_path.stat().st_size >= expected_size:
+                promoted = False
+                for _ in range(15):
+                    try:
+                        part_path.replace(target_path)
+                        promoted = True
+                        break
+                    except (PermissionError, OSError):
+                        await asyncio.sleep(0.1)
 
-            # Atomic swap to complete cache file
-            if temp_path.exists():
-                temp_path.replace(target_path)
+                if promoted:
+                    self.touch_cache(target_path)
+                    self.prune_lru_cache()
+                    print(f"[StreamCache] Fully cached media {file_hash} ({expected_size} bytes)")
         except Exception as e:
-            if temp_path.exists():
-                try:
-                    temp_path.unlink()
-                except Exception:
-                    pass
-            raise e
+            print(f"[StreamCache] Progressive download error for {file_hash}: {e}")
         finally:
             async with self._lock:
                 self._inflight_downloads.pop(file_hash, None)
-                self._progress_events.pop(file_hash, None)
-                self._bytes_downloaded.pop(file_hash, None)
 
     async def stream_file_range(
         self,
@@ -138,60 +350,209 @@ class StreamCacheManager:
         file_hash: str,
         start: int,
         end: int,
-        chunk_size: int = 256 * 1024,
+        expected_total_size: Optional[int] = None,
+        message_id: Optional[int] = None,
+        channel_id: Optional[Union[int, str]] = None,
+        chunk_size: int = 512 * 1024,
     ) -> AsyncIterator[bytes]:
         """
-        Progressively streams a byte slice [start, end] from disk with live waiting
-        for active in-flight downloads.
+        Progressively streams a byte slice [start, end] from disk cache or TDLib C++ hardware memory slices.
         """
+        import base64
         bytes_to_send = (end - start) + 1
         bytes_sent = 0
         part_path = self.cache_dir / f"{file_hash}.part"
 
-        # Determine which path to open (completed cache file or active .part file)
-        actual_path = file_path if file_path.exists() else part_path
+        # 1. Proactively start background progressive download if file is not already on disk
+        if expected_total_size and message_id and channel_id:
+            if not (file_path.exists() and file_path.stat().st_size == expected_total_size):
+                if file_hash not in self._inflight_downloads:
+                    task = asyncio.create_task(
+                        self._do_progressive_download(
+                            message_id, channel_id, file_path, file_hash, expected_total_size, chunk_size
+                        )
+                    )
+                    self._inflight_downloads[file_hash] = task
 
-        # Wait until file is created and has enough bytes to reach `start`
-        wait_cycles = 0
-        while not actual_path.exists() or actual_path.stat().st_size <= start:
-            if file_path.exists():
-                actual_path = file_path
-                break
-            if file_hash not in self._inflight_downloads and not actual_path.exists():
-                break
-            await asyncio.sleep(0.05)
-            wait_cycles += 1
-            if wait_cycles > 100:  # 5s timeout
-                break
+        # 2. Fast path: Read from completed .bin cache file if available
+        if file_path.exists():
+            actual_size = file_path.stat().st_size
+            if expected_total_size is None or actual_size == expected_total_size:
+                if actual_size > start:
+                    self.touch_cache(file_path)
+                    with open(file_path, "rb") as f:
+                        f.seek(start)
+                        while bytes_sent < bytes_to_send:
+                            read_len = min(chunk_size, bytes_to_send - bytes_sent)
+                            data = f.read(read_len)
+                            if not data:
+                                break
+                            yield data
+                            bytes_sent += len(data)
+                            await asyncio.sleep(0)
+                    return
+            elif expected_total_size and actual_size < expected_total_size:
+                try:
+                    file_path.unlink()
+                except Exception:
+                    pass
 
-        if not actual_path.exists():
-            return
+        # 3. High-Speed TDLib Hardware Slice Stream (0ms first-chunk seek)
+        td_client = get_tdlib_client()
+        tdlib_stream_success = False
 
-        with open(actual_path, "rb") as f:
-            f.seek(start)
-            while bytes_sent < bytes_to_send:
-                current_file_size = actual_path.stat().st_size
-                available_bytes = current_file_size - (start + bytes_sent)
+        if message_id is not None and channel_id is not None:
+            try:
+                await td_client.start()
+                if td_client.auth_state == "authorizationStateReady":
+                    cid_raw = str(channel_id).lstrip("-").lstrip("100")
+                    chat_id = int(f"-100{cid_raw}")
+                    td_msg_id = message_id * (1 << 20)
 
-                if available_bytes <= 0:
-                    # If still downloading, wait for next chunk
-                    if file_hash in self._inflight_downloads:
-                        await asyncio.sleep(0.05)
-                        continue
-                    else:
-                        break
+                    msg = await td_client.send_request({
+                        "@type": "getMessage",
+                        "chat_id": chat_id,
+                        "message_id": td_msg_id,
+                    })
 
-                read_len = min(chunk_size, bytes_to_send - bytes_sent, available_bytes)
-                data = f.read(read_len)
-                if not data:
-                    if file_hash in self._inflight_downloads:
-                        await asyncio.sleep(0.05)
-                        continue
+                    content = msg.get("content", {})
+                    file_info = (
+                        content.get("video", {}).get("video")
+                        or content.get("document", {}).get("document")
+                        or content.get("animation", {}).get("animation")
+                    )
+
+                    if file_info and file_info.get("id"):
+                        file_id = file_info["id"]
+
+                        # Check if file has already completed downloading in TDLib directory
+                        try:
+                            f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
+                            local = f_stat.get("local", {})
+                            if local.get("is_downloading_completed") and local.get("path") and Path(local["path"]).exists():
+                                local_p = Path(local["path"])
+                                if not file_path.exists():
+                                    try:
+                                        shutil.copyfile(local_p, file_path)
+                                        self.touch_cache(file_path)
+                                        self.prune_lru_cache()
+                                    except Exception:
+                                        pass
+                                with open(local_p, "rb") as f:
+                                    f.seek(start)
+                                    while bytes_sent < bytes_to_send:
+                                        read_len = min(chunk_size, bytes_to_send - bytes_sent)
+                                        data = f.read(read_len)
+                                        if not data:
+                                            break
+                                        yield data
+                                        bytes_sent += len(data)
+                                        await asyncio.sleep(0)
+                                return
+                        except Exception:
+                            pass
+
+                        # Priority slice request for instant hardware playback
+                        await td_client.send_request({
+                            "@type": "downloadFile",
+                            "file_id": file_id,
+                            "priority": 32,
+                            "offset": start,
+                            "limit": bytes_to_send,
+                            "synchronous": False,
+                        })
+
+                        tdlib_stream_success = True
+                        while bytes_sent < bytes_to_send:
+                            req_count = min(chunk_size, bytes_to_send - bytes_sent)
+                            current_offset = start + bytes_sent
+                            part_data = None
+
+                            for _ in range(100):  # Wait up to 10.0s per chunk
+                                try:
+                                    res = await td_client.send_request({
+                                        "@type": "readFilePart",
+                                        "file_id": file_id,
+                                        "offset": current_offset,
+                                        "count": req_count,
+                                    })
+                                    if res.get("@type") == "data" and res.get("data"):
+                                        part_data = base64.b64decode(res["data"])
+                                        break
+                                except Exception:
+                                    pass
+                                await asyncio.sleep(0.1)
+
+                            if not part_data:
+                                # Check if the full file just completed downloading
+                                try:
+                                    f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
+                                    local = f_stat.get("local", {})
+                                    if local.get("is_downloading_completed") and local.get("path") and Path(local["path"]).exists():
+                                        local_p = Path(local["path"])
+                                        with open(local_p, "rb") as f:
+                                            f.seek(current_offset)
+                                            while bytes_sent < bytes_to_send:
+                                                read_len = min(chunk_size, bytes_to_send - bytes_sent)
+                                                data = f.read(read_len)
+                                                if not data:
+                                                    break
+                                                yield data
+                                                bytes_sent += len(data)
+                                                await asyncio.sleep(0)
+                                        return
+                                except Exception:
+                                    pass
+                                break
+
+                            yield part_data
+                            bytes_sent += len(part_data)
+                            await asyncio.sleep(0)
+
+                        if bytes_sent >= bytes_to_send:
+                            return
+            except Exception as e:
+                print(f"[StreamCache] TDLib slice stream exception: {e}")
+
+        # 4. Fallback progressive stream from growing .part file
+        while bytes_sent < bytes_to_send and part_path.exists():
+            current_size = part_path.stat().st_size if part_path.exists() else 0
+            if current_size <= (start + bytes_sent):
+                if file_hash in self._inflight_downloads:
+                    await asyncio.sleep(0.05)
+                    continue
+                else:
                     break
 
+            available = current_size - (start + bytes_sent)
+            read_len = min(chunk_size, bytes_to_send - bytes_sent, available)
+            with open(part_path, "rb") as f:
+                f.seek(start + bytes_sent)
+                data = f.read(read_len)
+
+            if data:
                 yield data
                 bytes_sent += len(data)
                 await asyncio.sleep(0)
+            else:
+                break
+
+        if bytes_sent >= bytes_to_send:
+            return
+
+        # 5. Direct MTProto seek fallback
+        if message_id is not None and channel_id is not None:
+            client = get_telegram_client()
+            async for chunk in client.iter_document_chunks(
+                message_id=message_id,
+                channel_id=channel_id,
+                offset=start + bytes_sent,
+                limit=bytes_to_send - bytes_sent,
+                chunk_size=chunk_size,
+            ):
+                yield chunk
+                bytes_sent += len(chunk)
+            return
 
 
 _cache_manager_instance: Optional[StreamCacheManager] = None

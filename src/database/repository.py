@@ -211,23 +211,83 @@ class MediaRepository:
             await conn.commit()
             return cursor.rowcount > 0
 
+    @staticmethod
+    async def update_media_metadata(
+        media_id: int,
+        duration_seconds: Optional[float] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+    ) -> bool:
+        """
+        Updates duration and dimensions metadata for a media item.
+        Cost: O(1) point update on primary key id.
+        """
+        query = """
+            UPDATE media_items 
+            SET 
+                duration_seconds = COALESCE(?, duration_seconds),
+                width = COALESCE(?, width),
+                height = COALESCE(?, height)
+            WHERE id = ?;
+        """
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (duration_seconds, width, height, media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
     # =========================================================================
     # Folder & Album Repository Methods
     # =========================================================================
 
     @staticmethod
-    async def create_folder(name: str, parent_id: Optional[int] = None) -> int:
-        """Creates a new folder / album and returns the folder ID."""
-        query = "INSERT INTO folders (name, parent_id) VALUES (?, ?);"
+    async def get_folder_by_name(name: str, parent_id: Optional[int] = None) -> Optional[dict[str, Any]]:
+        """Retrieves folder details by case-insensitive name and optional parent_id."""
+        query = """
+            SELECT id, name, parent_id, color, 
+                   COALESCE(icon, 'Folder') as icon, 
+                   COALESCE(is_favorite, 0) as is_favorite,
+                   COALESCE(is_collection, 0) as is_collection, 
+                   created_at 
+            FROM folders 
+            WHERE LOWER(name) = LOWER(?) AND (parent_id = ? OR (parent_id IS NULL AND ? IS NULL));
+        """
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query, (name.strip(), parent_id))
+            async with conn.execute(query, (name.strip(), parent_id, parent_id)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    @staticmethod
+    async def create_folder(
+        name: str,
+        parent_id: Optional[int] = None,
+        color: Optional[str] = None,
+        icon: Optional[str] = "Folder",
+        is_favorite: int = 0,
+        is_collection: int = 0,
+    ) -> int:
+        """Creates a new folder / album and returns the folder ID."""
+        query = """
+            INSERT INTO folders (name, parent_id, color, icon, is_favorite, is_collection) 
+            VALUES (?, ?, ?, ?, ?, ?);
+        """
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(
+                query, (name.strip(), parent_id, color, icon or "Folder", is_favorite, is_collection)
+            )
             await conn.commit()
             return cursor.lastrowid or 0
 
     @staticmethod
     async def get_folder(folder_id: int) -> Optional[dict[str, Any]]:
         """Retrieves folder details by ID."""
-        query = "SELECT id, name, parent_id, created_at FROM folders WHERE id = ?;"
+        query = """
+            SELECT id, name, parent_id, color, 
+                   COALESCE(icon, 'Folder') as icon, 
+                   COALESCE(is_favorite, 0) as is_favorite,
+                   COALESCE(is_collection, 0) as is_collection, 
+                   created_at 
+            FROM folders WHERE id = ?;
+        """
         async with get_db_connection() as conn:
             async with conn.execute(query, (folder_id,)) as cursor:
                 row = await cursor.fetchone()
@@ -241,7 +301,11 @@ class MediaRepository:
         """
         query = """
             SELECT 
-                f.id, f.name, f.parent_id, f.created_at,
+                f.id, f.name, f.parent_id, f.color, 
+                COALESCE(f.icon, 'Folder') as icon, 
+                COALESCE(f.is_favorite, 0) as is_favorite,
+                COALESCE(f.is_collection, 0) as is_collection,
+                f.created_at,
                 COUNT(m.id) as item_count,
                 (
                     SELECT m.thumbnail_path 
@@ -260,8 +324,8 @@ class MediaRepository:
             FROM folders f
             LEFT JOIN media_folders mf ON mf.folder_id = f.id
             LEFT JOIN media_items m ON m.id = mf.media_id AND m.is_deleted = 0
-            GROUP BY f.id, f.name, f.parent_id, f.created_at
-            ORDER BY f.created_at DESC;
+            GROUP BY f.id, f.name, f.parent_id, f.color, f.icon, f.is_favorite, f.is_collection, f.created_at
+            ORDER BY f.is_favorite DESC, f.created_at DESC;
         """
         async with get_db_connection() as conn:
             async with conn.execute(query) as cursor:
@@ -276,6 +340,50 @@ class MediaRepository:
             cursor = await conn.execute(query, (folder_id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    @staticmethod
+    async def update_folder(
+        folder_id: int,
+        name: Optional[str] = None,
+        color: Optional[str] = None,
+        icon: Optional[str] = None,
+        is_favorite: Optional[int] = None,
+        parent_id: Optional[int] = -999,  # sentinel to differentiate None from omitted
+    ) -> bool:
+        """Dynamically updates folder fields with indexed PK lookup."""
+        updates: list[str] = []
+        params: list[Any] = []
+
+        if name is not None:
+            updates.append("name = ?")
+            params.append(name.strip())
+        if color is not None:
+            updates.append("color = ?")
+            params.append(color if color != "" else None)
+        if icon is not None:
+            updates.append("icon = ?")
+            params.append(icon)
+        if is_favorite is not None:
+            updates.append("is_favorite = ?")
+            params.append(1 if is_favorite else 0)
+        if parent_id != -999:
+            updates.append("parent_id = ?")
+            params.append(parent_id)
+
+        if not updates:
+            return False
+
+        params.append(folder_id)
+        query = f"UPDATE folders SET {', '.join(updates)} WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, tuple(params))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def update_folder_color(folder_id: int, color: Optional[str]) -> bool:
+        """Legacy helper for updating folder icon color."""
+        return await MediaRepository.update_folder(folder_id=folder_id, color=color)
 
     @staticmethod
     async def add_media_to_folder(folder_id: int, media_ids: list[int]) -> int:

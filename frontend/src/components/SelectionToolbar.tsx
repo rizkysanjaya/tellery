@@ -86,7 +86,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 30, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="selection-toolbar fixed bottom-7 left-1/2 -translate-x-1/2 z-40 neo-raised bg-surface-base rounded-neo-xl px-2.5 py-2 flex items-center gap-2 select-none"
+          className="selection-toolbar neo-raised bg-surface-base rounded-neo-xl px-2.5 py-2 flex items-center gap-2 select-none shadow-2xl border border-white/[0.05] pointer-events-auto"
         >
           {/* Selected Count */}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-primary-container text-on-primary rounded-full">

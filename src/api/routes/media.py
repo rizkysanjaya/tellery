@@ -13,7 +13,8 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from src.api.schemas import (
     MediaItemResponse,
     StatsResponse,
@@ -22,6 +23,7 @@ from src.api.schemas import (
 )
 from src.database.repository import MediaRepository
 from src.services.archive_service import ArchiveService
+from src.services.upload_tracker import get_upload_tracker
 
 router = APIRouter(prefix="/api/media", tags=["Media Catalog"])
 
@@ -148,43 +150,181 @@ async def get_timeline(
     )
 
 
+_cached_tele_profile: dict[str, Optional[str]] = {
+    "account_name": None,
+    "account_username": None,
+    "channel_name": None,
+}
+
+
+async def get_telegram_profile_info() -> dict[str, Optional[str]]:
+    """
+    Fetches and caches the authorized Telegram user profile and target vault channel title.
+    Returns in-memory cached metadata with zero database/network latency on subsequent calls.
+    """
+    global _cached_tele_profile
+    if _cached_tele_profile["account_name"] and _cached_tele_profile["channel_name"]:
+        return _cached_tele_profile
+
+    try:
+        from src.storage.telegram_client import get_telegram_client
+        from src.config import get_settings
+
+        client = get_telegram_client()
+        await client.start()
+        settings = get_settings()
+
+        avatar_dir = Path("data/avatars")
+        avatar_dir.mkdir(parents=True, exist_ok=True)
+        channel_avatar = avatar_dir / "channel_avatar.jpg"
+        user_avatar = avatar_dir / "user_avatar.jpg"
+
+        # 1. User profile & avatar
+        me = await client.raw_client.get_me()
+        if me:
+            first = me.first_name or ""
+            last = me.last_name or ""
+            name = f"{first} {last}".strip() or me.username or "User"
+            _cached_tele_profile["account_name"] = name
+            _cached_tele_profile["account_username"] = me.username
+            if not user_avatar.exists():
+                try:
+                    await client.raw_client.download_profile_photo(me, file=str(user_avatar))
+                except Exception:
+                    pass
+
+        # 2. Target channel title & avatar
+        channel = await client.get_target_entity(settings.tg_channel_id)
+        if channel:
+            _cached_tele_profile["channel_name"] = (
+                getattr(channel, "title", None)
+                or getattr(channel, "username", None)
+                or "Vault"
+            )
+            if not channel_avatar.exists():
+                try:
+                    await client.raw_client.download_profile_photo(channel, file=str(channel_avatar))
+                except Exception:
+                    pass
+    except Exception as e:
+        print(f"[Telegram Profile] Warning: Failed to fetch profile info: {e}")
+
+    return _cached_tele_profile
+
+
+@router.get("/avatar/channel")
+async def get_channel_avatar():
+    """
+    Serves the target Telegram vault channel's cached profile avatar.
+    """
+    avatar_path = Path("data/avatars/channel_avatar.jpg")
+    if not avatar_path.exists():
+        raise HTTPException(status_code=404, detail="Channel avatar not found")
+    return FileResponse(
+        avatar_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.get("/avatar/user")
+async def get_user_avatar():
+    """
+    Serves the logged-in Telegram account's cached profile avatar.
+    """
+    avatar_path = Path("data/avatars/user_avatar.jpg")
+    if not avatar_path.exists():
+        raise HTTPException(status_code=404, detail="User avatar not found")
+    return FileResponse(
+        avatar_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
 @router.get("/stats", response_model=StatsResponse)
 async def get_stats():
     """
-    Retrieves overall archive statistics (photo/video breakdown and total storage used).
+    Retrieves overall archive statistics (photo/video breakdown and total storage used)
+    along with Telegram account and vault channel identity.
     """
     stats = await MediaRepository.get_stats()
+    profile = await get_telegram_profile_info()
+    avatar_dir = Path("data/avatars")
+    channel_has_avatar = (avatar_dir / "channel_avatar.jpg").exists()
+    user_has_avatar = (avatar_dir / "user_avatar.jpg").exists()
+
     return StatsResponse(
         total_items=stats["total_items"] or 0,
         total_photos=stats["total_photos"] or 0,
         total_videos=stats["total_videos"] or 0,
         total_size_bytes=stats["total_size_bytes"] or 0,
         total_size_formatted=_format_bytes(stats["total_size_bytes"] or 0),
+        account_name=profile.get("account_name"),
+        account_username=profile.get("account_username"),
+        channel_name=profile.get("channel_name"),
+        channel_avatar_url="/api/media/avatar/channel" if channel_has_avatar else None,
+        user_avatar_url="/api/media/avatar/user" if user_has_avatar else None,
     )
 
 
+@router.get("/upload/progress/{upload_id}")
+async def get_upload_progress(upload_id: str):
+    """
+    Returns real-time byte transfer progress, percent, and operational status for an active upload.
+    """
+    tracker = get_upload_tracker()
+    data = tracker.get_progress(upload_id)
+    if not data:
+        return {"status": "not_found", "percent": 0.0, "speed_mbps": 0.0}
+    return data
+
+
 @router.post("/upload")
-async def upload_media(file: UploadFile = File(...)):
+async def upload_media(
+    file: UploadFile = File(...),
+    upload_id: Optional[str] = Form(None),
+):
     """
     Accepts direct multipart file upload from web UI,
-    spools to temporary buffer, and archives into Telegram MTProto vault with deduplication.
+    spools to temporary buffer, and archives into Telegram MTProto vault with deduplication
+    and real-time parallel MTProto upload tracking.
     """
+    tracker = get_upload_tracker()
     temp_dir = Path("data/upload_temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
     temp_path = temp_dir / file.filename
 
     try:
-        # Stream incoming bytes to disk buffer (O(1) memory footprint)
+        # 1. Stream incoming browser bytes to disk buffer (O(1) memory footprint)
         with open(temp_path, "wb") as f:
             while chunk := await file.read(1024 * 1024):
                 f.write(chunk)
+
+        total_bytes = temp_path.stat().st_size
+        if upload_id:
+            tracker.start_tracking(upload_id, total_bytes, file.filename)
+
+        # 2. Progress callback forwarding live Telegram MTProto transfer bytes to UI tracker
+        def on_telegram_progress(curr: int, tot: int):
+            if upload_id:
+                tracker.update_progress(upload_id, curr, tot)
 
         archive_service = ArchiveService()
         result = await archive_service.archive_file(
             file_path=temp_path,
             mime_type=file.content_type,
+            progress_callback=on_telegram_progress,
         )
+
+        if upload_id:
+            tracker.set_status(upload_id, "completed")
+
         return result
+    except Exception as e:
+        if upload_id:
+            tracker.set_status(upload_id, "error", str(e))
+        raise e
     finally:
         if temp_path.exists():
             try:
@@ -285,3 +425,27 @@ async def create_duplicate_alias(media_id: int, payload: dict):
     )
 
     return {"status": "alias_created", "new_id": alias_id, "file_name": new_name.strip()}
+
+
+@router.patch("/{media_id:int}/metadata")
+async def update_media_metadata(media_id: int, payload: dict):
+    """
+    Updates client-extracted video metadata (duration_seconds, width, height) in SQLite.
+    """
+    duration_seconds = payload.get("duration_seconds")
+    width = payload.get("width")
+    height = payload.get("height")
+
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    await MediaRepository.update_media_metadata(
+        media_id=media_id,
+        duration_seconds=float(duration_seconds) if duration_seconds is not None else None,
+        width=int(width) if width is not None else None,
+        height=int(height) if height is not None else None,
+    )
+
+    return {"status": "updated", "media_id": media_id}
+

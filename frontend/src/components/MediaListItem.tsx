@@ -20,6 +20,7 @@ import {
   MoreVertical,
 } from "lucide-react";
 import { MediaItem } from "../types";
+import { getFileTypeBadge } from "../utils/fileTypes";
 
 interface MediaListItemProps {
   item: MediaItem;
@@ -98,6 +99,8 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
     e.dataTransfer.effectAllowed = "copyMove";
   };
 
+  const fileBadge = getFileTypeBadge(item.file_name, item.mime_type);
+
   return (
     <div
       draggable
@@ -145,14 +148,17 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
 
         {/* Filename & Type Indicator */}
         <div className="min-w-0 flex-1 pr-2">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {isVideo ? (
-              <Film className="w-3.5 h-3.5 text-primary shrink-0" />
+              <Film className={`w-3.5 h-3.5 shrink-0 ${fileBadge.textColor}`} />
             ) : (
-              <ImageIcon className="w-3.5 h-3.5 text-on-surface-variant shrink-0" />
+              <ImageIcon className={`w-3.5 h-3.5 shrink-0 ${fileBadge.textColor}`} />
             )}
             <span className="text-xs font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
               {item.file_name}
+            </span>
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 font-mono ${fileBadge.pillClass}`}>
+              {fileBadge.extension}
             </span>
           </div>
 

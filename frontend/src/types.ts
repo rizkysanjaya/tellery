@@ -52,6 +52,11 @@ export interface StorageStats {
   total_photos?: number;
   total_videos?: number;
   total_size_formatted?: string;
+  account_name?: string | null;
+  account_username?: string | null;
+  channel_name?: string | null;
+  channel_avatar_url?: string | null;
+  user_avatar_url?: string | null;
 }
 
 export type StatsResponse = StorageStats;
@@ -60,6 +65,10 @@ export interface FolderItem {
   id: number;
   name: string;
   parent_id: number | null;
+  color: string | null;
+  icon?: string | null;
+  is_favorite?: boolean;
+  is_collection?: boolean;
   item_count: number;
   cover_thumbnail_url: string | null;
   created_at: string;
@@ -84,6 +93,7 @@ export interface UploadTask {
   type: string;
   progress: number;
   loadedBytes: number;
+  speedMbps?: number;
   status: "pending" | "uploading" | "processing" | "completed" | "duplicate" | "error";
   errorMessage?: string;
   duplicateInfo?: {
@@ -104,3 +114,19 @@ export interface DuplicateConflict {
 }
 
 export type ConflictResolutionAction = "skip" | "keep_both" | "rename_existing";
+
+export interface CacheStats {
+  cache_bytes: number;
+  cache_formatted: string;
+  max_bytes: number;
+  max_formatted: string;
+  percent_used: number;
+  file_count: number;
+}
+
+export interface SystemStats {
+  total_media_items: number;
+  total_cloud_bytes: number;
+  total_cloud_formatted: string;
+  local_cache: CacheStats;
+}

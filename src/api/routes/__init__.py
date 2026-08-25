@@ -14,6 +14,7 @@ from src.api.routes.folders import router as folders_router
 from src.api.routes.media import router as media_router
 from src.api.routes.stream import router as stream_router
 from src.api.routes.sync import router as sync_router
+from src.api.routes.system import router as system_router
 from src.api.routes.thumbnails import router as thumbnail_router
 
-__all__ = ["media_router", "thumbnail_router", "stream_router", "folders_router", "sync_router"]
+__all__ = ["media_router", "thumbnail_router", "stream_router", "folders_router", "sync_router", "system_router"]

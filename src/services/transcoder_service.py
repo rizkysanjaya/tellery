@@ -74,20 +74,19 @@ def get_video_codec(file_path: Union[str, Path]) -> str:
 
 def is_web_compatible(file_path: Union[str, Path]) -> bool:
     """
-    Returns True if the video is encoded with a universal browser-compatible codec (H.264 / AVC).
-    Returns False for HEVC/H.265, ProRes, VC1, MPEG-2, or unknown codecs requiring transcoding.
+    Returns True if the video is encoded with a universal browser-compatible codec (H.264 / AVC / VP9 / AV1).
     """
     codec = get_video_codec(file_path)
-
-    # Universally supported web codecs across all modern browsers
-    web_codecs = {"h264", "avc1", "avc3", "vp80", "vp90", "av01", "mp4v"}
-    if codec in web_codecs:
-        return True
 
     # Incompatible codecs that freeze on Windows/Android/iOS browsers
     incompatible_codecs = {"hevc", "hvc1", "hev1", "apcn", "apch", "ap4h", "ap4x", "prores"}
     if codec in incompatible_codecs:
         return False
+
+    # Universally supported web codecs across all modern browsers
+    web_codecs = {"h264", "avc1", "avc3", "vp80", "vp90", "av01", "mp4v"}
+    if codec in web_codecs:
+        return True
 
     # Default to compatible if standard mp4/webm container
     suffix = Path(file_path).suffix.lower()
@@ -99,7 +98,7 @@ def transcode_to_web_h264(
     output_path: Union[str, Path],
 ) -> bool:
     """
-    Transcodes an unsupported video (HEVC/ProRes) to high-quality, fast-start H.264 MP4.
+    Transcodes an unsupported video (HEVC/ProRes/Oversized 4K) to high-quality, fast-start H.264 MP4.
     Applies +faststart for instantaneous 0ms HTTP range seek initiation.
     """
     in_file = Path(input_path)
@@ -117,6 +116,7 @@ def transcode_to_web_h264(
             ffmpeg_exe,
             "-y",
             "-i", str(in_file),
+            "-vf", "scale='min(1080,iw)':'min(1920,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
             "-c:v", "libx264",
             "-preset", "veryfast",
             "-crf", "22",

@@ -2,9 +2,10 @@
 =============================================================================
 Module: src.services.archive_service
 Purpose: High-level media archival orchestration, deduplication, EXIF extraction & WebP thumbnails.
+         Accelerated with official native C++ TDLib multi-threaded uploader with Telethon fallback.
 Used by: src.cli.verify_pipeline, src.cli.import_folder, FastAPI routes.
-Dependencies: src.database.repository, src.storage.telegram_client, src.services.hasher,
-              src.services.metadata_extractor, src.services.thumbnail_service, src.config
+Dependencies: src.database.repository, src.storage.telegram_client, src.storage.tdlib_client,
+              src.services.hasher, src.services.metadata_extractor, src.services.thumbnail_service, src.config
 Public Members: ArchiveService
 Side Effects: Database reads/writes, MTProto network uploads/downloads, local WebP file creation, audit logging.
 =============================================================================
@@ -22,6 +23,7 @@ from src.services.metadata_extractor import extract_media_metadata
 from src.services.stream_cache import get_stream_cache
 from src.services.thumbnail_service import generate_thumbnail
 from src.services.transcoder_service import ensure_web_stream_ready
+from src.storage.tdlib_client import get_tdlib_client
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
 
 
@@ -96,52 +98,71 @@ class ArchiveService:
         # 4. Generate local WebP thumbnail (photos and videos)
         thumbnail_path = generate_thumbnail(target_path, file_hash, final_mime_type)
 
-        # 5. Populate stream cache and pre-transcode non-web videos to H.264
+        # 5. Populate stream cache for instant local playback
         cache_manager = get_stream_cache()
         cached_stream_file = cache_manager.get_cache_path(file_hash)
         if not cached_stream_file.exists() or cached_stream_file.stat().st_size != file_size:
             try:
                 shutil.copy2(target_path, cached_stream_file)
-                if final_mime_type.startswith("video/"):
-                    ensure_web_stream_ready(cached_stream_file, file_hash)
             except Exception as e:
                 print(f"[Archive] Stream cache pre-population warning: {e}")
 
-        # 6. Upload uncompressed document to Telegram with FloodWait retry safety
-        max_retries = 3
-        message = None
-        for attempt in range(max_retries):
-            try:
-                message = await self.telegram_client.upload_document(
+        # 6. Upload uncompressed document to Telegram Vault
+        uploaded_msg_id: Optional[int] = None
+        telegram_file_id: Optional[str] = None
+        tdlib_client = get_tdlib_client()
+
+        # Engine 1: Native C++ TDLib Multi-Threaded Uploader
+        try:
+            await tdlib_client.start()
+            if tdlib_client.auth_state == "authorizationStateReady":
+                td_res = await tdlib_client.upload_document(
                     file_path=target_path,
                     channel_id=target_channel,
                     progress_callback=progress_callback,
                 )
-                break
-            except FloodWaitError as e:
-                wait_time = e.seconds + 2
-                print(f"[RateLimit] Telegram requested wait of {e.seconds}s. Backing off for {wait_time}s...")
-                await asyncio.sleep(wait_time)
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise e
-                await asyncio.sleep(2)
+                uploaded_msg_id = td_res["id"]
+                telegram_file_id = td_res.get("document_id")
+                print(f"[Archive] TDLib C++ uploaded '{target_path.name}' to message {uploaded_msg_id}")
+        except Exception as e:
+            print(f"[Archive] TDLib C++ upload attempt note: {e}, falling back to Telethon...")
 
-        if not message:
-            raise RuntimeError(f"Failed to upload {target_path.name} to Telegram after retries.")
+        # Engine 2: Fallback to Multi-Worker Telethon MTProto Pool
+        if uploaded_msg_id is None:
+            max_retries = 3
+            message = None
+            for attempt in range(max_retries):
+                try:
+                    message = await self.telegram_client.upload_document(
+                        file_path=target_path,
+                        channel_id=target_channel,
+                        progress_callback=progress_callback,
+                    )
+                    break
+                except FloodWaitError as e:
+                    wait_time = e.seconds + 2
+                    print(f"[RateLimit] Telegram requested wait of {e.seconds}s. Backing off for {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise e
+                    await asyncio.sleep(2)
 
-        telegram_file_id = None
-        if message.document:
-            telegram_file_id = str(message.document.id)
+            if not message:
+                raise RuntimeError(f"Failed to upload {target_path.name} to Telegram after retries.")
 
-        # 6. Insert into SQLite catalog
+            uploaded_msg_id = message.id
+            if message.document:
+                telegram_file_id = str(message.document.id)
+
+        # 7. Insert into SQLite catalog
         item_data = {
             "file_hash": file_hash,
             "file_name": target_path.name,
             "file_size": file_size,
             "mime_type": final_mime_type,
             "telegram_channel_id": int(str(target_channel).replace("-100", "")),
-            "telegram_message_id": message.id,
+            "telegram_message_id": uploaded_msg_id,
             "telegram_file_id": telegram_file_id,
             "width": meta.width,
             "height": meta.height,
@@ -159,7 +180,7 @@ class ArchiveService:
             action="UPLOAD",
             media_id=media_id,
             file_hash=file_hash,
-            details=f"Uploaded '{target_path.name}' ({file_size} bytes) to message {message.id}",
+            details=f"Uploaded '{target_path.name}' ({file_size} bytes) to message {uploaded_msg_id}",
         )
 
         return {
@@ -176,7 +197,7 @@ class ArchiveService:
             "date_taken": meta.date_taken,
             "thumbnail_path": thumbnail_path,
             "telegram_channel_id": target_channel,
-            "telegram_message_id": message.id,
+            "telegram_message_id": uploaded_msg_id,
             "message": "File successfully uploaded and indexed in catalog.",
         }
 

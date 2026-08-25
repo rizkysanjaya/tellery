@@ -13,7 +13,7 @@
 import React, { useState } from "react";
 import { Play, Image as ImageIcon, Camera, Check } from "lucide-react";
 import { MediaItem } from "../types";
-import { SpotlightCard } from "./ui/SpotlightCard";
+import { getFileTypeBadge } from "../utils/fileTypes";
 
 interface MediaCardProps {
   item: MediaItem;
@@ -91,50 +91,29 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       ? { aspectRatio: `${item.width} / ${item.height}` }
       : {};
 
-  const getFileExtension = (filename: string, mimeType: string) => {
-    const lastDot = filename.lastIndexOf(".");
-    if (lastDot !== -1 && lastDot < filename.length - 1) {
-      const ext = filename.substring(lastDot + 1).toUpperCase();
-      if (ext.length <= 4) {
-        if (ext === "JPEG") return "JPG";
-        return ext;
-      }
-    }
-    if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "JPG";
-    if (mimeType.includes("png")) return "PNG";
-    if (mimeType.includes("webp")) return "WEBP";
-    if (mimeType.includes("gif")) return "GIF";
-    if (mimeType.includes("heic")) return "HEIC";
-    if (mimeType.includes("mp4")) return "MP4";
-    if (mimeType.includes("quicktime") || mimeType.includes("mov")) return "MOV";
-    if (mimeType.includes("matroska") || mimeType.includes("mkv")) return "MKV";
-    if (mimeType.startsWith("video/")) return "VIDEO";
-    return "IMG";
-  };
-
-  const fileExt = getFileExtension(item.file_name, item.mime_type);
+  const fileBadge = getFileTypeBadge(item.file_name, item.mime_type);
 
   return (
     <div
-      className={`relative group transition-transform duration-200 ease-out hover:scale-[1.02] ${
+      className={`relative group transition-transform duration-150 ease-out hover:scale-[1.02] ${
         aspectMode === "natural" ? "w-full min-h-[140px]" : "aspect-square"
       }`}
     >
-      <SpotlightCard
+      <div
         draggable
         onDragStart={handleDragStart}
         onClick={handleClick}
         onContextMenu={(e) => onContextMenu(e, item)}
         style={aspectRatioStyle}
-        className={`media-card-item neo-frame bg-surface-base p-[10px] rounded-neo h-full w-full cursor-pointer transition-all duration-200 ${
-          isSelected ? "bg-surface-container-high" : ""
+        className={`media-card-item neo-card bg-surface-base p-1.5 rounded-2xl h-full w-full cursor-pointer transition-all duration-150 active:scale-[0.98] ${
+          isSelected ? "ring-2 ring-primary" : ""
         }`}
       >
-        <div className="neo-image-wrapper relative w-full h-full rounded-lg overflow-hidden">
+        <div className="relative w-full h-full rounded-xl overflow-hidden bg-surface-container">
           {/* Selection Checkbox (top-left) */}
           <div
             onClick={handleCheckboxClick}
-            className={`absolute top-2.5 left-2.5 z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+            className={`absolute top-2.5 left-2.5 z-[2] w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
               isSelected
                 ? "bg-primary-container text-on-surface scale-105"
                 : isSelectionMode
@@ -158,7 +137,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               draggable={false}
               loading="lazy"
               onLoad={() => setLoaded(true)}
-              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 pointer-events-none select-none ${
+              className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none ${
                 loaded ? "opacity-100" : "opacity-0"
               }`}
             />
@@ -171,32 +150,31 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             </div>
           )}
 
-          {/* File Format / Video Duration Pill Badge */}
-          <div className="absolute top-2.5 right-2.5 z-20 flex flex-col items-end gap-1.5 pointer-events-none">
-            {/* File type badge */}
-            <div className="bg-surface-container text-on-surface-variant px-2 py-0.5 rounded-full text-label-md font-semibold flex items-center shadow-sm">
-              <span className={isVideo ? "text-primary" : ""}>
-                {fileExt}
-              </span>
+          {/* Color-Coded File Format Badge (top-right) */}
+          <div className="absolute top-2.5 right-2.5 z-[2] pointer-events-none">
+            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center backdrop-blur-md shadow-sm ${fileBadge.badgeClass}`}>
+              <span>{fileBadge.extension}</span>
             </div>
-            
-            {/* Video overlay pill */}
-            {isVideo && item.duration_seconds && (
-              <div className="bg-surface-base/80 text-on-surface text-label-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                <Play className="w-2.5 h-2.5 fill-current shrink-0" />
-                <span className="font-mono">
-                  {formatDuration(item.duration_seconds)}
-                </span>
-              </div>
-            )}
           </div>
 
+          {/* Video Duration Pill Badge (bottom-left corner) */}
+          {isVideo && (
+            <div className="absolute bottom-2.5 left-2.5 z-[2] pointer-events-none group-hover:opacity-0 transition-opacity duration-150">
+              <div className="bg-surface-base/85 backdrop-blur-xs text-on-surface text-label-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
+                <Play className="w-2.5 h-2.5 fill-current shrink-0 text-primary" />
+                <span className="font-mono">
+                  {item.duration_seconds ? formatDuration(item.duration_seconds) : "Video"}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Overlay details on hover */}
-          <div className="absolute inset-0 z-10 bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
-            <p className="text-body-sm font-semibold text-on-surface truncate">
+          <div className="absolute inset-0 z-[1] bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
+            <span className="text-xs font-semibold text-on-surface truncate">
               {item.file_name}
-            </p>
-            <div className="flex items-center gap-2 text-label-md text-on-surface-variant mt-0.5 font-mono">
+            </span>
+            <div className="flex items-center gap-2 text-[10px] text-on-surface-variant mt-0.5">
               {item.camera_model && (
                 <span className="flex items-center gap-1 font-sans">
                   <Camera className="w-3 h-3 text-primary" />
@@ -211,7 +189,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             </div>
           </div>
         </div>
-      </SpotlightCard>
+      </div>
     </div>
   );
 };
