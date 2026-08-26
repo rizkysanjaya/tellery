@@ -58,4 +58,6 @@ async def init_db() -> None:
             await conn.execute("ALTER TABLE folders ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
         if "is_collection" not in cols:
             await conn.execute("ALTER TABLE folders ADD COLUMN is_collection INTEGER NOT NULL DEFAULT 0;")
+        if "cover_media_id" not in cols:
+            await conn.execute("ALTER TABLE folders ADD COLUMN cover_media_id INTEGER REFERENCES media_items(id) ON DELETE SET NULL;")
         await conn.commit()

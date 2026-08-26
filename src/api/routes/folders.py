@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, status
 from src.api.schemas import (
     AddMediaToFolderRequest,
     CreateFolderRequest,
+    FolderMediaItemResponse,
     FolderResponse,
     UpdateFolderColorRequest,
     UpdateFolderRequest,
@@ -33,10 +34,12 @@ def _to_folder_response(f: dict) -> FolderResponse:
         name=f["name"],
         parent_id=f.get("parent_id"),
         color=f.get("color"),
-        icon=f.get("icon") or "Folder",
+        icon=f.get("icon") or ("Layers" if f.get("is_collection") else "Folder"),
         is_favorite=bool(f.get("is_favorite", 0)),
         is_collection=bool(f.get("is_collection", 0)),
+        sub_album_count=f.get("sub_album_count", 0),
         item_count=f.get("item_count", 0),
+        cover_media_id=cover_media_id,
         cover_thumbnail_url=cover_thumb_url,
         created_at=f["created_at"],
     )
@@ -74,6 +77,7 @@ async def create_folder(payload: CreateFolderRequest):
         icon=payload.icon or "Folder",
         is_favorite=1 if payload.is_favorite else 0,
         is_collection=1 if payload.is_collection else 0,
+        cover_media_id=payload.cover_media_id,
     )
     created = await MediaRepository.get_folder(folder_id)
     if not created:
@@ -91,6 +95,30 @@ async def get_folder(folder_id: int):
         raise HTTPException(status_code=404, detail="Folder not found")
     return _to_folder_response(folder)
 
+
+@router.get("/{folder_id:int}/media-options", response_model=list[FolderMediaItemResponse])
+async def get_folder_media_options(folder_id: int):
+    """
+    Lists media items inside a folder so the user can choose one as the custom album thumbnail.
+    """
+    folder = await MediaRepository.get_folder(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    items = await MediaRepository.list_folder_media(folder_id, limit=60)
+    return [
+        FolderMediaItemResponse(
+            id=item["id"],
+            file_name=item["file_name"],
+            mime_type=item["mime_type"],
+            file_size=item["file_size"],
+            thumbnail_url=f"/api/media/{item['id']}/thumbnail" if item.get("thumbnail_path") else None,
+            added_at=item["added_at"],
+        )
+        for item in items
+    ]
+
+
 @router.delete("/{folder_id:int}")
 async def delete_folder(folder_id: int):
     """
@@ -107,7 +135,7 @@ async def delete_folder(folder_id: int):
 @router.patch("/{folder_id:int}", response_model=FolderResponse)
 async def update_folder(folder_id: int, payload: UpdateFolderRequest):
     """
-    Partially updates a folder: rename, change icon, update color, toggle favorite, or move collection.
+    Partially updates a folder: rename, change icon, update color, toggle favorite, or set thumbnail.
     """
     folder = await MediaRepository.get_folder(folder_id)
     if not folder:
@@ -126,7 +154,9 @@ async def update_folder(folder_id: int, payload: UpdateFolderRequest):
             )
 
     fav_int = (1 if payload.is_favorite else 0) if payload.is_favorite is not None else None
+    coll_int = (1 if payload.is_collection else 0) if payload.is_collection is not None else None
     parent_sentinel = payload.parent_id if "parent_id" in payload.model_fields_set else -999
+    cover_sentinel = payload.cover_media_id if "cover_media_id" in payload.model_fields_set else -999
 
     await MediaRepository.update_folder(
         folder_id=folder_id,
@@ -134,7 +164,9 @@ async def update_folder(folder_id: int, payload: UpdateFolderRequest):
         color=payload.color,
         icon=payload.icon,
         is_favorite=fav_int,
+        is_collection=coll_int,
         parent_id=parent_sentinel,
+        cover_media_id=cover_sentinel,
     )
     updated = await MediaRepository.get_folder(folder_id)
     return _to_folder_response(updated)

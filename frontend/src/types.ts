@@ -69,9 +69,20 @@ export interface FolderItem {
   icon?: string | null;
   is_favorite?: boolean;
   is_collection?: boolean;
+  sub_album_count?: number;
   item_count: number;
+  cover_media_id?: number | null;
   cover_thumbnail_url: string | null;
   created_at: string;
+}
+
+export interface FolderMediaItem {
+  id: number;
+  file_name: string;
+  mime_type: string;
+  file_size: number;
+  thumbnail_url: string | null;
+  added_at: string;
 }
 
 export type FilterType = "all" | "photo" | "video";

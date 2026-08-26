@@ -61,8 +61,10 @@ CREATE TABLE IF NOT EXISTS folders (
     icon TEXT DEFAULT 'Folder',               -- Optional icon identifier (e.g. 'Folder', 'Heart', 'Star')
     is_favorite INTEGER NOT NULL DEFAULT 0,   -- 1 if pinned to favorites, 0 otherwise
     is_collection INTEGER NOT NULL DEFAULT 0, -- 1 if this acts as a parent collection group, 0 if standard album
+    cover_media_id INTEGER,                   -- Custom pinned cover media item (NULL = default to latest added)
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE
+    FOREIGN KEY (parent_id) REFERENCES folders(id) ON DELETE CASCADE,
+    FOREIGN KEY (cover_media_id) REFERENCES media_items(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);

@@ -775,7 +775,7 @@ export const App: React.FC = () => {
   // Folder CRUD Handlers
   // =========================================================================
 
-  const handleCreateFolder = async (name: string) => {
+  const handleCreateFolder = async (name: string, isCollection: boolean = false) => {
     const cleanName = name.trim();
     if (!cleanName) return;
 
@@ -788,11 +788,27 @@ export const App: React.FC = () => {
     }
 
     try {
-      await createFolder(cleanName);
+      await createFolder(cleanName, null, isCollection);
       loadFolders();
-      showToast(`Album "${cleanName}" created!`, "success");
+      showToast(`${isCollection ? "Collection" : "Album"} "${cleanName}" created!`, "success");
     } catch (err: any) {
-      showToast(err.message || "Failed to create album.", "error");
+      showToast(err.message || `Failed to create ${isCollection ? "collection" : "album"}.`, "error");
+    }
+  };
+
+  const handleMoveToCollection = async (folderId: number, collectionId: number | null) => {
+    try {
+      const updated = await updateFolder(folderId, { parent_id: collectionId });
+      setFolders((prev) =>
+        prev.map((f) => (f.id === folderId ? { ...f, parent_id: updated.parent_id } : f))
+      );
+      loadFolders();
+      showToast(
+        collectionId ? "Album moved to Collection" : "Album ungrouped from Collection",
+        "success"
+      );
+    } catch (err: any) {
+      showToast(err.message || "Failed to move album to collection.", "error");
     }
   };
 
@@ -803,7 +819,7 @@ export const App: React.FC = () => {
         setActiveFolder(null);
       }
       loadFolders();
-      showToast("Album deleted", "info");
+      showToast("Album / Collection removed", "info");
     } catch (err: any) {
       showToast(err.message || "Failed to delete album.", "error");
     }
@@ -879,6 +895,41 @@ export const App: React.FC = () => {
       );
     } catch (err: any) {
       showToast(err.message || "Failed to update favorite status.", "error");
+    }
+  };
+
+  const handleSetFolderCover = async (folderId: number, mediaId: number | null) => {
+    try {
+      const updated = await updateFolder(folderId, { cover_media_id: mediaId });
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === folderId
+            ? {
+                ...f,
+                cover_media_id: updated.cover_media_id,
+                cover_thumbnail_url: updated.cover_thumbnail_url,
+              }
+            : f
+        )
+      );
+      if (activeFolder && activeFolder.id === folderId) {
+        setActiveFolder((prev) =>
+          prev
+            ? {
+                ...prev,
+                cover_media_id: updated.cover_media_id,
+                cover_thumbnail_url: updated.cover_thumbnail_url,
+              }
+            : null
+        );
+      }
+      showToast(
+        mediaId ? "Album cover thumbnail updated!" : "Album cover reset to latest added",
+        "success"
+      );
+    } catch (err: any) {
+      showToast(err.message || "Failed to update cover thumbnail.", "error");
+      throw err;
     }
   };
 
@@ -1059,7 +1110,9 @@ export const App: React.FC = () => {
         onDeleteFolder={handleDeleteFolder}
         onRenameFolder={handleRenameFolder}
         onCustomizeFolder={handleCustomizeFolder}
+        onSetFolderCover={handleSetFolderCover}
         onToggleFavoriteFolder={handleToggleFavoriteFolder}
+        onMoveFolderToCollection={handleMoveToCollection}
         onAddMediaToFolder={handleBulkAddToFolder}
         onUpdateFolderColor={handleUpdateFolderColor}
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
@@ -1124,7 +1177,9 @@ export const App: React.FC = () => {
               onDeleteFolder={handleDeleteFolder}
               onRenameFolder={handleRenameFolder}
               onCustomizeFolder={handleCustomizeFolder}
+              onSetFolderCover={handleSetFolderCover}
               onToggleFavoriteFolder={handleToggleFavoriteFolder}
+              onMoveFolderToCollection={handleMoveToCollection}
               onAddMediaToFolder={handleBulkAddToFolder}
               onUpdateFolderColor={handleUpdateFolderColor}
               loading={loadingFolders}

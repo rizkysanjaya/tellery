@@ -77,9 +77,22 @@ class FolderResponse(BaseModel):
     icon: Optional[str] = "Folder"
     is_favorite: bool = False
     is_collection: bool = False
+    sub_album_count: int = 0
     item_count: int = 0
+    cover_media_id: Optional[int] = None
     cover_thumbnail_url: Optional[str] = None
     created_at: str
+
+
+class FolderMediaItemResponse(BaseModel):
+    """Lightweight media item preview for album thumbnail selection."""
+
+    id: int
+    file_name: str
+    mime_type: str
+    file_size: int
+    thumbnail_url: Optional[str] = None
+    added_at: str
 
 
 class CreateFolderRequest(BaseModel):
@@ -91,6 +104,7 @@ class CreateFolderRequest(BaseModel):
     icon: Optional[str] = Field("Folder", description="Optional icon identifier")
     is_favorite: Optional[bool] = Field(False, description="Pin to favorites")
     is_collection: Optional[bool] = Field(False, description="Set as collection parent")
+    cover_media_id: Optional[int] = Field(None, description="Optional custom cover media ID")
 
 
 class UpdateFolderRequest(BaseModel):
@@ -100,7 +114,9 @@ class UpdateFolderRequest(BaseModel):
     color: Optional[str] = Field(None, description="Hex color or empty string to reset")
     icon: Optional[str] = Field(None, description="Icon identifier e.g. 'Heart', 'Star', 'Folder'")
     is_favorite: Optional[bool] = Field(None, description="Favorite toggle")
+    is_collection: Optional[bool] = Field(None, description="Collection flag toggle")
     parent_id: Optional[int] = Field(None, description="Collection / parent folder ID (or null to ungroup)")
+    cover_media_id: Optional[int] = Field(None, description="Media ID to pin as thumbnail (or null to reset to latest)")
 
 
 class AddMediaToFolderRequest(BaseModel):

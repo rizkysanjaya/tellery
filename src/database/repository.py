@@ -247,6 +247,7 @@ class MediaRepository:
                    COALESCE(icon, 'Folder') as icon, 
                    COALESCE(is_favorite, 0) as is_favorite,
                    COALESCE(is_collection, 0) as is_collection, 
+                   cover_media_id,
                    created_at 
             FROM folders 
             WHERE LOWER(name) = LOWER(?) AND (parent_id = ? OR (parent_id IS NULL AND ? IS NULL));
@@ -264,15 +265,16 @@ class MediaRepository:
         icon: Optional[str] = "Folder",
         is_favorite: int = 0,
         is_collection: int = 0,
+        cover_media_id: Optional[int] = None,
     ) -> int:
         """Creates a new folder / album and returns the folder ID."""
         query = """
-            INSERT INTO folders (name, parent_id, color, icon, is_favorite, is_collection) 
-            VALUES (?, ?, ?, ?, ?, ?);
+            INSERT INTO folders (name, parent_id, color, icon, is_favorite, is_collection, cover_media_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?);
         """
         async with get_db_connection() as conn:
             cursor = await conn.execute(
-                query, (name.strip(), parent_id, color, icon or "Folder", is_favorite, is_collection)
+                query, (name.strip(), parent_id, color, icon or "Folder", is_favorite, is_collection, cover_media_id)
             )
             await conn.commit()
             return cursor.lastrowid or 0
@@ -285,6 +287,8 @@ class MediaRepository:
                    COALESCE(icon, 'Folder') as icon, 
                    COALESCE(is_favorite, 0) as is_favorite,
                    COALESCE(is_collection, 0) as is_collection, 
+                   (SELECT COUNT(*) FROM folders sub_f WHERE sub_f.parent_id = folders.id) as sub_album_count,
+                   cover_media_id,
                    created_at 
             FROM folders WHERE id = ?;
         """
@@ -296,8 +300,10 @@ class MediaRepository:
     @staticmethod
     async def list_folders() -> list[dict[str, Any]]:
         """
-        Retrieves all folders along with their item count and latest cover thumbnail.
-        Counts only active non-deleted items (COUNT(m.id)).
+        Retrieves all folders along with their item count and resolved cover thumbnail.
+        For collections, item_count aggregates all media in sub-albums, and sub_album_count is calculated.
+        If f.cover_media_id is set and non-deleted, it uses that item.
+        Otherwise falls back to the most recently added item in that folder or its sub-albums.
         """
         query = """
             SELECT 
@@ -305,27 +311,48 @@ class MediaRepository:
                 COALESCE(f.icon, 'Folder') as icon, 
                 COALESCE(f.is_favorite, 0) as is_favorite,
                 COALESCE(f.is_collection, 0) as is_collection,
+                f.cover_media_id as custom_cover_media_id,
                 f.created_at,
-                COUNT(m.id) as item_count,
                 (
-                    SELECT m.thumbnail_path 
-                    FROM media_items m 
-                    JOIN media_folders sub_mf ON sub_mf.media_id = m.id 
-                    WHERE sub_mf.folder_id = f.id AND m.is_deleted = 0 AND m.thumbnail_path IS NOT NULL
-                    ORDER BY sub_mf.added_at DESC LIMIT 1
+                    SELECT COUNT(*) FROM folders sub_f WHERE sub_f.parent_id = f.id
+                ) as sub_album_count,
+                CASE 
+                    WHEN COALESCE(f.is_collection, 0) = 1 THEN (
+                        SELECT COUNT(DISTINCT m_coll.id)
+                        FROM media_items m_coll
+                        JOIN media_folders mf_coll ON mf_coll.media_id = m_coll.id
+                        JOIN folders child_f ON child_f.id = mf_coll.folder_id
+                        WHERE child_f.parent_id = f.id AND m_coll.is_deleted = 0
+                    )
+                    ELSE COUNT(m.id)
+                END as item_count,
+                COALESCE(
+                    (SELECT custom_m.thumbnail_path FROM media_items custom_m WHERE custom_m.id = f.cover_media_id AND custom_m.is_deleted = 0),
+                    (
+                        SELECT sub_m.thumbnail_path 
+                        FROM media_items sub_m 
+                        JOIN media_folders sub_mf ON sub_mf.media_id = sub_m.id 
+                        WHERE (sub_mf.folder_id = f.id OR sub_mf.folder_id IN (SELECT child_f.id FROM folders child_f WHERE child_f.parent_id = f.id))
+                          AND sub_m.is_deleted = 0 AND sub_m.thumbnail_path IS NOT NULL
+                        ORDER BY sub_mf.added_at DESC LIMIT 1
+                    )
                 ) as cover_thumbnail_path,
-                (
-                    SELECT m.id 
-                    FROM media_items m 
-                    JOIN media_folders sub_mf ON sub_mf.media_id = m.id 
-                    WHERE sub_mf.folder_id = f.id AND m.is_deleted = 0 AND m.thumbnail_path IS NOT NULL
-                    ORDER BY sub_mf.added_at DESC LIMIT 1
+                COALESCE(
+                    (SELECT custom_m.id FROM media_items custom_m WHERE custom_m.id = f.cover_media_id AND custom_m.is_deleted = 0),
+                    (
+                        SELECT sub_m.id 
+                        FROM media_items sub_m 
+                        JOIN media_folders sub_mf ON sub_mf.media_id = sub_m.id 
+                        WHERE (sub_mf.folder_id = f.id OR sub_mf.folder_id IN (SELECT child_f.id FROM folders child_f WHERE child_f.parent_id = f.id))
+                          AND sub_m.is_deleted = 0 AND sub_m.thumbnail_path IS NOT NULL
+                        ORDER BY sub_mf.added_at DESC LIMIT 1
+                    )
                 ) as cover_media_id
             FROM folders f
             LEFT JOIN media_folders mf ON mf.folder_id = f.id
             LEFT JOIN media_items m ON m.id = mf.media_id AND m.is_deleted = 0
-            GROUP BY f.id, f.name, f.parent_id, f.color, f.icon, f.is_favorite, f.is_collection, f.created_at
-            ORDER BY f.is_favorite DESC, f.created_at DESC;
+            GROUP BY f.id, f.name, f.parent_id, f.color, f.icon, f.is_favorite, f.is_collection, f.cover_media_id, f.created_at
+            ORDER BY f.is_collection DESC, f.is_favorite DESC, f.created_at DESC;
         """
         async with get_db_connection() as conn:
             async with conn.execute(query) as cursor:
@@ -333,11 +360,33 @@ class MediaRepository:
                 return [dict(r) for r in rows]
 
     @staticmethod
-    async def delete_folder(folder_id: int) -> bool:
-        """Deletes a folder; cascading foreign keys automatically remove folder associations."""
-        query = "DELETE FROM folders WHERE id = ?;"
+    async def list_folder_media(folder_id: int, limit: int = 50) -> list[dict[str, Any]]:
+        """
+        Retrieves active media items belonging to a folder or collection (for thumbnail picker modal).
+        """
+        query = """
+            SELECT m.id, m.file_name, m.mime_type, m.file_size, m.thumbnail_path, mf.added_at
+            FROM media_items m
+            JOIN media_folders mf ON mf.media_id = m.id
+            WHERE (mf.folder_id = ? OR mf.folder_id IN (SELECT id FROM folders WHERE parent_id = ?)) 
+              AND m.is_deleted = 0
+            ORDER BY mf.added_at DESC
+            LIMIT ?;
+        """
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query, (folder_id,))
+            async with conn.execute(query, (folder_id, folder_id, limit)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
+
+    @staticmethod
+    async def delete_folder(folder_id: int) -> bool:
+        """
+        Deletes a folder/collection.
+        Ungroups child albums (sets parent_id = NULL) to protect against accidental deletion of nested albums.
+        """
+        async with get_db_connection() as conn:
+            await conn.execute("UPDATE folders SET parent_id = NULL WHERE parent_id = ?;", (folder_id,))
+            cursor = await conn.execute("DELETE FROM folders WHERE id = ?;", (folder_id,))
             await conn.commit()
             return cursor.rowcount > 0
 
@@ -348,7 +397,9 @@ class MediaRepository:
         color: Optional[str] = None,
         icon: Optional[str] = None,
         is_favorite: Optional[int] = None,
+        is_collection: Optional[int] = None,
         parent_id: Optional[int] = -999,  # sentinel to differentiate None from omitted
+        cover_media_id: Optional[int] = -999,  # sentinel to differentiate None from omitted
     ) -> bool:
         """Dynamically updates folder fields with indexed PK lookup."""
         updates: list[str] = []
@@ -366,9 +417,15 @@ class MediaRepository:
         if is_favorite is not None:
             updates.append("is_favorite = ?")
             params.append(1 if is_favorite else 0)
+        if is_collection is not None:
+            updates.append("is_collection = ?")
+            params.append(1 if is_collection else 0)
         if parent_id != -999:
             updates.append("parent_id = ?")
             params.append(parent_id)
+        if cover_media_id != -999:
+            updates.append("cover_media_id = ?")
+            params.append(cover_media_id)
 
         if not updates:
             return False

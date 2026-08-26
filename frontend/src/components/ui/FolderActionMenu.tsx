@@ -24,6 +24,7 @@ interface FolderActionMenuProps {
   folder: FolderItem;
   collections?: FolderItem[];
   onCustomize: (folder: FolderItem) => void;
+  onSelectCover?: (folder: FolderItem) => void;
   onRename: (folder: FolderItem) => void;
   onToggleFavorite: (folder: FolderItem) => void;
   onDelete: (folder: FolderItem) => void;
@@ -37,6 +38,7 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
   folder,
   collections = [],
   onCustomize,
+  onSelectCover,
   onRename,
   onToggleFavorite,
   onDelete,
@@ -86,8 +88,23 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
       {isOpen && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className={`absolute ${alignClass} top-full mt-1 w-48 py-1.5 rounded-2xl neo-card bg-[#141d33] border border-outline-variant/30 shadow-[0_12px_36px_rgba(0,0,0,0.55)] z-50 animate-in fade-in zoom-in-95 duration-150 text-xs`}
+          className={`absolute ${alignClass} top-full mt-1 w-52 py-1.5 rounded-2xl neo-card bg-[#141d33] border border-outline-variant/30 shadow-[0_12px_36px_rgba(0,0,0,0.55)] z-50 animate-in fade-in zoom-in-95 duration-150 text-xs`}
         >
+          {/* Change Cover Thumbnail */}
+          {onSelectCover && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onSelectCover(folder);
+              }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-on-surface hover:bg-surface-base/80 hover:text-primary transition-colors cursor-pointer text-left"
+            >
+              <Palette className="w-3.5 h-3.5 text-primary" />
+              <span>Change Cover Thumbnail</span>
+            </button>
+          )}
+
           {/* Customize Icon & Color */}
           <button
             type="button"
@@ -97,8 +114,8 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-on-surface hover:bg-surface-base/80 hover:text-primary transition-colors cursor-pointer text-left"
           >
-            <Palette className="w-3.5 h-3.5 text-primary" />
-            <span>Customize (Icon & Color)</span>
+            <Palette className="w-3.5 h-3.5 text-on-surface-variant" />
+            <span>Customize Icon & Color</span>
           </button>
 
           {/* Rename Album */}

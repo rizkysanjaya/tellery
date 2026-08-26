@@ -7,8 +7,8 @@
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile,
  *                deleteMediaItem, fetchFolders, createFolder, deleteFolder,
- *                updateFolderColor, updateFolder, addMediaToFolder, removeMediaFromFolder,
- *                triggerVaultSync, fetchSyncStatus
+ *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
+ *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, fetchSyncStatus
  * Side Effects: Executes HTTP requests to backend REST API.
  * =============================================================================
  */
@@ -189,11 +189,20 @@ export async function fetchFolders(): Promise<FolderItem[]> {
   return response.json();
 }
 
-export async function createFolder(name: string, parentId?: number | null): Promise<FolderItem> {
+export async function createFolder(
+  name: string,
+  parentId?: number | null,
+  isCollection: boolean = false
+): Promise<FolderItem> {
   const response = await fetch(`${API_BASE}/api/folders`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, parent_id: parentId || null }),
+    body: JSON.stringify({
+      name,
+      parent_id: parentId || null,
+      is_collection: isCollection,
+      icon: isCollection ? "Layers" : "Folder",
+    }),
   });
 
   if (!response.ok) {
@@ -238,7 +247,9 @@ export async function updateFolder(
     color?: string | null;
     icon?: string | null;
     is_favorite?: boolean;
+    is_collection?: boolean;
     parent_id?: number | null;
+    cover_media_id?: number | null;
   }
 ): Promise<FolderItem> {
   const response = await fetch(`${API_BASE}/api/folders/${folderId}`, {
@@ -254,6 +265,14 @@ export async function updateFolder(
       if (data.detail) errorDetail = data.detail;
     } catch {}
     throw new Error(errorDetail || "Failed to update folder");
+  }
+  return response.json();
+}
+
+export async function fetchFolderMediaOptions(folderId: number): Promise<import("./types").FolderMediaItem[]> {
+  const response = await fetch(`${API_BASE}/api/folders/${folderId}/media-options`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch album media: ${response.statusText}`);
   }
   return response.json();
 }

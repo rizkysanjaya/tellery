@@ -3,16 +3,16 @@
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
- *          Favorites section, and album 3-dots action menu (customize icon/color, rename, delete).
+ *          Favorites section, Collections accordion, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
  * Used by: frontend/src/App.tsx
- * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal
+ * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal
  * Public Members: Sidebar
  * Side Effects: Triggers view changes, album selection, media drop-to-album assignments,
- *                vault synchronization, upload triggers, folder rename, customize, and favorite toggling.
+ *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, and favorite toggling.
  * =============================================================================
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Clock,
   FolderPlus,
@@ -33,6 +33,7 @@ import {
   EyeOff,
   Settings,
   Star,
+  Layers,
 } from "lucide-react";
 import { CacheStats, FolderItem, MainView, StatsResponse } from "../types";
 import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
@@ -40,6 +41,7 @@ import { FolderIcon } from "./ui/FolderIcon";
 import { FolderActionMenu } from "./ui/FolderActionMenu";
 import { FolderCustomizeModal } from "./ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./ui/FolderRenameModal";
+import { FolderCoverModal } from "./ui/FolderCoverModal";
 
 interface SidebarProps {
   currentView: MainView;
@@ -51,11 +53,13 @@ interface SidebarProps {
   onSelectTimeline: () => void;
   onSelectAlbumsOverview: () => void;
   onSelectFolder: (folder: FolderItem) => void;
-  onCreateFolder: (name: string) => Promise<void>;
+  onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
   onDeleteFolder: (folderId: number) => Promise<void>;
   onRenameFolder?: (folderId: number, newName: string) => Promise<void>;
   onCustomizeFolder?: (folderId: number, color: string | null, icon: string) => Promise<void>;
+  onSetFolderCover?: (folderId: number, mediaId: number | null) => Promise<void>;
   onToggleFavoriteFolder?: (folderId: number, isFavorite: boolean) => Promise<void>;
+  onMoveFolderToCollection?: (folderId: number, collectionId: number | null) => Promise<void>;
   onAddMediaToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onTriggerUpload: () => void;
   onSyncVault?: () => Promise<void>;
@@ -77,15 +81,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onDeleteFolder,
   onRenameFolder,
   onCustomizeFolder,
+  onSetFolderCover,
   onToggleFavoriteFolder,
+  onMoveFolderToCollection,
   onAddMediaToFolder,
   onTriggerUpload,
   onSyncVault,
   isSyncing = false,
 }) => {
   const [isAlbumsExpanded, setIsAlbumsExpanded] = useState(true);
+  const [isCollectionsExpanded, setIsCollectionsExpanded] = useState(true);
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
+  const [expandedCollectionIds, setExpandedCollectionIds] = useState<Set<number>>(new Set());
   const [showInlineNewAlbum, setShowInlineNewAlbum] = useState(false);
+  const [isCreatingCollectionMode, setIsCreatingCollectionMode] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [dragOverSidebarFolderId, setDragOverSidebarFolderId] = useState<number | null>(null);
@@ -95,7 +104,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
   const [folderToCustomize, setFolderToCustomize] = useState<FolderItem | null>(null);
   const [folderToRename, setFolderToRename] = useState<FolderItem | null>(null);
+  const [folderToCover, setFolderToCover] = useState<FolderItem | null>(null);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+
+  // Split into Collections vs Standalone Albums
+  const collections = useMemo(() => {
+    return folders.filter((f) => f.is_collection);
+  }, [folders]);
+
+  const standaloneAlbums = useMemo(() => {
+    return folders.filter((f) => !f.is_collection && !f.parent_id);
+  }, [folders]);
+
+  const toggleCollectionExpanded = (colId: number) => {
+    setExpandedCollectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(colId)) {
+        next.delete(colId);
+      } else {
+        next.add(colId);
+      }
+      return next;
+    });
+  };
+
   const [isVaultCollapsed, setIsVaultCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem("tg_sidebar_vault_collapsed") === "true";
@@ -186,11 +218,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     setIsCreatingAlbum(true);
     try {
-      await onCreateFolder(cleanName);
+      await onCreateFolder(cleanName, isCreatingCollectionMode);
       setNewAlbumName("");
       setShowInlineNewAlbum(false);
+      setIsCreatingCollectionMode(false);
     } catch (err: any) {
-      console.error("Failed to create album:", err);
+      console.error("Failed to create album/collection:", err);
     } finally {
       setIsCreatingAlbum(false);
     }
@@ -339,30 +372,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </button>
 
-          {/* Favorites Section (if any) */}
-          {folders.some((f) => f.is_favorite) && (
-            <div className="pt-3">
-              <div className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-amber-400/90 tracking-wider uppercase">
-                <button
-                  onClick={() => setIsFavoritesExpanded((p) => !p)}
-                  className="flex items-center gap-1.5 hover:text-amber-300 cursor-pointer transition-colors duration-200"
-                >
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span>Favorites</span>
-                  {isFavoritesExpanded ? (
-                    <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-70" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 ml-1 opacity-70" />
-                  )}
-                </button>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-md neo-pressed bg-surface-base text-amber-400/80 font-mono">
-                  {folders.filter((f) => f.is_favorite).length}
-                </span>
-              </div>
+          {/* Favorites Section (Permanent below Timeline) */}
+          <div className="pt-3">
+            <div className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-amber-400/90 tracking-wider uppercase">
+              <button
+                onClick={() => setIsFavoritesExpanded((p) => !p)}
+                className="flex items-center gap-1.5 hover:text-amber-300 cursor-pointer transition-colors duration-200"
+              >
+                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                <span>Favorites</span>
+                {isFavoritesExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-70" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 ml-1 opacity-70" />
+                )}
+              </button>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md neo-pressed bg-surface-base text-amber-400/80 font-mono">
+                {folders.filter((f) => f.is_favorite).length}
+              </span>
+            </div>
 
-              {isFavoritesExpanded && (
-                <div className="space-y-1 mt-1">
-                  {folders
+            {isFavoritesExpanded && (
+              <div className="space-y-1 mt-1">
+                {folders.filter((f) => f.is_favorite).length === 0 ? (
+                  <div className="px-4 py-2.5 rounded-xl neo-pressed bg-surface-container/20 text-[11px] text-on-surface-variant/60 italic">
+                    Star albums to see them here
+                  </div>
+                ) : (
+                  folders
                     .filter((f) => f.is_favorite)
                     .map((folder) => {
                       const isSelected = activeFolder?.id === folder.id;
@@ -395,6 +432,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <FolderActionMenu
                               folder={folder}
                               onCustomize={(f) => setFolderToCustomize(f)}
+                              onSelectCover={(f) => setFolderToCover(f)}
                               onRename={(f) => setFolderToRename(f)}
                               onToggleFavorite={(f) => {
                                 if (onToggleFavoriteFolder) {
@@ -407,13 +445,187 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
                         </div>
                       );
-                    })}
-                </div>
-              )}
-            </div>
-          )}
+                    })
+                )}
+              </div>
+            )}
+          </div>
 
-          {/* Albums Section */}
+          {/* Collections Section */}
+          <div className="pt-3">
+            <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-primary tracking-wider uppercase">
+              <button
+                onClick={() => setIsCollectionsExpanded((p) => !p)}
+                className="flex items-center gap-1.5 hover:text-on-surface cursor-pointer transition-colors duration-200"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Collections</span>
+                {isCollectionsExpanded ? (
+                  <ChevronDown className="w-3.5 h-3.5 opacity-70" />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 opacity-70" />
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsCreatingCollectionMode(true);
+                  setShowInlineNewAlbum(true);
+                }}
+                className="p-1.5 neo-raised active:neo-pressed rounded-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                title="Create New Collection"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {isCollectionsExpanded && (
+              <div className="space-y-1 mt-1">
+                {collections.length === 0 ? (
+                  <div className="px-4 py-2 rounded-xl neo-pressed bg-surface-container/20 text-[11px] text-on-surface-variant/60 italic">
+                    Group albums into custom collections
+                  </div>
+                ) : (
+                  collections.map((collection) => {
+                    const isColExpanded = expandedCollectionIds.has(collection.id);
+                    const childAlbums = folders.filter((f) => !f.is_collection && f.parent_id === collection.id);
+                    const isDragTarget = dragOverSidebarFolderId === collection.id;
+
+                    return (
+                      <div
+                        key={`col-${collection.id}`}
+                        onDragOver={(e) => handleDragOver(e, collection.id)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, collection.id)}
+                        className="rounded-xl overflow-hidden"
+                      >
+                        {/* Collection Header Row */}
+                        <div
+                          className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                            isDragTarget
+                              ? "neo-pressed bg-surface-base text-primary ring-2 ring-primary"
+                              : "text-on-surface hover:bg-surface-container/40"
+                          }`}
+                        >
+                          <div
+                            onClick={() => toggleCollectionExpanded(collection.id)}
+                            className="flex items-center gap-2 truncate pr-2 flex-1 min-w-0"
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleCollectionExpanded(collection.id);
+                              }}
+                              className="p-0.5 text-on-surface-variant hover:text-on-surface"
+                            >
+                              {isColExpanded ? (
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              ) : (
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <FolderIcon
+                              name={collection.icon || "Layers"}
+                              color={collection.color || "var(--color-primary, #6366f1)"}
+                              className="w-4 h-4 shrink-0"
+                            />
+                            <span className="truncate font-semibold">{collection.name}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-[11px] px-1.5 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                              {childAlbums.length} {childAlbums.length === 1 ? "album" : "albums"}
+                            </span>
+                            <FolderActionMenu
+                              folder={collection}
+                              collections={collections}
+                              onCustomize={(f) => setFolderToCustomize(f)}
+                              onSelectCover={(f) => setFolderToCover(f)}
+                              onRename={(f) => setFolderToRename(f)}
+                              onToggleFavorite={(f) => {
+                                if (onToggleFavoriteFolder) {
+                                  onToggleFavoriteFolder(f.id, !f.is_favorite);
+                                }
+                              }}
+                              onDelete={(f) => setFolderToDelete(f)}
+                              triggerClassName="opacity-0 group-hover:opacity-100"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Nested Child Albums in this Collection */}
+                        {isColExpanded && childAlbums.length > 0 && (
+                          <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-primary/20 ml-4 my-1">
+                            {childAlbums.map((child) => {
+                              const isSelected = activeFolder?.id === child.id;
+                              const isChildDragTarget = dragOverSidebarFolderId === child.id;
+
+                              return (
+                                <div
+                                  key={child.id}
+                                  onDragOver={(e) => handleDragOver(e, child.id)}
+                                  onDragLeave={handleDragLeave}
+                                  onDrop={(e) => handleDrop(e, child.id)}
+                                  onClick={() => {
+                                    onSelectFolder(child);
+                                    onCloseMobile();
+                                  }}
+                                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
+                                    isChildDragTarget
+                                      ? "neo-pressed bg-surface-base text-primary ring-1 ring-primary"
+                                      : isSelected
+                                        ? "neo-pressed bg-surface-base text-primary"
+                                        : "text-on-surface-variant hover:text-on-surface"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate pr-2">
+                                    <FolderIcon
+                                      name={child.icon || "Folder"}
+                                      color={child.color || (isSelected ? "var(--color-primary, #6366f1)" : undefined)}
+                                      className="w-3.5 h-3.5 shrink-0"
+                                    />
+                                    <span className="truncate">{child.name}</span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                                      {child.item_count}
+                                    </span>
+                                    <FolderActionMenu
+                                      folder={child}
+                                      collections={collections}
+                                      onCustomize={(f) => setFolderToCustomize(f)}
+                                      onSelectCover={(f) => setFolderToCover(f)}
+                                      onRename={(f) => setFolderToRename(f)}
+                                      onMoveToCollection={
+                                        onMoveFolderToCollection
+                                          ? (f, colId) => onMoveFolderToCollection(f.id, colId)
+                                          : undefined
+                                      }
+                                      onToggleFavorite={(f) => {
+                                        if (onToggleFavoriteFolder) {
+                                          onToggleFavoriteFolder(f.id, !f.is_favorite);
+                                        }
+                                      }}
+                                      onDelete={(f) => setFolderToDelete(f)}
+                                      triggerClassName="opacity-0 group-hover:opacity-100"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Standalone Albums Section */}
           <div className="pt-3">
             <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-on-surface-variant tracking-wider uppercase">
               <button
@@ -429,7 +641,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
 
               <button
-                onClick={() => setShowInlineNewAlbum(true)}
+                onClick={() => {
+                  setIsCreatingCollectionMode(false);
+                  setShowInlineNewAlbum(true);
+                }}
                 className="p-1.5 neo-raised active:neo-pressed rounded-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
                 title="Create New Album"
               >
@@ -437,7 +652,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             </div>
 
-            {/* Inline New Album Input */}
+            {/* Inline New Album / Collection Input */}
             {showInlineNewAlbum && (
               <form
                 onSubmit={handleCreateAlbumSubmit}
@@ -447,7 +662,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
-                  placeholder="Album name..."
+                  placeholder={isCreatingCollectionMode ? "Collection name..." : "Album name..."}
                   autoFocus
                   className="flex-1 px-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant outline-none"
                 />
@@ -472,7 +687,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </form>
             )}
 
-            {/* Albums List */}
+            {/* Standalone Albums List (non-collections that are not in a collection) */}
             {isAlbumsExpanded && (
               <div className="space-y-1 mt-1">
                 {/* All Albums Overview Link */}
@@ -489,15 +704,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <FolderPlus className="w-5 h-5" />
-                    <span>All Albums</span>
+                    <span>All Albums Overview</span>
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
-                    {folders.length}
+                    {standaloneAlbums.length}
                   </span>
                 </button>
 
-                {/* Individual Album Items (Active Drop Targets) */}
-                {folders.map((folder) => {
+                {/* Individual Standalone Album Items (Active Drop Targets) */}
+                {standaloneAlbums.map((folder) => {
                   const isSelected = activeFolder?.id === folder.id;
                   const isDragTarget = dragOverSidebarFolderId === folder.id;
 
@@ -548,8 +763,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {/* 3-Dots Action Menu */}
                         <FolderActionMenu
                           folder={folder}
+                          collections={collections}
                           onCustomize={(f) => setFolderToCustomize(f)}
+                          onSelectCover={(f) => setFolderToCover(f)}
                           onRename={(f) => setFolderToRename(f)}
+                          onMoveToCollection={
+                            onMoveFolderToCollection
+                              ? (f, colId) => onMoveFolderToCollection(f.id, colId)
+                              : undefined
+                          }
                           onToggleFavorite={(f) => {
                             if (onToggleFavoriteFolder) {
                               onToggleFavoriteFolder(f.id, !f.is_favorite);
@@ -910,6 +1132,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onRename={async (folderId, newName) => {
             if (onRenameFolder) {
               await onRenameFolder(folderId, newName);
+            }
+          }}
+        />
+      )}
+
+      {/* Album Cover Thumbnail Modal */}
+      {folderToCover && (
+        <FolderCoverModal
+          folder={folderToCover}
+          isOpen={Boolean(folderToCover)}
+          onClose={() => setFolderToCover(null)}
+          onSaveCover={async (folderId, mediaId) => {
+            if (onSetFolderCover) {
+              await onSetFolderCover(folderId, mediaId);
             }
           }}
         />
