@@ -96,7 +96,6 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   const [folderToCover, setFolderToCover] = useState<FolderItem | null>(null);
   const [folderToMove, setFolderToMove] = useState<FolderItem | null>(null);
   const [dragOverFolderId, setDragOverFolderId] = useState<number | null>(null);
-  const [draggedSourceFolderIds, setDraggedSourceFolderIds] = useState<Set<number>>(new Set());
   const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   // Controlled/Uncontrolled collection drill-down
@@ -318,41 +317,24 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   const [prohibitedFolderId, setProhibitedFolderId] = useState<number | null>(null);
 
   const handleFolderDragOver = (e: React.DragEvent, targetFolder: FolderItem) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    // 1. Never allow dropping an album or collection into itself or into any selected item
-    if (draggedSourceFolderIds.has(targetFolder.id)) {
-      e.dataTransfer.dropEffect = "none";
-      setDragOverFolderId(null);
-      return;
-    }
-
-    const isDraggingAlbum =
-      e.dataTransfer.types.includes("application/telegallery-album") ||
-      e.dataTransfer.types.includes("application/telegallery-albums") ||
-      draggedSourceFolderIds.size > 0;
-    const isDraggingCollection = e.dataTransfer.types.includes("application/telegallery-collection");
-
-    // 2. Albums can only be dropped into a collection (not into another standalone album)
-    if (isDraggingAlbum && !targetFolder.is_collection) {
-      e.dataTransfer.dropEffect = "none";
-      setDragOverFolderId(null);
-      return;
-    }
-
-    // 3. Prevent dropping a collection into another collection (no nested collections)
-    if (isDraggingCollection && targetFolder.is_collection) {
+    if (e.dataTransfer.types.includes("application/telegallery-collection") && targetFolder.is_collection) {
+      e.preventDefault();
+      e.stopPropagation();
       e.dataTransfer.dropEffect = "none";
       setProhibitedFolderId(targetFolder.id);
       setDragOverFolderId(null);
       return;
     }
 
-    // 4. Valid drop target: Album into Collection, or Media into Album/Collection
-    e.dataTransfer.dropEffect = "copy";
-    setProhibitedFolderId(null);
-    if (dragOverFolderId !== targetFolder.id) {
+    if (
+      e.dataTransfer.types.includes("application/telegallery-album") ||
+      e.dataTransfer.types.includes("application/telegallery-media") ||
+      e.dataTransfer.types.includes("application/json")
+    ) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "copy";
+      setProhibitedFolderId(null);
       setDragOverFolderId(targetFolder.id);
     }
   };
@@ -360,12 +342,8 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   const handleFolderDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const currentTarget = e.currentTarget as HTMLElement;
-    const relatedTarget = e.relatedTarget as HTMLElement;
-    if (!currentTarget || !relatedTarget || !currentTarget.contains(relatedTarget)) {
-      setDragOverFolderId(null);
-      setProhibitedFolderId(null);
-    }
+    setDragOverFolderId(null);
+    setProhibitedFolderId(null);
   };
 
   const handleFolderDrop = async (e: React.DragEvent, targetFolder: FolderItem) => {
@@ -374,60 +352,29 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
     setDragOverFolderId(null);
     setProhibitedFolderId(null);
 
-    const multiAlbumStr = e.dataTransfer.getData("application/telegallery-albums");
-    const singleAlbumStr = e.dataTransfer.getData("application/telegallery-album");
-    const jsonData = e.dataTransfer.getData("application/json");
-    const plainText = e.dataTransfer.getData("text/plain");
-
-    let albumIdsToMove: number[] = [];
-
-    if (multiAlbumStr) {
-      try {
-        const parsed = JSON.parse(multiAlbumStr);
-        if (Array.isArray(parsed)) albumIdsToMove = parsed;
-      } catch {}
+    // 1. Check if dragging an Album into a Collection
+    const draggedAlbumIdStr = e.dataTransfer.getData("application/telegallery-album");
+    if (draggedAlbumIdStr && targetFolder.is_collection) {
+      const draggedAlbumId = parseInt(draggedAlbumIdStr, 10);
+      if (!isNaN(draggedAlbumId) && onMoveFolderToCollection) {
+        await onMoveFolderToCollection(draggedAlbumId, targetFolder.id);
+        return;
+      }
     }
 
-    if (jsonData) {
+    // 2. Check if dragging Media Items into an Album/Collection
+    const rawData = e.dataTransfer.getData("application/json");
+    if (rawData) {
       try {
-        const parsed = JSON.parse(jsonData);
+        const parsed = JSON.parse(rawData);
         if (Array.isArray(parsed) && onAddMediaToFolder) {
-          // Dropped array of media items
           await onAddMediaToFolder(targetFolder.id, parsed);
-          return;
-        } else if (parsed && parsed.ids && Array.isArray(parsed.ids)) {
-          albumIdsToMove = parsed.ids;
-        } else if (parsed && parsed.type === "album" && parsed.id) {
-          albumIdsToMove = [parsed.id];
+        } else if (parsed.type === "album" && targetFolder.is_collection && onMoveFolderToCollection) {
+          await onMoveFolderToCollection(parsed.id, targetFolder.id);
         }
       } catch (err) {
-        console.error("Error parsing folder drop payload:", err);
+        console.error("Drop handling error:", err);
       }
-    }
-
-    if (albumIdsToMove.length === 0 && singleAlbumStr) {
-      const parsed = parseInt(singleAlbumStr, 10);
-      if (!isNaN(parsed)) albumIdsToMove = [parsed];
-    }
-
-    if (albumIdsToMove.length === 0 && plainText && plainText.startsWith("album:")) {
-      const parts = plainText.split(",").map((s) => parseInt(s.replace("album:", "").trim(), 10)).filter((n) => !isNaN(n));
-      if (parts.length > 0) albumIdsToMove = parts;
-    }
-
-    // Move albums into target collection
-    if (albumIdsToMove.length > 0 && targetFolder.is_collection && onMoveFolderToCollection) {
-      for (const aId of albumIdsToMove) {
-        if (aId !== targetFolder.id) {
-          const source = folders.find((f) => f.id === aId);
-          if (source && !source.is_collection) {
-            await onMoveFolderToCollection(aId, targetFolder.id);
-          }
-        }
-      }
-      setSelectedFolderIds(new Set());
-      setDraggedSourceFolderIds(new Set());
-      return;
     }
   };
 
@@ -691,45 +638,25 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               }`}
             >
               <div
-                draggable={true}
+                draggable={!isSelectionMode}
                 onPointerDown={(e) => handlePointerDown(folder.id, e)}
                 onPointerMove={handlePointerMove}
                 onPointerUp={handlePointerUpOrCancel}
                 onPointerCancel={handlePointerUpOrCancel}
                 onDragStart={(e) => {
-                  const effectiveIds =
-                    selectedFolderIds.has(folder.id) && selectedFolderIds.size > 0
-                      ? Array.from(selectedFolderIds)
-                      : [folder.id];
-
-                  setDraggedSourceFolderIds(new Set(effectiveIds));
-                  e.dataTransfer.effectAllowed = "copyMove";
-
+                  if (isSelectionMode) {
+                    e.preventDefault();
+                    return;
+                  }
                   if (isCollection) {
                     e.dataTransfer.setData("application/telegallery-collection", String(folder.id));
-                    e.dataTransfer.setData("text/plain", `collection:${folder.id}`);
                   } else {
-                    e.dataTransfer.setData("application/telegallery-albums", JSON.stringify(effectiveIds));
                     e.dataTransfer.setData("application/telegallery-album", String(folder.id));
-                    e.dataTransfer.setData(
-                      "text/plain",
-                      effectiveIds.map((id) => `album:${id}`).join(",")
-                    );
                   }
-
                   e.dataTransfer.setData(
                     "application/json",
-                    JSON.stringify({
-                      type: isCollection ? "collection" : "album",
-                      id: folder.id,
-                      ids: effectiveIds,
-                    })
+                    JSON.stringify({ type: isCollection ? "collection" : "album", id: folder.id })
                   );
-                }}
-                onDragEnd={() => {
-                  setDraggedSourceFolderIds(new Set());
-                  setDragOverFolderId(null);
-                  setProhibitedFolderId(null);
                 }}
                 onClick={() => handleCardClick(folder)}
                 onContextMenu={(e) => {
@@ -758,8 +685,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                     <img
                       src={folder.cover_thumbnail_url}
                       alt={folder.name}
-                      draggable={false}
-                      className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 pointer-events-none select-none ${
+                      className={`absolute inset-0 w-full h-full object-cover transition-transform duration-300 ${
                         isDragOver ? "scale-110" : "group-hover:scale-105"
                       }`}
                       loading="lazy"

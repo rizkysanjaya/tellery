@@ -11,7 +11,7 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -56,32 +56,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const [showNavButtons, setShowNavButtons] = useState(true);
-  const navTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isVideo = item.mime_type.startsWith("video/");
-
-  const resetNavTimer = useCallback(() => {
-    setShowNavButtons(true);
-    if (navTimerRef.current) {
-      clearTimeout(navTimerRef.current);
-    }
-    navTimerRef.current = setTimeout(() => {
-      setShowNavButtons(false);
-    }, 2800);
-  }, []);
-
-  useEffect(() => {
-    resetNavTimer();
-    const handleActivity = () => resetNavTimer();
-    window.addEventListener("mousemove", handleActivity, { passive: true });
-    window.addEventListener("touchstart", handleActivity, { passive: true });
-
-    return () => {
-      if (navTimerRef.current) clearTimeout(navTimerRef.current);
-      window.removeEventListener("mousemove", handleActivity);
-      window.removeEventListener("touchstart", handleActivity);
-    };
-  }, [resetNavTimer]);
 
   useEffect(() => {
     setIsImageLoaded(false);
@@ -250,16 +225,10 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
 
           {/* Navigation Arrows */}
           {hasPrev && (
-            <div
-              className={`absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 transition-all duration-300 ${
-                showNavButtons
-                  ? "opacity-100 translate-x-0"
-                  : "opacity-0 -translate-x-4 pointer-events-none"
-              }`}
-            >
+            <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20">
               <button
                 onClick={onPrev}
-                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg"
+                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer"
                 title="Previous (Left Arrow)"
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -267,16 +236,10 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             </div>
           )}
           {hasNext && (
-            <div
-              className={`absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 transition-all duration-300 ${
-                showNavButtons
-                  ? "opacity-100 translate-x-0"
-                  : "opacity-0 translate-x-4 pointer-events-none"
-              }`}
-            >
+            <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20">
               <button
                 onClick={onNext}
-                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg"
+                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer"
                 title="Next (Right Arrow)"
               >
                 <ChevronRight className="w-6 h-6" />

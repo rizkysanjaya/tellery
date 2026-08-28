@@ -662,19 +662,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 {/* Photos & Videos Breakdown */}
                 <div className="grid grid-cols-2 gap-2 pt-3 border-t border-surface-container-high text-xs">
-                  <div
-                    className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
-                    title={`${stats.total_photos} Photos / Images`}
-                  >
+                  <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
                     <Images className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="font-mono">{stats.total_photos}</span>
+                    <span className="truncate">{stats.total_photos} items</span>
                   </div>
-                  <div
-                    className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
-                    title={`${stats.total_videos} Videos`}
-                  >
+                  <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
                     <Video className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="font-mono">{stats.total_videos}</span>
+                    <span className="truncate">{stats.total_videos} items</span>
                   </div>
                 </div>
 

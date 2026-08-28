@@ -10,7 +10,7 @@
  * =============================================================================
  */
 
-import React, { useRef } from "react";
+import React from "react";
 import {
   Check,
   Play,
@@ -73,55 +73,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
     }
   };
 
-  // Long-press detection refs
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isLongPressActiveRef = useRef(false);
-  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
-    isLongPressActiveRef.current = false;
-    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
-
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-    }
-
-    longPressTimerRef.current = setTimeout(() => {
-      isLongPressActiveRef.current = true;
-      onToggleSelect(item.id);
-      if (typeof navigator !== "undefined" && navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-    }, 450);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (pointerStartPosRef.current) {
-      const dist = Math.hypot(
-        e.clientX - pointerStartPosRef.current.x,
-        e.clientY - pointerStartPosRef.current.y
-      );
-      if (dist > 8 && longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    }
-  };
-
-  const handlePointerUpOrCancel = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-    pointerStartPosRef.current = null;
-  };
-
   const handleClick = (e: React.MouseEvent) => {
-    if (isLongPressActiveRef.current) {
-      isLongPressActiveRef.current = false;
-      return;
-    }
     if (e.shiftKey || e.ctrlKey || e.metaKey || isSelectionMode) {
       onToggleSelect(item.id, e);
       return;
@@ -158,10 +110,6 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   return (
     <div
       draggable
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUpOrCancel}
-      onPointerCancel={handlePointerUpOrCancel}
       onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}

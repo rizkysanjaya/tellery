@@ -118,9 +118,9 @@ class MediaRepository:
             params.append(folder_id)
 
         if media_type == "photo":
-            where_clauses.append("(m.mime_type NOT LIKE 'video/%' OR m.mime_type LIKE 'image/%' OR m.file_name LIKE '%.gif' OR m.file_name LIKE '%.webp')")
+            where_clauses.append("m.mime_type LIKE 'image/%'")
         elif media_type == "video":
-            where_clauses.append("(m.mime_type LIKE 'video/%' AND NOT (m.file_name LIKE '%.gif') AND NOT (m.file_name LIKE '%.gif.mp4') AND NOT (m.file_name LIKE '%.webp'))")
+            where_clauses.append("m.mime_type LIKE 'video/%'")
 
         if search_query:
             where_clauses.append("(m.file_name LIKE ? OR m.camera_make LIKE ? OR m.camera_model LIKE ?)")
@@ -180,13 +180,12 @@ class MediaRepository:
     async def get_stats() -> dict[str, Any]:
         """
         Retrieves aggregate statistics for the entire archive in a single pass.
-        Counts non-videos, GIFs, and WebP as photos/images.
         """
         query = """
             SELECT 
                 COUNT(*) as total_items,
-                SUM(CASE WHEN mime_type NOT LIKE 'video/%' OR file_name LIKE '%.gif' OR file_name LIKE '%.webp' THEN 1 ELSE 0 END) as total_photos,
-                SUM(CASE WHEN mime_type LIKE 'video/%' AND NOT (file_name LIKE '%.gif') AND NOT (file_name LIKE '%.gif.mp4') AND NOT (file_name LIKE '%.webp') THEN 1 ELSE 0 END) as total_videos,
+                SUM(CASE WHEN mime_type LIKE 'image/%' THEN 1 ELSE 0 END) as total_photos,
+                SUM(CASE WHEN mime_type LIKE 'video/%' THEN 1 ELSE 0 END) as total_videos,
                 COALESCE(SUM(file_size), 0) as total_size_bytes
             FROM media_items
             WHERE is_deleted = 0;
