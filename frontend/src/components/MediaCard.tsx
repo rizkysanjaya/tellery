@@ -10,10 +10,11 @@
  * =============================================================================
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Play, Image as ImageIcon, Camera, Check } from "lucide-react";
 import { MediaItem } from "../types";
 import { getFileTypeBadge } from "../utils/fileTypes";
+import { emptyDragImage } from "./ui/DragStackedPreview";
 
 interface MediaCardProps {
   item: MediaItem;
@@ -37,7 +38,54 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   onContextMenu,
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const isVideo = item.mime_type.startsWith("video/");
+  const isGif = item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif");
+  const isAnimatedVideo = isVideo && (item.file_name.toLowerCase().includes(".gif.mp4") || Boolean(item.duration_seconds && item.duration_seconds <= 15 && item.file_name.toLowerCase().includes("gif")));
+
+  // Long-press detection refs
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressActiveRef = useRef(false);
+  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    isLongPressActiveRef.current = false;
+    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressActiveRef.current = true;
+      onToggleSelect(item.id);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 450);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (pointerStartPosRef.current) {
+      const dist = Math.hypot(
+        e.clientX - pointerStartPosRef.current.x,
+        e.clientY - pointerStartPosRef.current.y
+      );
+      if (dist > 8 && longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }
+  };
+
+  const handlePointerUpOrCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    pointerStartPosRef.current = null;
+  };
 
   const formatDuration = (sec: number | null) => {
     if (!sec) return "";
@@ -47,6 +95,11 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const handleClick = (e: React.MouseEvent) => {
+    if (isLongPressActiveRef.current) {
+      isLongPressActiveRef.current = false;
+      return;
+    }
+
     // Shift+Click selects a continuous range (Google Drive style)
     if (e.shiftKey) {
       e.preventDefault();
@@ -84,6 +137,11 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     e.dataTransfer.setData("application/telegallery-media", JSON.stringify(payload));
     e.dataTransfer.setData("application/json", JSON.stringify(payload));
     e.dataTransfer.effectAllowed = "copyMove";
+
+    // Suppress default full card drag preview in favor of custom stacked card deck
+    if (emptyDragImage && e.dataTransfer.setDragImage) {
+      e.dataTransfer.setDragImage(emptyDragImage, 0, 0);
+    }
   };
 
   const aspectRatioStyle: React.CSSProperties =
@@ -95,21 +153,27 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   return (
     <div
-      className={`relative group transition-transform duration-150 ease-out hover:scale-[1.02] ${
-        aspectMode === "natural" ? "w-full min-h-[140px]" : "aspect-square"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      className={`relative group transition-transform duration-150 ease-out hover:scale-[1.015] ${
+        aspectMode === "natural" ? "w-full min-h-[120px]" : "aspect-square"
       }`}
     >
       <div
         draggable
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUpOrCancel}
+        onPointerCancel={handlePointerUpOrCancel}
         onDragStart={handleDragStart}
         onClick={handleClick}
         onContextMenu={(e) => onContextMenu(e, item)}
         style={aspectRatioStyle}
-        className={`media-card-item neo-card bg-surface-base p-1.5 rounded-2xl h-full w-full cursor-pointer transition-all duration-150 active:scale-[0.98] ${
-          isSelected ? "ring-2 ring-primary" : ""
+        className={`media-card-item relative overflow-hidden bg-surface-container rounded-xl h-full w-full cursor-pointer transition-all duration-200 shadow-md hover:shadow-xl active:scale-[0.98] ${
+          isSelected ? "ring-2 ring-primary shadow-primary/30" : ""
         }`}
       >
-        <div className="relative w-full h-full rounded-xl overflow-hidden bg-surface-container">
+        <div className="relative w-full h-full overflow-hidden bg-surface-container">
           {/* Selection Checkbox (top-left) */}
           <div
             onClick={handleCheckboxClick}
@@ -129,8 +193,26 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             <div className="absolute inset-0 bg-primary/10 z-[1] pointer-events-none" />
           )}
 
-          {/* Thumbnail Image */}
-          {item.thumbnail_url ? (
+          {/* Live GIF / Video Hover / Thumbnail Image Layer */}
+          {isAnimatedVideo && isHovered ? (
+            <video
+              src={item.stream_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover pointer-events-none select-none"
+            />
+          ) : isGif ? (
+            <img
+              src={item.stream_url}
+              alt={item.file_name}
+              draggable={false}
+              loading="lazy"
+              onLoad={() => setLoaded(true)}
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none"
+            />
+          ) : item.thumbnail_url ? (
             <img
               src={item.thumbnail_url}
               alt={item.file_name}

@@ -18,7 +18,9 @@ import {
   Layers,
   Menu,
   LayoutGrid,
+  Grid3X3,
   Columns3,
+  List,
   ArrowUpDown,
   Check,
   ChevronDown,
@@ -27,11 +29,12 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { DisplayLayout, FilterType, MainView, SortOption } from "../types";
+import { DisplayLayout, FilterType, FolderItem, MainView, SortOption } from "../types";
 import { AnimatedTabs, TabItem } from "./ui/AnimatedTabs";
 
 interface HeaderProps {
   currentView: MainView;
+  activeFolder?: FolderItem | null;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   activeFilter: FilterType;
@@ -57,6 +60,7 @@ const SORT_LABELS: Record<SortOption, { label: string; group: string }> = {
 
 export const Header: React.FC<HeaderProps> = ({
   currentView,
+  activeFolder,
   searchQuery,
   onSearchChange,
   activeFilter,
@@ -73,6 +77,13 @@ export const Header: React.FC<HeaderProps> = ({
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const isAlbumsOverview = currentView === "albums" && !activeFolder;
+  const searchPlaceholder = isAlbumsOverview
+    ? "Search albums & collections..."
+    : activeFolder
+    ? `Search in "${activeFolder.name}"...`
+    : "Search vault (photos, videos, cameras, 2026)...";
 
   // Global Ctrl+K / Cmd+K search focus or command palette shortcut
   useEffect(() => {
@@ -115,12 +126,14 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   const layoutTabs: TabItem<DisplayLayout>[] = [
-    { id: "grid", label: "Grid", icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: "masonry", label: "Natural", icon: <Columns3 className="w-4 h-4" /> },
+    { id: "grid", label: "Grid View", icon: <LayoutGrid className="w-4 h-4" /> },
+    { id: "dense", label: "Dense View", icon: <Grid3X3 className="w-4 h-4" /> },
+    { id: "masonry", label: "Natural Aspect", icon: <Columns3 className="w-4 h-4" /> },
+    { id: "list", label: "Detailed List", icon: <List className="w-4 h-4" /> },
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-surface-base border-b border-outline-variant/15 px-4 lg:px-8 py-3 transition-all shadow-[0_4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)]">
+    <header className="sticky top-0 z-40 bg-background/85 backdrop-blur-md border-b border-outline-variant/15 px-4 lg:px-8 py-3 transition-all">
       <div className="flex items-center justify-between gap-4">
         {/* Mobile Hamburger Menu Toggle */}
         <button
@@ -139,7 +152,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search vault (photos, videos, cameras, 2026)..."
+            placeholder={searchPlaceholder}
             className="w-full pl-10 pr-20 py-2.5 bg-surface-base rounded-neo-lg text-sm font-medium text-on-surface placeholder-on-surface-variant outline-none transition-all neo-pressed focus:ring-1 focus:ring-primary/40"
           />
 
@@ -243,7 +256,7 @@ export const Header: React.FC<HeaderProps> = ({
                            ? "neo-raised bg-surface-container text-primary"
                            : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
                        }`}
-                       title={`Layout: ${tab.id}`}
+                       title={tab.label}
                      >
                        {tab.icon}
                      </button>

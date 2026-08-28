@@ -27,6 +27,7 @@ export interface MediaItem {
   created_at: string;
   folder_id?: number | null;
   folder_name?: string | null;
+  is_animation?: boolean;
 }
 
 export interface TimelineGroup {

@@ -11,7 +11,7 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -56,7 +56,32 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [showNavButtons, setShowNavButtons] = useState(true);
+  const navTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isVideo = item.mime_type.startsWith("video/");
+
+  const resetNavTimer = useCallback(() => {
+    setShowNavButtons(true);
+    if (navTimerRef.current) {
+      clearTimeout(navTimerRef.current);
+    }
+    navTimerRef.current = setTimeout(() => {
+      setShowNavButtons(false);
+    }, 2800);
+  }, []);
+
+  useEffect(() => {
+    resetNavTimer();
+    const handleActivity = () => resetNavTimer();
+    window.addEventListener("mousemove", handleActivity, { passive: true });
+    window.addEventListener("touchstart", handleActivity, { passive: true });
+
+    return () => {
+      if (navTimerRef.current) clearTimeout(navTimerRef.current);
+      window.removeEventListener("mousemove", handleActivity);
+      window.removeEventListener("touchstart", handleActivity);
+    };
+  }, [resetNavTimer]);
 
   useEffect(() => {
     setIsImageLoaded(false);
@@ -183,8 +208,16 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
           ) : (
             <div className="relative max-w-5xl max-h-[88vh] rounded-neo-xl neo-raised p-2 bg-surface-base flex items-center justify-center min-w-[320px] min-h-[320px]">
               <div className="w-full h-full rounded-neo-lg overflow-hidden neo-pressed bg-surface-container-highest relative flex items-center justify-center min-w-[300px] min-h-[300px]">
+                {/* GIF Animation Pill Indicator */}
+                {(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
+                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-surface-base/90 border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase z-20 shadow-md backdrop-blur-xs flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    <span>GIF Animation</span>
+                  </div>
+                )}
+
                 {/* Instant Low-Res / High-Res Thumbnail Base Layer (0ms visual rendering) */}
-                {item.thumbnail_url && !isImageLoaded && (
+                {item.thumbnail_url && !isImageLoaded && !(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
                   <img
                     src={item.thumbnail_url}
                     alt={item.file_name}
@@ -192,7 +225,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                   />
                 )}
 
-                {!isImageLoaded && !item.thumbnail_url && (
+                {!isImageLoaded && !item.thumbnail_url && !(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
                   <div className="absolute inset-0 flex items-center justify-center bg-surface-base/50 z-10">
                     <Loader2 className="w-10 h-10 text-primary animate-spin" />
                   </div>
@@ -201,8 +234,11 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                 <motion.img
                   key={item.id}
                   initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: isImageLoaded ? 1 : 0, scale: isImageLoaded ? 1 : 0.98 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  animate={{
+                    opacity: (isImageLoaded || item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) ? 1 : 0,
+                    scale: (isImageLoaded || item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) ? 1 : 0.98
+                  }}
+                  transition={{ duration: 0.15, ease: "easeOut" }}
                   src={item.stream_url}
                   alt={item.file_name}
                   onLoad={() => setIsImageLoaded(true)}
@@ -214,10 +250,16 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
 
           {/* Navigation Arrows */}
           {hasPrev && (
-            <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20">
+            <div
+              className={`absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 transition-all duration-300 ${
+                showNavButtons
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-0 -translate-x-4 pointer-events-none"
+              }`}
+            >
               <button
                 onClick={onPrev}
-                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer"
+                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg"
                 title="Previous (Left Arrow)"
               >
                 <ChevronLeft className="w-6 h-6" />
@@ -225,10 +267,16 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             </div>
           )}
           {hasNext && (
-            <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20">
+            <div
+              className={`absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 transition-all duration-300 ${
+                showNavButtons
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-0 translate-x-4 pointer-events-none"
+              }`}
+            >
               <button
                 onClick={onNext}
-                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer"
+                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg"
                 title="Next (Right Arrow)"
               >
                 <ChevronRight className="w-6 h-6" />

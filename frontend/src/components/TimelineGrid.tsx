@@ -2,11 +2,12 @@
  * =============================================================================
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
+ *          contextual empty states (search queries, empty albums, empty vault),
  *          and per-section select-all toggles for multi-select mode.
  * Used by: frontend/src/App.tsx
- * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx, lucide-react
+ * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx, frontend/src/components/MediaListItem.tsx, lucide-react
  * Public Members: TimelineGrid
- * Side Effects: Dispatches media item click, selection toggle, and context menu events.
+ * Side Effects: Dispatches media item click, selection toggle, search clearing, and context menu events.
  * =============================================================================
  */
 
@@ -18,6 +19,9 @@ import {
   Square,
   ArrowUp,
   ArrowDown,
+  Search,
+  X,
+  FolderOpen,
 } from "lucide-react";
 import { DisplayLayout, MediaItem, SortOption, TimelineGroup } from "../types";
 import { MediaCard } from "./MediaCard";
@@ -26,6 +30,9 @@ import { MediaListItem } from "./MediaListItem";
 interface TimelineGridProps {
   groups: TimelineGroup[];
   selectedIds: Set<number>;
+  searchQuery?: string;
+  onClearSearch?: () => void;
+  activeFolderName?: string;
   layout?: DisplayLayout;
   sortBy?: SortOption;
   onSortChange?: (sort: SortOption) => void;
@@ -40,6 +47,9 @@ interface TimelineGridProps {
 export const TimelineGrid: React.FC<TimelineGridProps> = ({
   groups,
   selectedIds,
+  searchQuery,
+  onClearSearch,
+  activeFolderName,
   layout = "grid",
   sortBy = "date_desc",
   onSortChange,
@@ -64,10 +74,64 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   };
 
   if (!loading && groups.length === 0) {
+    const isSearchActive = Boolean(searchQuery && searchQuery.trim());
+
+    // Contextual Empty State for Search Queries
+    if (isSearchActive) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-in fade-in duration-200">
+          <div className="w-20 h-20 rounded-neo-2xl neo-card bg-surface-base border border-dashed border-outline-variant/30 flex items-center justify-center text-on-surface-variant/40 mb-4 shadow-sm">
+            <Search className="w-10 h-10" />
+          </div>
+          <h3 className="text-headline-md font-bold text-on-surface tracking-tight">
+            No media found
+          </h3>
+          <p className="text-body-sm text-on-surface-variant max-w-md mt-1.5 leading-relaxed">
+            {activeFolderName ? (
+              <>
+                No media matching <span className="font-semibold text-primary font-mono">"{searchQuery?.trim()}"</span> inside album <span className="font-semibold text-on-surface">"{activeFolderName}"</span>
+              </>
+            ) : (
+              <>
+                No media matching <span className="font-semibold text-primary font-mono">"{searchQuery?.trim()}"</span> in your vault
+              </>
+            )}
+          </p>
+          {onClearSearch && (
+            <button
+              onClick={onClearSearch}
+              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 neo-button bg-surface-base text-on-surface hover:text-primary rounded-neo text-xs font-semibold cursor-pointer transition-all active:scale-95 shadow-sm"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Clear Search</span>
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    // Contextual Empty State for Empty Albums
+    if (activeFolderName) {
+      return (
+        <div className="flex flex-col items-center justify-center py-24 text-center px-4 animate-in fade-in duration-200">
+          <div className="w-20 h-20 rounded-neo-2xl neo-card bg-surface-base border border-dashed border-outline-variant/30 flex items-center justify-center text-on-surface-variant/40 mb-4 shadow-sm">
+            <FolderOpen className="w-10 h-10" />
+          </div>
+          <h3 className="text-headline-md font-bold text-on-surface tracking-tight">
+            Album is empty
+          </h3>
+          <p className="text-body-sm text-on-surface-variant max-w-sm mt-1.5 leading-relaxed">
+            Drag and drop media into <span className="font-semibold text-on-surface">"{activeFolderName}"</span>, or use the 3-dots menu on any photo to add it here.
+          </p>
+        </div>
+      );
+    }
+
+    // Default Empty Vault State
     return (
       <div className="flex flex-col items-center justify-center py-28 text-center px-4 animate-in fade-in duration-200">
-        <div className="w-20 h-20 rounded-neo-xl neo-card bg-surface-base flex items-center justify-center text-on-surface-variant mb-5">
-          <ImageIcon className="w-9 h-9 opacity-60" />
+        <div className="w-20 h-20 rounded-neo-2xl neo-card bg-surface-base border border-outline-variant/20 flex items-center justify-center text-on-surface-variant/50 mb-5 shadow-sm">
+          <ImageIcon className="w-10 h-10 opacity-60" />
         </div>
         <h3 className="text-headline-md font-semibold text-on-surface tracking-tight">No media in vault</h3>
         <p className="text-body-sm text-on-surface-variant max-w-sm mt-1.5 leading-relaxed">
@@ -93,17 +157,17 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
           <section key={group.period_key} className="space-y-3.5">
             {/* Floating Rounded Month/Year Header Card */}
             <div className="sticky top-[68px] z-30 py-2">
-              <div className="flex items-center justify-between w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl px-4 py-2.5 neo-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] group/header">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0">
-                    <Calendar className="w-4 h-4" />
+              <div className="flex items-center justify-between w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl px-5 py-3 neo-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] group/header">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 rounded-neo bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0 shadow-xs">
+                    <Calendar className="w-5 h-5" />
                   </div>
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <h2 className="text-headline-md font-semibold text-on-surface tracking-tight truncate">
-                      {group.period}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <h2 className="text-xl font-bold text-on-surface tracking-tight truncate">
+                      {group.period || group.period_title || "Unknown Date"}
                     </h2>
-                    <span className="text-headline-md font-medium text-on-surface-variant shrink-0">
-                      • {group.count} {group.count === 1 ? "item" : "items"}
+                    <span className="text-base font-semibold text-on-surface-variant shrink-0">
+                      • {group.items.length} {group.items.length === 1 ? "item" : "items"}
                     </span>
                   </div>
                 </div>
@@ -118,7 +182,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                         onSelectAllInGroup(groupItemIds);
                       }
                     }}
-                    className={`neo-button flex items-center gap-1.5 px-3 py-1 rounded-neo text-label-md font-medium transition-all cursor-pointer ${
+                    className={`neo-button flex items-center gap-2 px-3.5 py-1.5 rounded-neo text-sm font-semibold transition-all cursor-pointer ${
                       allSelected
                         ? "text-primary bg-surface-container-high"
                         : "text-on-surface-variant opacity-0 group-hover/header:opacity-100 hover:text-on-surface"
@@ -130,11 +194,11 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     }
                   >
                     {allSelected ? (
-                      <CheckSquare className="w-3.5 h-3.5 text-primary" />
+                      <CheckSquare className="w-4 h-4 text-primary" />
                     ) : (
-                      <Square className="w-3.5 h-3.5 text-on-surface-variant" />
+                      <Square className="w-4 h-4 text-on-surface-variant" />
                     )}
-                    <span className="text-xs">{allSelected ? "Deselect" : "Select"}</span>
+                    <span>{allSelected ? "Deselect" : "Select"}</span>
                   </button>
                 </div>
               </div>
@@ -144,48 +208,52 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
             {layout === "list" ? (
               /* Detailed Table/List View */
               <div className="space-y-2">
-                {/* Interactive Clickable List Header */}
-                <div className="hidden sm:flex items-center justify-between px-4 py-2 text-label-md font-semibold text-on-surface-variant uppercase tracking-wider pb-2 select-none">
-                  <button
-                    onClick={() => toggleSort("name")}
-                    className="flex items-center gap-1 hover:text-on-surface transition-colors cursor-pointer"
-                  >
-                    <span>Name</span>
-                    {sortBy.startsWith("name") &&
-                      (sortBy === "name_asc" ? (
-                        <ArrowUp className="w-3 h-3 text-primary" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3 text-primary" />
-                      ))}
-                  </button>
+                {/* Interactive Clickable List Header with precise column alignment */}
+                <div className="hidden sm:flex items-center justify-between px-4 py-2.5 text-[13px] font-bold text-on-surface-variant uppercase tracking-wider select-none border-b border-outline-variant/15">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <span className="w-6 shrink-0" />
+                    <span className="w-14 shrink-0 text-center">Preview</span>
+                    <button
+                      onClick={() => toggleSort("name")}
+                      className="flex items-center gap-1.5 hover:text-primary transition-colors cursor-pointer"
+                    >
+                      <span>File Name</span>
+                      {sortBy.startsWith("name") &&
+                        (sortBy === "name_asc" ? (
+                          <ArrowUp className="w-4 h-4 text-primary" />
+                        ) : (
+                          <ArrowDown className="w-4 h-4 text-primary" />
+                        ))}
+                    </button>
+                  </div>
 
-                  <div className="flex items-center gap-8 text-right">
+                  <div className="flex items-center gap-4 sm:gap-6 text-right shrink-0">
                     <button
                       onClick={() => toggleSort("date")}
-                      className="w-24 flex items-center justify-end gap-1 hover:text-on-surface transition-colors cursor-pointer"
+                      className="w-32 flex items-center justify-end gap-1.5 hover:text-primary transition-colors cursor-pointer"
                     >
                       <span>Date Taken</span>
                       {sortBy.startsWith("date") &&
                         (sortBy === "date_asc" ? (
-                          <ArrowUp className="w-3 h-3 text-primary" />
+                          <ArrowUp className="w-4 h-4 text-primary" />
                         ) : (
-                          <ArrowDown className="w-3 h-3 text-primary" />
+                          <ArrowDown className="w-4 h-4 text-primary" />
                         ))}
                     </button>
-                    <span className="hidden md:inline w-24">Dimensions</span>
+                    <span className="hidden md:inline w-32 text-right">Dimensions</span>
                     <button
                       onClick={() => toggleSort("size")}
-                      className="w-16 flex items-center justify-end gap-1 hover:text-on-surface transition-colors cursor-pointer"
+                      className="w-24 flex items-center justify-end gap-1.5 hover:text-primary transition-colors cursor-pointer"
                     >
                       <span>Size</span>
                       {sortBy.startsWith("size") &&
                         (sortBy === "size_asc" ? (
-                          <ArrowUp className="w-3 h-3 text-primary" />
+                          <ArrowUp className="w-4 h-4 text-primary" />
                         ) : (
-                          <ArrowDown className="w-3 h-3 text-primary" />
+                          <ArrowDown className="w-4 h-4 text-primary" />
                         ))}
                     </button>
-                    <span className="w-6"></span>
+                    <span className="w-8"></span>
                   </div>
                 </div>
 
@@ -222,7 +290,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
               </div>
             ) : layout === "masonry" ? (
               /* Natural Aspect-Ratio Showcase Grid */
-              <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-4 sm:gap-5 space-y-4 sm:space-y-5">
+              <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-2 sm:gap-2.5 space-y-2 sm:space-y-2.5">
                 {group.items.map((item) => (
                   <div key={item.id} className="break-inside-avoid">
                     <MediaCard

@@ -3,11 +3,12 @@
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
- *          Favorites section, Collections accordion, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
+ *          Favorites section, Collections accordion, right-click context menu triggers,
+ *          and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
  * Used by: frontend/src/App.tsx
- * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal
+ * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
- * Side Effects: Triggers view changes, album selection, media drop-to-album assignments,
+ * Side Effects: Triggers view changes, album selection, media drop-to-album assignments, right-click context menu,
  *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, and favorite toggling.
  * =============================================================================
  */
@@ -33,7 +34,6 @@ import {
   EyeOff,
   Settings,
   Star,
-  Layers,
 } from "lucide-react";
 import { CacheStats, FolderItem, MainView, StatsResponse } from "../types";
 import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
@@ -42,6 +42,7 @@ import { FolderActionMenu } from "./ui/FolderActionMenu";
 import { FolderCustomizeModal } from "./ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./ui/FolderRenameModal";
 import { FolderCoverModal } from "./ui/FolderCoverModal";
+import { FolderMoveModal } from "./ui/FolderMoveModal";
 
 interface SidebarProps {
   currentView: MainView;
@@ -54,7 +55,7 @@ interface SidebarProps {
   onSelectAlbumsOverview: () => void;
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
-  onDeleteFolder: (folderId: number) => Promise<void>;
+  onDeleteFolder: (folder: FolderItem | number) => void | Promise<void>;
   onRenameFolder?: (folderId: number, newName: string) => Promise<void>;
   onCustomizeFolder?: (folderId: number, color: string | null, icon: string) => Promise<void>;
   onSetFolderCover?: (folderId: number, mediaId: number | null) => Promise<void>;
@@ -63,7 +64,7 @@ interface SidebarProps {
   onAddMediaToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onTriggerUpload: () => void;
   onSyncVault?: () => Promise<void>;
-  onUpdateFolderColor?: (folderId: number, color: string | null) => Promise<void>;
+  onFolderContextMenu?: (e: React.MouseEvent, folder: FolderItem) => void;
   isSyncing?: boolean;
 }
 
@@ -87,46 +88,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddMediaToFolder,
   onTriggerUpload,
   onSyncVault,
+  onFolderContextMenu,
   isSyncing = false,
 }) => {
   const [isAlbumsExpanded, setIsAlbumsExpanded] = useState(true);
-  const [isCollectionsExpanded, setIsCollectionsExpanded] = useState(true);
   const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
-  const [expandedCollectionIds, setExpandedCollectionIds] = useState<Set<number>>(new Set());
   const [showInlineNewAlbum, setShowInlineNewAlbum] = useState(false);
-  const [isCreatingCollectionMode, setIsCreatingCollectionMode] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [dragOverSidebarFolderId, setDragOverSidebarFolderId] = useState<number | null>(null);
   const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
   const [isClearingCache, setIsClearingCache] = useState(false);
   const [cacheToast, setCacheToast] = useState<string | null>(null);
-  const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
   const [folderToCustomize, setFolderToCustomize] = useState<FolderItem | null>(null);
   const [folderToRename, setFolderToRename] = useState<FolderItem | null>(null);
   const [folderToCover, setFolderToCover] = useState<FolderItem | null>(null);
-  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+  const [folderToMove, setFolderToMove] = useState<FolderItem | null>(null);
 
-  // Split into Collections vs Standalone Albums
+  // Split into Collections vs All Albums
   const collections = useMemo(() => {
     return folders.filter((f) => f.is_collection);
   }, [folders]);
 
-  const standaloneAlbums = useMemo(() => {
-    return folders.filter((f) => !f.is_collection && !f.parent_id);
+  const allAlbums = useMemo(() => {
+    return folders.filter((f) => !f.is_collection);
   }, [folders]);
-
-  const toggleCollectionExpanded = (colId: number) => {
-    setExpandedCollectionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(colId)) {
-        next.delete(colId);
-      } else {
-        next.add(colId);
-      }
-      return next;
-    });
-  };
 
   const [isVaultCollapsed, setIsVaultCollapsed] = useState<boolean>(() => {
     try {
@@ -218,27 +204,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     setIsCreatingAlbum(true);
     try {
-      await onCreateFolder(cleanName, isCreatingCollectionMode);
+      await onCreateFolder(cleanName, false);
       setNewAlbumName("");
       setShowInlineNewAlbum(false);
-      setIsCreatingCollectionMode(false);
     } catch (err: any) {
-      console.error("Failed to create album/collection:", err);
+      console.error("Failed to create album:", err);
     } finally {
       setIsCreatingAlbum(false);
-    }
-  };
-
-  const handleConfirmDeleteFolder = async () => {
-    if (!folderToDelete) return;
-    setIsDeletingFolder(true);
-    try {
-      await onDeleteFolder(folderToDelete.id);
-      setFolderToDelete(null);
-    } catch (err) {
-      console.error("Failed to delete album:", err);
-    } finally {
-      setIsDeletingFolder(false);
     }
   };
 
@@ -297,12 +269,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between px-5 py-4 mb-2">
+        <div className="flex items-center justify-between px-5 py-4 mb-1">
           <div className="min-w-0 flex-1">
-            <h1 className="font-semibold text-lg text-primary tracking-tight">TeleGallery</h1>
-            <p className="text-xs text-on-surface-variant font-medium truncate" title={stats?.channel_name ? `${stats.channel_name} Vault` : "Cloud Vault"}>
-              {stats?.channel_name ? `${stats.channel_name} Vault` : "Cloud Vault"}
-            </p>
+            <h1 className="font-bold text-xl text-primary tracking-tight">TeleGallery</h1>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -311,7 +280,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => onSyncVault()}
                 disabled={isSyncing}
-                className={`px-3 py-1.5 rounded-neo-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-neo text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   isSyncing
                     ? "neo-pressed bg-surface-base text-primary cursor-wait"
                     : "neo-button text-on-surface-variant hover:text-primary active:neo-pressed"
@@ -333,6 +302,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
+        {/* Connected To Vault Card (above Upload Media button) */}
+        <div className="px-4 mb-3">
+          <div className="p-3 rounded-neo-xl neo-card bg-surface-container-low/70 border border-outline-variant/20 shadow-xs space-y-2">
+            {/* Status indicator: Connected to */}
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <span>Connected to</span>
+            </div>
+
+            {/* Channel Profile Photo & Channel Name */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              {stats?.channel_avatar_url ? (
+                <img
+                  src={stats.channel_avatar_url}
+                  alt={stats.channel_name || "Vault"}
+                  className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-primary/30 shadow-sm"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0 shadow-inner">
+                  <Cloud className="w-4 h-4 text-primary" />
+                </div>
+              )}
+              <span
+                className="text-sm font-bold text-on-surface truncate tracking-tight"
+                title={stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
+              >
+                {stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Primary New Upload Button */}
         <div className="px-4 mb-4">
           <button
@@ -340,29 +341,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onTriggerUpload();
               onCloseMobile();
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 neo-button-primary rounded-neo-lg text-sm font-semibold transition-all duration-200 cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 neo-button-primary rounded-neo-lg text-sm font-bold transition-all duration-200 cursor-pointer shadow-sm"
           >
             <Upload className="w-4 h-4" />
             <span>Upload Media</span>
           </button>
         </div>
 
-        {/* Navigation Section */}
-        <div className="flex-1 overflow-y-auto px-4 space-y-1">
-          {/* Photos / Timeline */}
-          <button
+        {/* Navigation Section (Google Drive Style Hierarchical Tree) */}
+        <div className="flex-1 overflow-y-auto px-3 space-y-1">
+          {/* 1. Timeline */}
+          <div
             onClick={() => {
               onSelectTimeline();
               onCloseMobile();
             }}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
               isTimelineActive
-                ? "neo-pressed bg-surface-base text-primary"
-                : "text-on-surface-variant hover:text-on-surface"
+                ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
             }`}
           >
             <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5" />
+              <div className="w-3.5" />
+              <Clock className={`w-4.5 h-4.5 ${isTimelineActive ? "text-primary" : "text-on-surface-variant"}`} />
               <span>Timeline</span>
             </div>
             {stats && (
@@ -370,32 +372,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {stats.total_items}
               </span>
             )}
-          </button>
+          </div>
 
-          {/* Favorites Section (Permanent below Timeline) */}
-          <div className="pt-3">
-            <div className="flex items-center justify-between px-2 py-1.5 text-xs font-semibold text-amber-400/90 tracking-wider uppercase">
-              <button
-                onClick={() => setIsFavoritesExpanded((p) => !p)}
-                className="flex items-center gap-1.5 hover:text-amber-300 cursor-pointer transition-colors duration-200"
-              >
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span>Favorites</span>
-                {isFavoritesExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5 ml-1 opacity-70" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5 ml-1 opacity-70" />
-                )}
-              </button>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-md neo-pressed bg-surface-base text-amber-400/80 font-mono">
+          {/* 2. Favorites (Google Drive style with expand caret) */}
+          <div>
+            <div
+              onClick={() => {
+                setIsFavoritesExpanded((p) => !p);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsFavoritesExpanded((p) => !p);
+                  }}
+                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
+                >
+                  {isFavoritesExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  )}
+                </button>
+                <Star className="w-4.5 h-4.5 text-amber-400 fill-amber-400 shrink-0" />
+                <span className="truncate">Favorites</span>
+              </div>
+              <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-amber-400/90 font-mono">
                 {folders.filter((f) => f.is_favorite).length}
               </span>
             </div>
 
+            {/* Expanded Favorites Sub-items */}
             {isFavoritesExpanded && (
-              <div className="space-y-1 mt-1">
+              <div className="pl-6 pr-1 py-1 space-y-1">
                 {folders.filter((f) => f.is_favorite).length === 0 ? (
-                  <div className="px-4 py-2.5 rounded-xl neo-pressed bg-surface-container/20 text-[11px] text-on-surface-variant/60 italic">
+                  <div className="px-3 py-2 rounded-neo neo-pressed bg-surface-container/20 text-xs text-on-surface-variant/60 italic">
                     Star albums to see them here
                   </div>
                 ) : (
@@ -410,13 +424,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onSelectFolder(folder);
                             onCloseMobile();
                           }}
-                          className={`group flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
+                          onContextMenu={(e) => {
+                            if (onFolderContextMenu) {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              onFolderContextMenu(e, folder);
+                            }
+                          }}
+                          className={`group flex items-center justify-between px-3 py-2 rounded-neo text-xs font-semibold transition-all duration-150 cursor-pointer ${
                             isSelected
-                              ? "neo-pressed bg-surface-base text-primary"
-                              : "text-on-surface-variant hover:text-on-surface"
+                              ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
+                              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/40"
                           }`}
                         >
-                          <div className="flex items-center gap-3 truncate pr-2">
+                          <div className="flex items-center gap-2.5 truncate pr-2">
                             <FolderIcon
                               name={folder.icon || "Folder"}
                               color={folder.color || "var(--color-primary, #6366f1)"}
@@ -426,20 +447,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                            <span className="text-[11px] px-1.5 py-0.5 rounded neo-pressed bg-surface-base text-on-surface-variant font-mono">
                               {folder.item_count}
                             </span>
                             <FolderActionMenu
                               folder={folder}
+                              collections={collections}
+                              placement="right"
                               onCustomize={(f) => setFolderToCustomize(f)}
                               onSelectCover={(f) => setFolderToCover(f)}
                               onRename={(f) => setFolderToRename(f)}
+                              onOpenMoveModal={(f) => setFolderToMove(f)}
+                              onMoveToCollection={
+                                onMoveFolderToCollection
+                                  ? (f, colId) => onMoveFolderToCollection(f.id, colId)
+                                  : undefined
+                              }
                               onToggleFavorite={(f) => {
                                 if (onToggleFavoriteFolder) {
                                   onToggleFavoriteFolder(f.id, !f.is_favorite);
                                 }
                               }}
-                              onDelete={(f) => setFolderToDelete(f)}
+                              onDelete={(f) => onDeleteFolder(f)}
                               triggerClassName="opacity-0 group-hover:opacity-100"
                             />
                           </div>
@@ -451,208 +480,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* Collections Section */}
-          <div className="pt-3">
-            <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-primary tracking-wider uppercase">
-              <button
-                onClick={() => setIsCollectionsExpanded((p) => !p)}
-                className="flex items-center gap-1.5 hover:text-on-surface cursor-pointer transition-colors duration-200"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Collections</span>
-                {isCollectionsExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5 opacity-70" />
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsCreatingCollectionMode(true);
-                  setShowInlineNewAlbum(true);
-                }}
-                className="p-1.5 neo-raised active:neo-pressed rounded-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-                title="Create New Collection"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {isCollectionsExpanded && (
-              <div className="space-y-1 mt-1">
-                {collections.length === 0 ? (
-                  <div className="px-4 py-2 rounded-xl neo-pressed bg-surface-container/20 text-[11px] text-on-surface-variant/60 italic">
-                    Group albums into custom collections
-                  </div>
-                ) : (
-                  collections.map((collection) => {
-                    const isColExpanded = expandedCollectionIds.has(collection.id);
-                    const childAlbums = folders.filter((f) => !f.is_collection && f.parent_id === collection.id);
-                    const isDragTarget = dragOverSidebarFolderId === collection.id;
-
-                    return (
-                      <div
-                        key={`col-${collection.id}`}
-                        onDragOver={(e) => handleDragOver(e, collection.id)}
-                        onDragLeave={handleDragLeave}
-                        onDrop={(e) => handleDrop(e, collection.id)}
-                        className="rounded-xl overflow-hidden"
-                      >
-                        {/* Collection Header Row */}
-                        <div
-                          className={`group flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
-                            isDragTarget
-                              ? "neo-pressed bg-surface-base text-primary ring-2 ring-primary"
-                              : "text-on-surface hover:bg-surface-container/40"
-                          }`}
-                        >
-                          <div
-                            onClick={() => toggleCollectionExpanded(collection.id)}
-                            className="flex items-center gap-2 truncate pr-2 flex-1 min-w-0"
-                          >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleCollectionExpanded(collection.id);
-                              }}
-                              className="p-0.5 text-on-surface-variant hover:text-on-surface"
-                            >
-                              {isColExpanded ? (
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              ) : (
-                                <ChevronRight className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            <FolderIcon
-                              name={collection.icon || "Layers"}
-                              color={collection.color || "var(--color-primary, #6366f1)"}
-                              className="w-4 h-4 shrink-0"
-                            />
-                            <span className="truncate font-semibold">{collection.name}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[11px] px-1.5 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
-                              {childAlbums.length} {childAlbums.length === 1 ? "album" : "albums"}
-                            </span>
-                            <FolderActionMenu
-                              folder={collection}
-                              collections={collections}
-                              onCustomize={(f) => setFolderToCustomize(f)}
-                              onSelectCover={(f) => setFolderToCover(f)}
-                              onRename={(f) => setFolderToRename(f)}
-                              onToggleFavorite={(f) => {
-                                if (onToggleFavoriteFolder) {
-                                  onToggleFavoriteFolder(f.id, !f.is_favorite);
-                                }
-                              }}
-                              onDelete={(f) => setFolderToDelete(f)}
-                              triggerClassName="opacity-0 group-hover:opacity-100"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Nested Child Albums in this Collection */}
-                        {isColExpanded && childAlbums.length > 0 && (
-                          <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-primary/20 ml-4 my-1">
-                            {childAlbums.map((child) => {
-                              const isSelected = activeFolder?.id === child.id;
-                              const isChildDragTarget = dragOverSidebarFolderId === child.id;
-
-                              return (
-                                <div
-                                  key={child.id}
-                                  onDragOver={(e) => handleDragOver(e, child.id)}
-                                  onDragLeave={handleDragLeave}
-                                  onDrop={(e) => handleDrop(e, child.id)}
-                                  onClick={() => {
-                                    onSelectFolder(child);
-                                    onCloseMobile();
-                                  }}
-                                  className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 cursor-pointer ${
-                                    isChildDragTarget
-                                      ? "neo-pressed bg-surface-base text-primary ring-1 ring-primary"
-                                      : isSelected
-                                        ? "neo-pressed bg-surface-base text-primary"
-                                        : "text-on-surface-variant hover:text-on-surface"
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2 truncate pr-2">
-                                    <FolderIcon
-                                      name={child.icon || "Folder"}
-                                      color={child.color || (isSelected ? "var(--color-primary, #6366f1)" : undefined)}
-                                      className="w-3.5 h-3.5 shrink-0"
-                                    />
-                                    <span className="truncate">{child.name}</span>
-                                  </div>
-
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded neo-pressed bg-surface-base text-on-surface-variant font-mono">
-                                      {child.item_count}
-                                    </span>
-                                    <FolderActionMenu
-                                      folder={child}
-                                      collections={collections}
-                                      onCustomize={(f) => setFolderToCustomize(f)}
-                                      onSelectCover={(f) => setFolderToCover(f)}
-                                      onRename={(f) => setFolderToRename(f)}
-                                      onMoveToCollection={
-                                        onMoveFolderToCollection
-                                          ? (f, colId) => onMoveFolderToCollection(f.id, colId)
-                                          : undefined
-                                      }
-                                      onToggleFavorite={(f) => {
-                                        if (onToggleFavoriteFolder) {
-                                          onToggleFavoriteFolder(f.id, !f.is_favorite);
-                                        }
-                                      }}
-                                      onDelete={(f) => setFolderToDelete(f)}
-                                      triggerClassName="opacity-0 group-hover:opacity-100"
-                                    />
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+          {/* 3. Albums (Google Drive style row with expand caret on left) */}
+          <div>
+            <div
+              onClick={() => {
+                onSelectAlbumsOverview();
+                onCloseMobile();
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+                isAlbumsOverviewActive
+                  ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+              }`}
+            >
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsAlbumsExpanded((p) => !p);
+                  }}
+                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
+                >
+                  {isAlbumsExpanded ? (
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  )}
+                </button>
+                <FolderPlus className={`w-4.5 h-4.5 ${isAlbumsOverviewActive ? "text-primary" : "text-on-surface-variant"}`} />
+                <span className="truncate">Albums</span>
               </div>
-            )}
-          </div>
 
-          {/* Standalone Albums Section */}
-          <div className="pt-3">
-            <div className="flex items-center justify-between px-2 py-2 text-xs font-semibold text-on-surface-variant tracking-wider uppercase">
-              <button
-                onClick={() => setIsAlbumsExpanded((p) => !p)}
-                className="flex items-center gap-1.5 hover:text-on-surface cursor-pointer transition-colors duration-200"
-              >
-                {isAlbumsExpanded ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-                <span>Albums</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsCreatingCollectionMode(false);
-                  setShowInlineNewAlbum(true);
-                }}
-                className="p-1.5 neo-raised active:neo-pressed rounded-md text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
-                title="Create New Album"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowInlineNewAlbum(true);
+                    setIsAlbumsExpanded(true);
+                  }}
+                  className="p-1 rounded-md text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
+                  title="Create New Album"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            {/* Inline New Album / Collection Input */}
+            {/* Inline New Album Input */}
             {showInlineNewAlbum && (
               <form
                 onSubmit={handleCreateAlbumSubmit}
@@ -662,7 +537,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="text"
                   value={newAlbumName}
                   onChange={(e) => setNewAlbumName(e.target.value)}
-                  placeholder={isCreatingCollectionMode ? "Collection name..." : "Album name..."}
+                  placeholder="Album name..."
                   autoFocus
                   className="flex-1 px-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant outline-none"
                 />
@@ -687,161 +562,119 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </form>
             )}
 
-            {/* Standalone Albums List (non-collections that are not in a collection) */}
+            {/* Expanded Albums List */}
             {isAlbumsExpanded && (
-              <div className="space-y-1 mt-1">
-                {/* All Albums Overview Link */}
-                <button
-                  onClick={() => {
-                    onSelectAlbumsOverview();
-                    onCloseMobile();
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
-                    isAlbumsOverviewActive
-                      ? "neo-pressed bg-surface-base text-primary"
-                      : "text-on-surface-variant hover:text-on-surface"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <FolderPlus className="w-5 h-5" />
-                    <span>All Albums Overview</span>
+              <div className="pl-6 pr-1 py-1 space-y-1">
+                {allAlbums.length === 0 && !showInlineNewAlbum ? (
+                  <div className="px-3 py-2 rounded-neo neo-pressed bg-surface-container/20 text-xs text-on-surface-variant/60 italic">
+                    No albums created yet
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
-                    {standaloneAlbums.length}
-                  </span>
-                </button>
+                ) : (
+                  allAlbums.map((album) => {
+                    const isSelected = activeFolder?.id === album.id;
+                    const isDragTarget = dragOverSidebarFolderId === album.id;
 
-                {/* Individual Standalone Album Items (Active Drop Targets) */}
-                {standaloneAlbums.map((folder) => {
-                  const isSelected = activeFolder?.id === folder.id;
-                  const isDragTarget = dragOverSidebarFolderId === folder.id;
-
-                  return (
-                    <div
-                      key={folder.id}
-                      onDragOver={(e) => handleDragOver(e, folder.id)}
-                      onDragLeave={handleDragLeave}
-                      onDrop={(e) => handleDrop(e, folder.id)}
-                      onClick={() => {
-                        onSelectFolder(folder);
-                        onCloseMobile();
-                      }}
-                      className={`group flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer ${
-                        isDragTarget
-                          ? "neo-pressed bg-surface-base text-primary ring-2 ring-primary scale-[1.02]"
-                          : isSelected
-                            ? "neo-pressed bg-surface-base text-primary"
-                            : "text-on-surface-variant hover:text-on-surface"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 truncate pr-2">
-                        <FolderIcon
-                          name={folder.icon || "Folder"}
-                          color={folder.color || (isDragTarget || isSelected ? "var(--color-primary, #6366f1)" : undefined)}
-                          className={`w-5 h-5 shrink-0 transition-colors ${
-                            folder.color
-                              ? ""
-                              : isDragTarget || isSelected
-                                ? "text-primary"
-                                : "text-on-surface-variant group-hover:text-on-surface"
-                          }`}
-                        />
-                        <span className="truncate">{folder.name}</span>
-                      </div>
-
-                      <div className="flex items-center gap-1 shrink-0">
-                        {isDragTarget ? (
-                          <span className="text-xs font-bold text-primary animate-pulse">
-                            Drop
-                          </span>
-                        ) : (
-                          <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
-                            {folder.item_count}
-                          </span>
-                        )}
-
-                        {/* 3-Dots Action Menu */}
-                        <FolderActionMenu
-                          folder={folder}
-                          collections={collections}
-                          onCustomize={(f) => setFolderToCustomize(f)}
-                          onSelectCover={(f) => setFolderToCover(f)}
-                          onRename={(f) => setFolderToRename(f)}
-                          onMoveToCollection={
-                            onMoveFolderToCollection
-                              ? (f, colId) => onMoveFolderToCollection(f.id, colId)
-                              : undefined
+                    return (
+                      <div
+                        key={album.id}
+                        onDragOver={(e) => handleDragOver(e, album.id)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, album.id)}
+                        onClick={() => {
+                          onSelectFolder(album);
+                          onCloseMobile();
+                        }}
+                        onContextMenu={(e) => {
+                          if (onFolderContextMenu) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onFolderContextMenu(e, album);
                           }
-                          onToggleFavorite={(f) => {
-                            if (onToggleFavoriteFolder) {
-                              onToggleFavoriteFolder(f.id, !f.is_favorite);
+                        }}
+                        className={`group flex items-center justify-between px-3 py-2 rounded-neo text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                          isDragTarget
+                            ? "neo-pressed bg-surface-base text-primary ring-2 ring-primary"
+                            : isSelected
+                              ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
+                              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/40"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate pr-2">
+                          <FolderIcon
+                            name={album.icon || "Folder"}
+                            color={album.color || (isSelected ? "var(--color-primary, #6366f1)" : undefined)}
+                            className="w-4 h-4 shrink-0"
+                          />
+                          <span className="truncate">{album.name}</span>
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <span className="text-[11px] px-1.5 py-0.5 rounded neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                            {album.item_count}
+                          </span>
+                          <FolderActionMenu
+                            folder={album}
+                            collections={collections}
+                            placement="right"
+                            onCustomize={(f) => setFolderToCustomize(f)}
+                            onSelectCover={(f) => setFolderToCover(f)}
+                            onRename={(f) => setFolderToRename(f)}
+                            onOpenMoveModal={(f) => setFolderToMove(f)}
+                            onMoveToCollection={
+                              onMoveFolderToCollection
+                                ? (f, colId) => onMoveFolderToCollection(f.id, colId)
+                                : undefined
                             }
-                          }}
-                          onDelete={(f) => setFolderToDelete(f)}
-                          triggerClassName="opacity-0 group-hover:opacity-100"
-                        />
+                            onToggleFavorite={(f) => {
+                              if (onToggleFavoriteFolder) {
+                                onToggleFavoriteFolder(f.id, !f.is_favorite);
+                              }
+                            }}
+                            onDelete={(f) => onDeleteFolder(f)}
+                            triggerClassName="opacity-0 group-hover:opacity-100"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
         </div>
 
         {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
-        {!isVaultCollapsed && (
-          <div className="p-4 m-3 neo-card rounded-neo-xl space-y-3.5 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            {/* Status indicator: Connected to */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                <span>Connected to</span>
-              </div>
-
-              {/* Channel Profile Photo & Channel Name (Bigger Prominent Layout) */}
-              <div className="flex items-center gap-3 min-w-0">
-                {stats?.channel_avatar_url ? (
-                  <img
-                    src={stats.channel_avatar_url}
-                    alt={stats.channel_name || "Vault"}
-                    className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-primary/30 shadow-md"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0 shadow-inner">
-                    <Cloud className="w-5 h-5 text-primary" />
-                  </div>
-                )}
-                <span className="text-base font-bold text-on-surface truncate tracking-tight" title={stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}>
-                  {stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
-                </span>
-              </div>
-            </div>
-
-            {stats ? (
-              <div className="space-y-3">
-                {/* Storage archived & Unlimited badge */}
-                <div className="flex items-baseline justify-between">
-                  <div>
-                    <span className="text-xl font-bold font-mono text-on-surface tracking-tight drop-shadow-sm">
-                      {stats.total_size_formatted}
-                    </span>
-                    <span className="text-xs text-on-surface-variant block mt-0.5">Archived in Cloud</span>
-                  </div>
-                  <div className="flex items-center justify-center px-2 py-1 rounded-lg neo-pressed bg-surface-base text-sm font-bold text-primary font-mono" title="Unlimited Storage">
-                    <span>∞</span>
-                  </div>
+        {!isVaultCollapsed && stats && (
+          <div className="p-4 m-3 neo-card rounded-neo-xl space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="space-y-3">
+              {/* Storage archived & Unlimited badge */}
+              <div className="flex items-baseline justify-between">
+                <div>
+                  <span className="text-xl font-bold font-mono text-on-surface tracking-tight drop-shadow-sm">
+                    {stats.total_size_formatted}
+                  </span>
+                  <span className="text-xs text-on-surface-variant block mt-0.5 font-medium">Archived in Cloud</span>
                 </div>
+                <div className="flex items-center justify-center px-2.5 py-1 rounded-lg neo-pressed bg-surface-base text-sm font-bold text-primary font-mono shadow-inner" title="Unlimited Storage">
+                  <span>∞</span>
+                </div>
+              </div>
 
                 {/* Photos & Videos Breakdown */}
                 <div className="grid grid-cols-2 gap-2 pt-3 border-t border-surface-container-high text-xs">
-                  <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
+                  <div
+                    className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
+                    title={`${stats.total_photos} Photos / Images`}
+                  >
                     <Images className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="truncate">{stats.total_photos} items</span>
+                    <span className="font-mono">{stats.total_photos}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
+                  <div
+                    className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
+                    title={`${stats.total_videos} Videos`}
+                  >
                     <Video className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="truncate">{stats.total_videos} items</span>
+                    <span className="font-mono">{stats.total_videos}</span>
                   </div>
                 </div>
 
@@ -912,9 +745,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="text-xs text-on-surface-variant py-2">Connecting to Telegram...</div>
-            )}
           </div>
         )}
 
@@ -986,44 +816,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </aside>
-
-      {/* Delete Album Modal Overlay */}
-      {folderToDelete && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="max-w-sm w-full bg-surface-base rounded-neo-xl p-6 neo-card text-center space-y-4 border border-outline-variant/15 shadow-2xl">
-            <div className="w-12 h-12 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mx-auto shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
-              <Trash2 className="w-6 h-6" />
-            </div>
-            <div>
-              <h4 className="text-base font-bold text-on-surface">Delete Album?</h4>
-              <p className="text-xs text-on-surface-variant mt-1 leading-relaxed">
-                Delete album <span className="text-on-surface font-semibold">"{folderToDelete.name}"</span>? Original photos and videos will remain safe in your vault.
-              </p>
-            </div>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                onClick={() => setFolderToDelete(null)}
-                disabled={isDeletingFolder}
-                className="flex-1 px-4 py-2.5 neo-button rounded-neo-lg text-on-surface text-xs font-semibold transition-all cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDeleteFolder}
-                disabled={isDeletingFolder}
-                className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-red-600/20 text-red-400 hover:bg-red-600/30 active:scale-95 disabled:opacity-50 rounded-neo-lg text-xs font-semibold transition-all cursor-pointer"
-              >
-                {isDeletingFolder ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
-                )}
-                <span>{isDeletingFolder ? "Deleting..." : "Delete Album"}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Cache Limit Configuration Modal */}
       {showCacheLimitModal && (
@@ -1146,6 +938,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
           onSaveCover={async (folderId, mediaId) => {
             if (onSetFolderCover) {
               await onSetFolderCover(folderId, mediaId);
+            }
+          }}
+        />
+      )}
+
+      {/* Move to Collection Modal */}
+      {folderToMove && (
+        <FolderMoveModal
+          folder={folderToMove}
+          collections={collections}
+          isOpen={Boolean(folderToMove)}
+          onClose={() => setFolderToMove(null)}
+          onMove={async (folderId, collectionId) => {
+            if (onMoveFolderToCollection) {
+              await onMoveFolderToCollection(folderId, collectionId);
             }
           }}
         />

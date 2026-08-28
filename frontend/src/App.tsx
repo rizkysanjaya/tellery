@@ -4,7 +4,8 @@
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
  *          multi-select system, virtual folders & icon/color customization, album favorites & rename,
- *          search, filtering, lightbox, drag-and-drop, context menus, Telegram vault uploads, and Telegram channel sync.
+ *          search, filtering, lightbox, drag-and-drop, context-aware right-click menus,
+ *          media delete confirmation modals with 10-second undo countdown, Telegram vault uploads, and Telegram channel sync.
  * Used by: frontend/src/main.tsx
  * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
  * Public Members: App
@@ -14,7 +15,8 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { UploadCloud, ChevronLeft } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { UploadCloud, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addMediaToFolder,
   createFolder,
@@ -45,6 +47,14 @@ import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
 import { AppToast, ToastNotification, ToastType } from "./components/ui/AppToast";
+import { FolderCustomizeModal } from "./components/ui/FolderCustomizeModal";
+import { FolderRenameModal } from "./components/ui/FolderRenameModal";
+import { FolderCoverModal } from "./components/ui/FolderCoverModal";
+import { FolderMoveModal } from "./components/ui/FolderMoveModal";
+import { FolderDeleteConfirmModal } from "./components/ui/FolderDeleteConfirmModal";
+import { MediaDeleteConfirmModal } from "./components/ui/MediaDeleteConfirmModal";
+import { DragDropDock } from "./components/ui/DragDropDock";
+import { DragStackedPreview } from "./components/ui/DragStackedPreview";
 import {
   ConflictResolutionAction,
   DisplayLayout,
@@ -64,6 +74,7 @@ export const App: React.FC = () => {
   const [groups, setGroups] = useState<TimelineGroup[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [activeFolder, setActiveFolder] = useState<FolderItem | null>(null);
+  const [selectedCollection, setSelectedCollection] = useState<FolderItem | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -96,6 +107,29 @@ export const App: React.FC = () => {
       // Ignore quota/storage errors
     }
   }, [theme]);
+
+  // Reactive state refs to eliminate stale closure problems across async callbacks & undo actions
+  const activeFolderRef = useRef<FolderItem | null>(null);
+  const activeFilterRef = useRef<FilterType>("all");
+  const debouncedSearchQueryRef = useRef<string>("");
+  const sortByRef = useRef<SortOption>("date_desc");
+  const groupsRef = useRef<TimelineGroup[]>([]);
+
+  useEffect(() => {
+    activeFolderRef.current = activeFolder;
+  }, [activeFolder]);
+
+  useEffect(() => {
+    activeFilterRef.current = activeFilter;
+  }, [activeFilter]);
+
+  useEffect(() => {
+    sortByRef.current = sortBy;
+  }, [sortBy]);
+
+  useEffect(() => {
+    groupsRef.current = groups;
+  }, [groups]);
 
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
@@ -134,6 +168,12 @@ export const App: React.FC = () => {
   // Context Menu State
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
 
+  // Modals triggered via Context Menu or Direct Actions
+  const [folderToCustomize, setFolderToCustomize] = useState<FolderItem | null>(null);
+  const [folderToRename, setFolderToRename] = useState<FolderItem | null>(null);
+  const [folderToCover, setFolderToCover] = useState<FolderItem | null>(null);
+  const [folderToMove, setFolderToMove] = useState<FolderItem | null>(null);
+
   // Upload Tasks Queue State & Hidden File Input Ref
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -171,6 +211,10 @@ export const App: React.FC = () => {
     }, 150);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  useEffect(() => {
+    debouncedSearchQueryRef.current = debouncedSearchQuery;
+  }, [debouncedSearchQuery]);
 
   const loadFolders = useCallback(() => {
     setLoadingFolders(true);
@@ -258,6 +302,58 @@ export const App: React.FC = () => {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const [draggedMediaState, setDraggedMediaState] = useState<{
+    isDragging: boolean;
+    primaryItem: MediaItem | null;
+    mediaIds: number[];
+  }>({
+    isDragging: false,
+    primaryItem: null,
+    mediaIds: [],
+  });
+
+  // Track global internal drag start & end for DragStackedPreview & DragDropDock
+  useEffect(() => {
+    const handleGlobalDragStart = (e: DragEvent) => {
+      const cardEl = (e.target as HTMLElement)?.closest?.(".media-card-item");
+      if (cardEl) {
+        let ids: number[] = [];
+        if (selectedIds.size > 0) {
+          ids = Array.from(selectedIds);
+        }
+
+        const allItems = groups.flatMap((g) => g.items);
+        const primary = ids.length > 0
+          ? allItems.find((m) => m.id === ids[0]) || allItems[0] || null
+          : allItems[0] || null;
+
+        setDraggedMediaState({
+          isDragging: true,
+          primaryItem: primary,
+          mediaIds: ids.length > 0 ? ids : primary ? [primary.id] : [],
+        });
+      }
+    };
+
+    const handleGlobalDragEnd = () => {
+      setDraggedMediaState({
+        isDragging: false,
+        primaryItem: null,
+        mediaIds: [],
+      });
+    };
+
+    window.addEventListener("dragstart", handleGlobalDragStart);
+    window.addEventListener("dragend", handleGlobalDragEnd);
+    window.addEventListener("drop", handleGlobalDragEnd);
+
+    return () => {
+      window.removeEventListener("dragstart", handleGlobalDragStart);
+      window.removeEventListener("dragend", handleGlobalDragEnd);
+      window.removeEventListener("drop", handleGlobalDragEnd);
+    };
+  }, [groups, selectedIds]);
 
   // Global Keyboard Shortcuts (Escape to clear/close, Ctrl+A / Cmd+A to select all)
   useEffect(() => {
@@ -423,14 +519,20 @@ export const App: React.FC = () => {
     }
   };
 
-  // 5-Second Undo Delete State
+  // 10-Second Undo Delete State & Confirmation Modal State
+  const DELETE_UNDO_DURATION_MS = 10000;
+  const [mediaToDelete, setMediaToDelete] = useState<MediaItem[] | null>(null);
   const [pendingDeletion, setPendingDeletion] = useState<{
+    id: number;
     items: MediaItem[];
     message: string;
+    previousGroups?: TimelineGroup[];
   } | null>(null);
   const pendingDeletionRef = useRef<{
+    id: number;
     items: MediaItem[];
     message: string;
+    previousGroups?: TimelineGroup[];
   } | null>(null);
   const pendingDeletionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -470,35 +572,72 @@ export const App: React.FC = () => {
     const current = pendingDeletionRef.current;
     if (!current) return;
 
-    // Restore items optimistically to timeline
+    // Clear pending state
     const restoredItems = current.items;
+    const previousSnapshot = current.previousGroups;
     setPendingDeletion(null);
     pendingDeletionRef.current = null;
 
-    setGroups((prev) => {
-      const next = [...prev];
-      for (const item of restoredItems) {
-        const dateKey = item.date_taken
-          ? item.date_taken.split("T")[0]
-          : "Unknown Date";
-        const groupIndex = next.findIndex((g) => g.period_key === dateKey);
-        if (groupIndex >= 0) {
-          if (!next[groupIndex].items.some((i) => i.id === item.id)) {
-            next[groupIndex] = {
-              ...next[groupIndex],
-              items: [item, ...next[groupIndex].items],
-            };
+    // 1. Instant 0ms Optimistic UI Restoration (for active album or timeline)
+    if (previousSnapshot && previousSnapshot.length > 0) {
+      setGroups(previousSnapshot.map((g) => ({ ...g, items: [...g.items] })));
+    } else {
+      // Fallback: restore items with accurate YYYY-MM group matching
+      setGroups((prev) => {
+        const next = prev.map((g) => ({ ...g, items: [...g.items] }));
+        for (const item of restoredItems) {
+          const rawDate = item.date_taken || item.created_at;
+          const monthKey = rawDate ? rawDate.slice(0, 7) : "unknown";
+          const dateObj = rawDate ? new Date(rawDate) : null;
+          const periodTitle =
+            dateObj && !isNaN(dateObj.getTime())
+              ? dateObj.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+              : "Unknown Date";
+
+          const groupIndex = next.findIndex((g) => g.period_key === monthKey);
+          if (groupIndex >= 0) {
+            if (!next[groupIndex].items.some((i) => i.id === item.id)) {
+              const updatedItems = [item, ...next[groupIndex].items];
+              next[groupIndex] = {
+                ...next[groupIndex],
+                items: updatedItems,
+                count: updatedItems.length,
+                period: next[groupIndex].period || periodTitle,
+                period_title: next[groupIndex].period_title || periodTitle,
+              };
+            }
+          } else {
+            next.unshift({
+              period_key: monthKey,
+              period_title: periodTitle,
+              period: periodTitle,
+              count: 1,
+              items: [item],
+            });
           }
-        } else {
-          next.unshift({
-            period_key: dateKey,
-            period_title: dateKey,
-            items: [item],
-          });
         }
-      }
-      return next;
-    });
+        return next;
+      });
+    }
+
+    // 2. Synchronize current view (Timeline or Active Album) in background so no page refresh is ever needed
+    const currentFolderId = activeFolderRef.current ? activeFolderRef.current.id : null;
+    fetchTimeline(
+      0,
+      100,
+      activeFilterRef.current,
+      debouncedSearchQueryRef.current,
+      currentFolderId,
+      sortByRef.current
+    )
+      .then((res) => {
+        setGroups(res.groups);
+      })
+      .catch(console.error);
+
+    // 3. Refresh album counts and storage stats
+    fetchFolders().then(setFolders).catch(console.error);
+    fetchStats().then(setStats).catch(console.error);
   }, []);
 
   const queueDeleteItems = useCallback(
@@ -511,14 +650,22 @@ export const App: React.FC = () => {
       }
 
       const idsToDelete = new Set(itemsToDelete.map((i) => i.id));
+      const previousGroupsSnapshot = groupsRef.current.map((g) => ({
+        ...g,
+        items: [...g.items],
+      }));
 
-      // Optimistic UI Removal: Remove items from current timeline view immediately
+      // Optimistic UI Removal: Remove items from current timeline / album view immediately
       setGroups((prev) =>
         prev
-          .map((group) => ({
-            ...group,
-            items: group.items.filter((item) => !idsToDelete.has(item.id)),
-          }))
+          .map((group) => {
+            const remainingItems = group.items.filter((item) => !idsToDelete.has(item.id));
+            return {
+              ...group,
+              count: remainingItems.length,
+              items: remainingItems,
+            };
+          })
           .filter((group) => group.items.length > 0)
       );
 
@@ -540,22 +687,40 @@ export const App: React.FC = () => {
           : `Deleted ${itemsToDelete.length} items`;
 
       const newPending = {
+        id: Date.now(),
         items: itemsToDelete,
         message,
+        previousGroups: previousGroupsSnapshot,
       };
       setPendingDeletion(newPending);
       pendingDeletionRef.current = newPending;
 
-      // Schedule 5-second automatic commit
+      // Schedule 10-second automatic commit
       if (pendingDeletionTimeoutRef.current) {
         clearTimeout(pendingDeletionTimeoutRef.current);
       }
       pendingDeletionTimeoutRef.current = setTimeout(() => {
         commitPendingDeletion();
-      }, 5000);
+      }, DELETE_UNDO_DURATION_MS);
     },
     [commitPendingDeletion, selectedMedia]
   );
+
+  const handlePromptDeleteMedia = async (mediaIds?: number[]) => {
+    const ids = mediaIds || Array.from(selectedIds);
+    const idSet = new Set(ids);
+    const itemsToDelete = flatItems.filter((i) => idSet.has(i.id));
+    if (itemsToDelete.length > 0) {
+      setMediaToDelete(itemsToDelete);
+    }
+  };
+
+  const handleConfirmMediaDelete = () => {
+    if (mediaToDelete && mediaToDelete.length > 0) {
+      queueDeleteItems(mediaToDelete);
+    }
+    setMediaToDelete(null);
+  };
 
   const handleBulkDeleteSelected = async (mediaIds?: number[]) => {
     const ids = mediaIds || Array.from(selectedIds);
@@ -783,7 +948,7 @@ export const App: React.FC = () => {
       (f) => f.name.toLowerCase() === cleanName.toLowerCase()
     );
     if (exists) {
-      showToast(`An album named "${cleanName}" already exists.`, "warning");
+      showToast(`A ${isCollection ? "collection" : "album"} named "${cleanName}" already exists.`, "warning");
       return;
     }
 
@@ -797,6 +962,8 @@ export const App: React.FC = () => {
   };
 
   const handleMoveToCollection = async (folderId: number, collectionId: number | null) => {
+    const target = folders.find((f) => f.id === folderId);
+    const destCollection = collectionId ? folders.find((f) => f.id === collectionId) : null;
     try {
       const updated = await updateFolder(folderId, { parent_id: collectionId });
       setFolders((prev) =>
@@ -804,7 +971,9 @@ export const App: React.FC = () => {
       );
       loadFolders();
       showToast(
-        collectionId ? "Album moved to Collection" : "Album ungrouped from Collection",
+        destCollection
+          ? `Album "${target?.name || ''}" moved to Collection "${destCollection.name}"`
+          : `Album "${target?.name || ''}" ungrouped from Collection`,
         "success"
       );
     } catch (err: any) {
@@ -812,20 +981,42 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleDeleteFolder = async (folderId: number) => {
+  const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+
+  const handlePromptDeleteFolder = (folder: FolderItem | number) => {
+    if (typeof folder === "number") {
+      const found = folders.find((f) => f.id === folder);
+      if (found) setFolderToDelete(found);
+    } else {
+      setFolderToDelete(folder);
+    }
+  };
+
+  const handleConfirmDeleteFolder = async () => {
+    if (!folderToDelete) return;
+    setIsDeletingFolder(true);
+    const target = folderToDelete;
+    const entityType = target.is_collection ? "Collection" : "Album";
+    const entityName = target.name || "";
     try {
-      await deleteFolder(folderId);
-      if (activeFolder && activeFolder.id === folderId) {
+      await deleteFolder(target.id);
+      if (activeFolder && activeFolder.id === target.id) {
         setActiveFolder(null);
       }
+      setFolderToDelete(null);
       loadFolders();
-      showToast("Album / Collection removed", "info");
+      showToast(`${entityType} "${entityName}" deleted`, "info");
     } catch (err: any) {
-      showToast(err.message || "Failed to delete album.", "error");
+      showToast(err.message || `Failed to delete ${entityType.toLowerCase()}.`, "error");
+    } finally {
+      setIsDeletingFolder(false);
     }
   };
 
   const handleUpdateFolderColor = async (folderId: number, color: string | null) => {
+    const target = folders.find((f) => f.id === folderId);
+    const entityType = target?.is_collection ? "Collection" : "Album";
     try {
       const updated = await updateFolderColor(folderId, color);
       setFolders((prev) =>
@@ -834,13 +1025,15 @@ export const App: React.FC = () => {
       if (activeFolder && activeFolder.id === folderId) {
         setActiveFolder((prev) => (prev ? { ...prev, color: updated.color } : null));
       }
-      showToast(color ? "Album color updated" : "Album color reset", "info");
+      showToast(color ? `${entityType} color updated` : `${entityType} color reset`, "info");
     } catch (err: any) {
-      showToast(err.message || "Failed to update album color.", "error");
+      showToast(err.message || `Failed to update ${entityType.toLowerCase()} color.`, "error");
     }
   };
 
   const handleRenameFolder = async (folderId: number, newName: string) => {
+    const target = folders.find((f) => f.id === folderId);
+    const entityType = target?.is_collection ? "Collection" : "Album";
     try {
       const updated = await updateFolder(folderId, { name: newName });
       setFolders((prev) =>
@@ -849,14 +1042,16 @@ export const App: React.FC = () => {
       if (activeFolder && activeFolder.id === folderId) {
         setActiveFolder((prev) => (prev ? { ...prev, name: updated.name } : null));
       }
-      showToast(`Album renamed to "${updated.name}"`, "success");
+      showToast(`${entityType} renamed to "${updated.name}"`, "success");
     } catch (err: any) {
-      showToast(err.message || "Failed to rename album.", "error");
+      showToast(err.message || `Failed to rename ${entityType.toLowerCase()}.`, "error");
       throw err;
     }
   };
 
   const handleCustomizeFolder = async (folderId: number, color: string | null, icon: string) => {
+    const target = folders.find((f) => f.id === folderId);
+    const entityType = target?.is_collection ? "Collection" : "Album";
     try {
       const updated = await updateFolder(folderId, { color, icon });
       setFolders((prev) =>
@@ -869,14 +1064,16 @@ export const App: React.FC = () => {
           prev ? { ...prev, color: updated.color, icon: updated.icon } : null
         );
       }
-      showToast("Album style updated!", "success");
+      showToast(`${entityType} style updated!`, "success");
     } catch (err: any) {
-      showToast(err.message || "Failed to customize album.", "error");
+      showToast(err.message || `Failed to customize ${entityType.toLowerCase()}.`, "error");
       throw err;
     }
   };
 
   const handleToggleFavoriteFolder = async (folderId: number, isFavorite: boolean) => {
+    const target = folders.find((f) => f.id === folderId);
+    const entityType = target?.is_collection ? "Collection" : "Album";
     try {
       const updated = await updateFolder(folderId, { is_favorite: isFavorite });
       setFolders((prev) =>
@@ -890,7 +1087,7 @@ export const App: React.FC = () => {
         );
       }
       showToast(
-        updated.is_favorite ? "Added to Favorites" : "Removed from Favorites",
+        updated.is_favorite ? `Added ${entityType.toLowerCase()} to Favorites` : `Removed ${entityType.toLowerCase()} from Favorites`,
         "info"
       );
     } catch (err: any) {
@@ -899,6 +1096,8 @@ export const App: React.FC = () => {
   };
 
   const handleSetFolderCover = async (folderId: number, mediaId: number | null) => {
+    const target = folders.find((f) => f.id === folderId);
+    const entityType = target?.is_collection ? "Collection" : "Album";
     try {
       const updated = await updateFolder(folderId, { cover_media_id: mediaId });
       setFolders((prev) =>
@@ -924,11 +1123,11 @@ export const App: React.FC = () => {
         );
       }
       showToast(
-        mediaId ? "Album cover thumbnail updated!" : "Album cover reset to latest added",
+        mediaId ? `${entityType} cover thumbnail updated!` : `${entityType} cover reset to latest added`,
         "success"
       );
     } catch (err: any) {
-      showToast(err.message || "Failed to update cover thumbnail.", "error");
+      showToast(err.message || `Failed to update ${entityType.toLowerCase()} cover.`, "error");
       throw err;
     }
   };
@@ -978,18 +1177,30 @@ export const App: React.FC = () => {
     setContextMenu({
       x: e.clientX,
       y: e.clientY,
+      targetType: "media",
       targetItem: item,
+    });
+  };
+
+  const handleFolderContextMenu = (e: React.MouseEvent, folder: FolderItem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      x: e.clientX,
+      y: e.clientY,
+      targetType: "folder",
+      targetFolder: folder,
     });
   };
 
   const handleCanvasContextMenu = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (!target.closest(".media-card-item")) {
+    if (!target.closest(".media-card-item") && !target.closest(".folder-card-item")) {
       e.preventDefault();
       setContextMenu({
         x: e.clientX,
         y: e.clientY,
-        targetItem: null,
+        targetType: "canvas",
       });
     }
   };
@@ -1094,11 +1305,13 @@ export const App: React.FC = () => {
         onSelectTimeline={() => {
           setCurrentView("timeline");
           setActiveFolder(null);
+          setSelectedCollection(null);
           setSelectedIds(new Set());
         }}
         onSelectAlbumsOverview={() => {
           setCurrentView("albums");
           setActiveFolder(null);
+          setSelectedCollection(null);
           setSelectedIds(new Set());
         }}
         onSelectFolder={(folder) => {
@@ -1107,16 +1320,16 @@ export const App: React.FC = () => {
           setSelectedIds(new Set());
         }}
         onCreateFolder={handleCreateFolder}
-        onDeleteFolder={handleDeleteFolder}
+        onDeleteFolder={handlePromptDeleteFolder}
         onRenameFolder={handleRenameFolder}
         onCustomizeFolder={handleCustomizeFolder}
         onSetFolderCover={handleSetFolderCover}
         onToggleFavoriteFolder={handleToggleFavoriteFolder}
         onMoveFolderToCollection={handleMoveToCollection}
         onAddMediaToFolder={handleBulkAddToFolder}
-        onUpdateFolderColor={handleUpdateFolderColor}
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
         onSyncVault={handleSyncVault}
+        onFolderContextMenu={handleFolderContextMenu}
         isSyncing={isSyncing}
       />
 
@@ -1125,6 +1338,7 @@ export const App: React.FC = () => {
         {/* Top Search & Filter Header */}
         <Header
           currentView={currentView}
+          activeFolder={activeFolder}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           activeFilter={activeFilter}
@@ -1142,39 +1356,76 @@ export const App: React.FC = () => {
         {/* Main Content Viewport */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 pt-6">
           {/* Active Folder Breadcrumb Bar */}
-          {activeFolder && (
-            <div className="flex items-center justify-between mb-6 pb-4 border-b border-outline-variant/15 animate-in fade-in duration-200">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setActiveFolder(null)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-surface-base neo-button text-on-surface-variant hover:text-on-surface rounded-xl text-xs font-semibold transition-all cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>All Photos</span>
-                </button>
-                <div className="h-4 w-px bg-outline-variant/20" />
-                <div className="flex items-center gap-2">
-                  <FolderIcon
-                    name={activeFolder.icon || "Folder"}
-                    color={activeFolder.color || "var(--color-primary, #6366f1)"}
-                    className="w-4 h-4"
-                  />
-                  <h2 className="text-lg font-bold text-on-surface">{activeFolder.name}</h2>
+          {activeFolder && (() => {
+            const parentCollection = activeFolder.parent_id
+              ? folders.find((f) => f.id === activeFolder.parent_id)
+              : null;
+
+            return (
+              <div className="flex items-center justify-between mb-6 pb-3.5 border-b border-outline-variant/15 animate-in fade-in duration-200">
+                <div className="flex items-center flex-wrap gap-2 text-sm">
+                  {/* Far-left Back button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveFolder(null);
+                      setSelectedCollection(parentCollection || null);
+                      setCurrentView("albums");
+                    }}
+                    className="flex items-center gap-1 font-semibold text-primary hover:text-primary-hover hover:underline cursor-pointer transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>Back</span>
+                  </button>
+
+                  {/* Parent Collection Trail (if inside a collection) */}
+                  {parentCollection && (
+                    <>
+                      <ChevronRight className="w-3.5 h-3.5 text-on-surface-variant/40" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveFolder(null);
+                          setSelectedCollection(parentCollection);
+                          setCurrentView("albums");
+                        }}
+                        className="font-medium text-on-surface-variant hover:text-primary hover:underline cursor-pointer transition-colors"
+                      >
+                        {parentCollection.name}
+                      </button>
+                    </>
+                  )}
+
+                  <ChevronRight className="w-3.5 h-3.5 text-on-surface-variant/40" />
+
+                  {/* Current Active Album */}
+                  <div className="flex items-center gap-1.5 font-bold text-on-surface">
+                    <FolderIcon
+                      name={activeFolder.icon || "Folder"}
+                      color={activeFolder.color || "var(--color-primary, #6366f1)"}
+                      className="w-4 h-4"
+                    />
+                    <span>{activeFolder.name}</span>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* View Switcher: Albums Grid vs Timeline Grid */}
           {currentView === "albums" && !activeFolder ? (
             <FolderGrid
               folders={folders}
+              selectedCollection={selectedCollection}
+              onSelectCollection={setSelectedCollection}
+              searchQuery={searchQuery}
+              onClearSearch={() => setSearchQuery("")}
               onSelectFolder={(folder) => {
                 setActiveFolder(folder);
                 setCurrentView("timeline");
               }}
               onCreateFolder={handleCreateFolder}
-              onDeleteFolder={handleDeleteFolder}
+              onDeleteFolder={handlePromptDeleteFolder}
               onRenameFolder={handleRenameFolder}
               onCustomizeFolder={handleCustomizeFolder}
               onSetFolderCover={handleSetFolderCover}
@@ -1182,12 +1433,17 @@ export const App: React.FC = () => {
               onMoveFolderToCollection={handleMoveToCollection}
               onAddMediaToFolder={handleBulkAddToFolder}
               onUpdateFolderColor={handleUpdateFolderColor}
+              onFolderContextMenu={handleFolderContextMenu}
+              onCanvasContextMenu={handleCanvasContextMenu}
               loading={loadingFolders}
             />
           ) : (
             <TimelineGrid
               groups={groups}
               selectedIds={selectedIds}
+              searchQuery={searchQuery}
+              onClearSearch={() => setSearchQuery("")}
+              activeFolderName={activeFolder?.name}
               layout={displayLayout}
               sortBy={sortBy}
               onSortChange={handleSortChange}
@@ -1202,24 +1458,34 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Multi-Select Floating Toolbar Container (Flexbox centered between sidebar and right edge) */}
-      {selectedIds.size > 0 && (
-        <div className="fixed bottom-7 left-0 right-0 md:left-64 pointer-events-none flex justify-center z-40 px-4">
-          <SelectionToolbar
-            selectedCount={selectedIds.size}
-            folders={folders}
-            onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
-            onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
-            onDeleteSelected={() => handleBulkDeleteSelected()}
-            onDeselectAll={handleDeselectAll}
-          />
-        </div>
-      )}
+      {/* Multi-Select Floating Toolbar Container (Flexbox centered between sidebar and right edge; fades out when dragging) */}
+      <AnimatePresence>
+        {selectedIds.size > 0 && !draggedMediaState.isDragging && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 420, damping: 28 }}
+            className="fixed bottom-7 left-0 right-0 md:left-64 pointer-events-none flex justify-center z-40 px-4"
+          >
+            <SelectionToolbar
+              selectedCount={selectedIds.size}
+              folders={folders}
+              onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
+              onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
+              onDeleteSelected={() => handleBulkDeleteSelected()}
+              onDeselectAll={handleDeselectAll}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Custom Context Menu */}
       {contextMenu && (
         <ContextMenu
           position={contextMenu}
+          currentView={currentView}
+          activeFolder={activeFolder}
           selectedIds={selectedIds}
           folders={folders}
           onClose={() => setContextMenu(null)}
@@ -1228,11 +1494,73 @@ export const App: React.FC = () => {
           onSelectAll={handleSelectAllGlobal}
           onAddToFolder={handleBulkAddToFolder}
           onCreateFolderAndAdd={handleBulkCreateFolderAndAdd}
-          onDeleteMedia={handleBulkDeleteSelected}
+          onDeleteMedia={handlePromptDeleteMedia}
           onTriggerUpload={() => hiddenFileInputRef.current?.click()}
           onCreateFolder={handleCreateFolder}
+          onSelectFolder={(folder) => {
+            setActiveFolder(folder);
+            setCurrentView("timeline");
+          }}
+          onRenameFolder={(folder) => setFolderToRename(folder)}
+          onCustomizeFolder={(folder) => setFolderToCustomize(folder)}
+          onSetFolderCover={(folder) => setFolderToCover(folder)}
+          onOpenMoveModal={(folder) => setFolderToMove(folder)}
+          onToggleFavoriteFolder={handleToggleFavoriteFolder}
+          onDeleteFolder={handlePromptDeleteFolder}
+          onBackToOverview={() => {
+            setActiveFolder(null);
+            setCurrentView("albums");
+          }}
+          onRefreshData={loadData}
         />
       )}
+
+      {/* Global Folder Modals (triggered via Context Menu or Direct Actions) */}
+      {folderToCustomize && (
+        <FolderCustomizeModal
+          folder={folderToCustomize}
+          isOpen={Boolean(folderToCustomize)}
+          onClose={() => setFolderToCustomize(null)}
+          onSave={handleCustomizeFolder}
+        />
+      )}
+
+      {folderToRename && (
+        <FolderRenameModal
+          folder={folderToRename}
+          isOpen={Boolean(folderToRename)}
+          onClose={() => setFolderToRename(null)}
+          onRename={handleRenameFolder}
+        />
+      )}
+
+      {folderToCover && (
+        <FolderCoverModal
+          folder={folderToCover}
+          isOpen={Boolean(folderToCover)}
+          onClose={() => setFolderToCover(null)}
+          onSaveCover={handleSetFolderCover}
+        />
+      )}
+
+      {folderToMove && (
+        <FolderMoveModal
+          folder={folderToMove}
+          collections={folders.filter((f) => f.is_collection)}
+          isOpen={Boolean(folderToMove)}
+          onClose={() => setFolderToMove(null)}
+          onMove={handleMoveToCollection}
+        />
+      )}
+
+      {/* Global Folder Delete Confirmation Dialog */}
+      <FolderDeleteConfirmModal
+        isOpen={Boolean(folderToDelete)}
+        folder={folderToDelete}
+        onConfirm={handleConfirmDeleteFolder}
+        onCancel={() => setFolderToDelete(null)}
+        isDeleting={isDeletingFolder}
+      />
 
       {/* Google Drive-Style Floating Upload Queue Manager */}
       <UploadManager
@@ -1319,13 +1647,60 @@ export const App: React.FC = () => {
         onToggleTheme={handleToggleTheme}
       />
 
-      {/* 5-Second Undo Delete Toast */}
+      {/* Media Delete Confirmation Dialog */}
+      <MediaDeleteConfirmModal
+        isOpen={Boolean(mediaToDelete && mediaToDelete.length > 0)}
+        items={mediaToDelete || []}
+        onConfirm={handleConfirmMediaDelete}
+        onCancel={() => setMediaToDelete(null)}
+      />
+
+      {/* 10-Second Undo Delete Toast */}
       <UndoToast
+        key={pendingDeletion?.id || "empty"}
+        actionId={pendingDeletion?.id}
         isOpen={!!pendingDeletion}
         message={pendingDeletion?.message || ""}
-        durationMs={5000}
+        durationMs={DELETE_UNDO_DURATION_MS}
         onUndo={handleUndoDelete}
         onCommit={commitPendingDeletion}
+      />
+
+      {/* Stacked Card Deck Drag Preview with Counter Badge */}
+      <DragStackedPreview
+        isDragging={draggedMediaState.isDragging}
+        draggedItem={draggedMediaState.primaryItem}
+        draggedCount={draggedMediaState.mediaIds.length}
+      />
+
+      {/* Google Drive Style Bottom Fluid Action Drop Dock */}
+      <DragDropDock
+        isVisible={draggedMediaState.isDragging && draggedMediaState.mediaIds.length > 0}
+        folders={folders}
+        draggedMediaIds={draggedMediaState.mediaIds}
+        onDropTrash={(ids) => {
+          const allItems = groups.flatMap((g) => g.items);
+          const itemsToDelete = allItems.filter((i) => ids.includes(i.id));
+          if (itemsToDelete.length > 0) {
+            setMediaToDelete(itemsToDelete);
+          }
+        }}
+        onDropAlbum={(folderId, ids) => {
+          handleBulkAddToFolder(folderId, ids);
+        }}
+        onDropFavorite={async (ids) => {
+          const favFolder = folders.find((f) => f.name.toLowerCase() === "favorites" || f.is_favorite);
+          if (favFolder) {
+            await handleBulkAddToFolder(favFolder.id, ids);
+            showToast(`Added ${ids.length} ${ids.length === 1 ? "item" : "items"} to Favorites`, "success");
+          } else {
+            showToast(`No Favorites album found to store favorited items`, "info");
+          }
+        }}
+        onDropDeselect={() => {
+          setSelectedIds(new Set());
+          setLastSelectedId(null);
+        }}
       />
 
       {/* Global In-App Notification Toasts */}

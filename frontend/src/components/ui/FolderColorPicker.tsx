@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/ui/FolderColorPicker.tsx
  * Purpose: Hover-triggered 4×4 color palette popover for folder icon customization.
- *          Shows 16 curated stock colors matching the Silk Cloud dark theme.
+ *          Shows 16 curated stock colors matching Silk Cloud Light & Dark themes.
  * Used by: Sidebar.tsx (album list), FolderGrid.tsx (album cards).
  * Dependencies: React, lucide-react (RotateCcw).
  * Public Members: FolderColorPicker, FOLDER_PALETTE
@@ -29,33 +29,26 @@ export const FOLDER_PALETTE: string[] = [
   "#22c55e", // Green
   "#14b8a6", // Teal
   "#06b6d4", // Cyan
-  "#3b82f6", // Blue
+  "#0ea5e9", // Sky
   "#64748b", // Slate
 ];
 
 interface FolderColorPickerProps {
-  /** Currently applied color (null = default theme color) */
   currentColor: string | null;
-  /** Callback when a color is selected. null = reset to default. */
   onColorSelect: (color: string | null) => void;
-  /** Preferred placement of the popover relative to the trigger */
-  placement?: "bottom-left" | "bottom-right" | "top-left" | "top-right";
-  /** Optional: extra class name for the trigger wrapper */
-  className?: string;
-  /** The folder icon element to wrap */
   children: React.ReactNode;
+  placement?: "top" | "bottom" | "left" | "right";
 }
 
 export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
   currentColor,
   onColorSelect,
-  placement = "bottom-left",
-  className = "",
   children,
+  placement = "bottom",
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const closeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleMouseEnter = () => {
     if (closeTimerRef.current) {
@@ -68,39 +61,40 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
   const handleMouseLeave = () => {
     closeTimerRef.current = setTimeout(() => {
       setIsOpen(false);
-    }, 280);
+    }, 200);
   };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleSelect = (color: string | null) => {
     onColorSelect(color);
     setIsOpen(false);
   };
 
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
-
-  // Compute position classes according to placement prop
   const getPlacementClasses = () => {
     switch (placement) {
-      case "top-left":
-        return "bottom-full left-0 mb-2";
-      case "top-right":
-        return "bottom-full right-0 mb-2";
-      case "bottom-right":
-        return "top-full right-0 mt-2";
-      case "bottom-left":
+      case "top":
+        return "bottom-full left-1/2 -translate-x-1/2 mb-2";
+      case "left":
+        return "right-full top-1/2 -translate-y-1/2 mr-2";
+      case "right":
+        return "left-full top-1/2 -translate-y-1/2 ml-2";
+      case "bottom":
       default:
-        return "top-full left-0 mt-2";
+        return "top-full left-1/2 -translate-x-1/2 mt-2";
     }
   };
 
   return (
     <div
       ref={containerRef}
-      className={`relative inline-flex items-center ${className}`}
+      className="relative inline-block"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
@@ -112,7 +106,7 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
       {/* Palette Popover */}
       {isOpen && (
         <div
-          className={`absolute ${getPlacementClasses()} z-50 p-3 rounded-2xl neo-card bg-[#141d33] border border-outline-variant/30 shadow-[0_12px_36px_rgba(0,0,0,0.55)] min-w-[152px] animate-in fade-in zoom-in-95 duration-150 select-none`}
+          className={`absolute ${getPlacementClasses()} z-50 p-3 rounded-2xl neo-card bg-surface-base border border-outline-variant/30 shadow-2xl min-w-[152px] animate-in fade-in zoom-in-95 duration-150 select-none`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2 text-center">
@@ -133,7 +127,7 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
                   }}
                   className={`w-6 h-6 rounded-full transition-transform duration-150 cursor-pointer hover:scale-125 focus:outline-hidden ${
                     isSelected
-                      ? "ring-2 ring-white ring-offset-2 ring-offset-[#141d33] scale-110 shadow-md"
+                      ? "ring-2 ring-primary ring-offset-2 ring-offset-surface-base scale-110 shadow-md"
                       : "hover:shadow-sm"
                   }`}
                   style={{ backgroundColor: color }}
@@ -151,7 +145,7 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
                 e.stopPropagation();
                 handleSelect(null);
               }}
-              className="mt-2.5 w-full flex items-center justify-center gap-1.5 text-[11px] font-medium text-on-surface-variant hover:text-on-surface py-1 rounded-lg hover:bg-surface-base/80 transition-colors cursor-pointer border-t border-outline-variant/15 pt-2"
+              className="mt-2.5 w-full flex items-center justify-center gap-1.5 text-[11px] font-medium text-on-surface-variant hover:text-on-surface py-1 rounded-lg hover:bg-surface-container-high transition-colors cursor-pointer border-t border-outline-variant/15 pt-2"
             >
               <RotateCcw className="w-3 h-3" />
               <span>Default Color</span>
