@@ -4,12 +4,12 @@
  * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
  *          Favorites section, Collections accordion, Trash recovery view navigation,
- *          right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
+ *          right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, export ZIP, delete).
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
  * Side Effects: Triggers view changes (timeline, albums, favorites, trash), album selection, media drop-to-album assignments, right-click context menu,
- *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, and favorite toggling.
+ *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, ZIP export, and favorite toggling.
  * =============================================================================
  */
 
@@ -68,6 +68,7 @@ interface SidebarProps {
   onAddMediaToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onTriggerUpload: () => void;
   onSyncVault?: () => Promise<void>;
+  onExportFolderZip?: (folder: FolderItem) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folder: FolderItem) => void;
   isSyncing?: boolean;
 }
@@ -95,6 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddMediaToFolder,
   onTriggerUpload,
   onSyncVault,
+  onExportFolderZip,
   onFolderContextMenu,
   isSyncing = false,
 }) => {
@@ -504,6 +506,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   onToggleFavoriteFolder(f.id, !f.is_favorite);
                                 }
                               }}
+                              onExportZip={onExportFolderZip}
                               onDelete={(f) => onDeleteFolder(f)}
                               triggerClassName="opacity-0 group-hover:opacity-100"
                             />
@@ -666,6 +669,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 onToggleFavoriteFolder(f.id, !f.is_favorite);
                               }
                             }}
+                            onExportZip={onExportFolderZip}
                             onDelete={(f) => onDeleteFolder(f)}
                             triggerClassName="opacity-0 group-hover:opacity-100"
                           />

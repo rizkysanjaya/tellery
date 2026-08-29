@@ -7,7 +7,7 @@ Dependencies: pydantic, typing
 Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse,
                 FolderResponse, CreateFolderRequest, AddMediaToFolderRequest,
                 UpdateFolderColorRequest, FavoriteMediaRequest, BulkFavoriteMediaRequest,
-                RestoreMediaBatchRequest, TrashResponse
+                RestoreMediaBatchRequest, BatchDownloadRequest, TrashResponse
 Side Effects: None
 =============================================================================
 """
@@ -40,6 +40,12 @@ class MediaItemResponse(BaseModel):
 
 class RestoreMediaBatchRequest(BaseModel):
     """Payload for batch restoring soft-deleted media items from Trash."""
+
+    media_ids: list[int]
+
+
+class BatchDownloadRequest(BaseModel):
+    """Payload for downloading multiple media items as a single ZIP archive."""
 
     media_ids: list[int]
 

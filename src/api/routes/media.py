@@ -2,11 +2,11 @@
 =============================================================================
 Module: src.api.routes.media
 Purpose: REST endpoints for media catalog timeline feeds, item details, favorites,
-         trash/recovery system (restore, permanent delete, empty trash), and archive stats.
+         trash/recovery system (restore, permanent delete, empty trash), batch ZIP download, and archive stats.
 Used by: Web Gallery UI, Frontend clients.
-Dependencies: fastapi, datetime, src.database.repository, src.api.schemas, src.services.archive_service
+Dependencies: fastapi, datetime, src.database.repository, src.api.schemas, src.services.archive_service, src.services.zip_export_service
 Public Members: router
-Side Effects: Reads and updates SQLite catalog records, manages Telegram vault messages and thumbnails.
+Side Effects: Reads and updates SQLite catalog records, manages Telegram vault messages/thumbnails, spools temporary ZIP archives.
 =============================================================================
 """
 
@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from src.api.schemas import (
     MediaItemResponse,
@@ -24,11 +24,13 @@ from src.api.schemas import (
     FavoriteMediaRequest,
     BulkFavoriteMediaRequest,
     RestoreMediaBatchRequest,
+    BatchDownloadRequest,
     TrashResponse,
 )
 from src.database.repository import MediaRepository
 from src.services.archive_service import ArchiveService
 from src.services.upload_tracker import get_upload_tracker
+from src.services.zip_export_service import get_zip_export_service
 
 router = APIRouter(prefix="/api/media", tags=["Media Catalog"])
 
@@ -438,6 +440,38 @@ async def empty_trash():
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to empty Trash: {e}")
+
+
+@router.post("/download-batch")
+async def download_media_batch(
+    body: BatchDownloadRequest,
+    background_tasks: BackgroundTasks,
+):
+    """
+    Creates and streams a ZIP archive containing the requested media items.
+    Employs ZIP_STORED and kernel sendfile FileResponse to eliminate memory/CPU bloat.
+    Automatically unlinks the temporary archive file upon completion.
+    """
+    if not body.media_ids:
+        raise HTTPException(status_code=400, detail="No media items provided.")
+
+    zip_service = get_zip_export_service()
+    try:
+        zip_path = await zip_service.create_batch_archive(body.media_ids)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        export_filename = f"telegallery_batch_{timestamp}.zip"
+
+        background_tasks.add_task(zip_service.cleanup_archive, zip_path)
+        return FileResponse(
+            path=zip_path,
+            media_type="application/zip",
+            filename=export_filename,
+            background=background_tasks,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate batch archive: {e}")
 
 
 @router.get("/{media_id:int}/folders")

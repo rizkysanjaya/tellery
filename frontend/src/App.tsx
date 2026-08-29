@@ -6,6 +6,7 @@
  *          multi-select system, virtual folders & icon/color customization, dedicated dual-section
  *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
  *          Trash & Data Recovery system (safe soft-delete, 1-click restore, permanent delete, empty trash),
+ *          batch ZIP archive downloads for multi-selected items, album ZIP exports,
  *          search, filtering, lightbox, drag-and-drop, context-aware right-click menus,
  *          floating back-to-top button on noticeable scroll, media delete confirmation modals
  *          with 10-second undo countdown, Telegram vault uploads, and Telegram channel sync.
@@ -13,8 +14,8 @@
  * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
  * Public Members: App
  * Side Effects: Fetches timeline/folders/stats/trash over HTTP, executes uploads, soft deletions,
- *                restorations, permanent purges, folder color & icon updates, favorites toggles,
- *                folder assignments, vault sync, and persists theme/layout in localStorage.
+ *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
+ *                favorites toggles, folder assignments, vault sync, and persists theme/layout in localStorage.
  * =============================================================================
  */
 
@@ -42,6 +43,8 @@ import {
   bulkRestoreMedia,
   permanentDeleteMediaItem,
   emptyTrash,
+  downloadBatchMediaZip,
+  exportAlbumZip,
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
@@ -832,6 +835,28 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDownloadBatchSelected = async (mediaIds?: number[]) => {
+    const ids = mediaIds || Array.from(selectedIds);
+    if (ids.length === 0) return;
+    showToast(`Preparing ZIP archive for ${ids.length} item${ids.length === 1 ? "" : "s"}...`, "info");
+    try {
+      await downloadBatchMediaZip(ids);
+      showToast(`Downloaded ${ids.length} item${ids.length === 1 ? "" : "s"} as ZIP!`, "success");
+    } catch (err: any) {
+      showToast(`Download failed: ${err.message || "Unknown error"}`, "error");
+    }
+  };
+
+  const handleExportAlbumZip = async (folder: FolderItem) => {
+    showToast(`Preparing ZIP export for album "${folder.name}"...`, "info");
+    try {
+      await exportAlbumZip(folder.id);
+      showToast(`Exported album "${folder.name}" as ZIP!`, "success");
+    } catch (err: any) {
+      showToast(`Export failed: ${err.message || "Unknown error"}`, "error");
+    }
+  };
+
   // =========================================================================
   // Upload Handlers
   // =========================================================================
@@ -1525,6 +1550,7 @@ export const App: React.FC = () => {
         onAddMediaToFolder={handleBulkAddToFolder}
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
         onSyncVault={handleSyncVault}
+        onExportFolderZip={handleExportAlbumZip}
         onFolderContextMenu={handleFolderContextMenu}
         isSyncing={isSyncing}
       />
@@ -1629,6 +1655,7 @@ export const App: React.FC = () => {
               onMoveFolderToCollection={handleMoveToCollection}
               onAddMediaToFolder={handleBulkAddToFolder}
               onUpdateFolderColor={handleUpdateFolderColor}
+              onExportFolderZip={handleExportAlbumZip}
               onFolderContextMenu={handleFolderContextMenu}
               onCanvasContextMenu={handleCanvasContextMenu}
               loading={loadingFolders}
@@ -1708,6 +1735,7 @@ export const App: React.FC = () => {
               onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
               onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
               onFavoriteSelected={() => handleBulkToggleFavoriteMedia(Array.from(selectedIds), true)}
+              onDownloadSelected={() => handleDownloadBatchSelected()}
               onDeleteSelected={() => handleBulkDeleteSelected()}
               onDeselectAll={handleDeselectAll}
             />
@@ -1730,6 +1758,7 @@ export const App: React.FC = () => {
           onAddToFolder={handleBulkAddToFolder}
           onCreateFolderAndAdd={handleBulkCreateFolderAndAdd}
           onDeleteMedia={handlePromptDeleteMedia}
+          onDownloadBatch={(mediaIds) => handleDownloadBatchSelected(mediaIds)}
           onTriggerUpload={() => hiddenFileInputRef.current?.click()}
           onCreateFolder={handleCreateFolder}
           onSelectFolder={(folder) => {

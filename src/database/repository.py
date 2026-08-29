@@ -215,7 +215,7 @@ class MediaRepository:
         Album associations in media_folders are preserved so restoring reinstates album memberships.
         Cost: O(1) point update on primary key id.
         """
-        query = "UPDATE media_items SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?;"
+        query = "UPDATE media_items SET is_deleted = 1, deleted_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?;"
         async with get_db_connection() as conn:
             cursor = await conn.execute(query, (media_id,))
             await conn.commit()
@@ -505,6 +505,28 @@ class MediaRepository:
             async with conn.execute(query, (folder_id, folder_id, limit)) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(r) for r in rows]
+
+    @staticmethod
+    async def get_all_folder_media(folder_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieves all active media items belonging to a folder or collection (for ZIP export).
+        Cost: Single indexed JOIN on media_folders(folder_id).
+        """
+        query = """
+            SELECT m.id, m.file_name, m.file_hash, m.file_size, m.mime_type,
+                   m.telegram_message_id, m.telegram_channel_id
+            FROM media_items m
+            JOIN media_folders mf ON mf.media_id = m.id
+            WHERE (mf.folder_id = ? OR mf.folder_id IN (SELECT id FROM folders WHERE parent_id = ?))
+              AND m.is_deleted = 0
+            ORDER BY mf.added_at ASC;
+        """
+        async with get_db_connection() as conn:
+            async with conn.execute(query, (folder_id, folder_id)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
+
+    get_folder_media = get_all_folder_media
 
     @staticmethod
     async def delete_folder(folder_id: int) -> bool:

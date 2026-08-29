@@ -10,8 +10,9 @@
  *                fetchFolders, createFolder, deleteFolder,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
  *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, fetchSyncStatus,
- *                fetchTrashMedia, restoreMediaItem, bulkRestoreMedia, permanentDeleteMediaItem, emptyTrash
- * Side Effects: Executes HTTP requests to backend REST API.
+ *                fetchTrashMedia, restoreMediaItem, bulkRestoreMedia, permanentDeleteMediaItem, emptyTrash,
+ *                downloadBatchMediaZip, getAlbumZipExportUrl, exportAlbumZip
+ * Side Effects: Executes HTTP requests to backend REST API, triggers file downloads.
  * =============================================================================
  */
 
@@ -511,5 +512,76 @@ export async function emptyTrash(): Promise<{ status: string; purged_count: numb
     throw new Error(`Failed to empty trash: ${response.statusText}`);
   }
   return response.json();
+}
+
+export async function downloadBatchMediaZip(mediaIds: number[]): Promise<void> {
+  const response = await fetch(`${API_BASE}/api/media/download-batch`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_ids: mediaIds }),
+  });
+
+  if (!response.ok) {
+    let errorMsg = response.statusText;
+    try {
+      const errData = await response.json();
+      if (errData.detail) errorMsg = errData.detail;
+    } catch {}
+    throw new Error(errorMsg || "Failed to generate batch download archive");
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition");
+  let filename = "telegallery_download.zip";
+  if (contentDisposition && contentDisposition.includes("filename=")) {
+    const match = contentDisposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(blobUrl);
+}
+
+export function getAlbumZipExportUrl(folderId: number): string {
+  return `${API_BASE}/api/folders/${folderId}/export-zip`;
+}
+
+export async function exportAlbumZip(folderId: number): Promise<void> {
+  const response = await fetch(getAlbumZipExportUrl(folderId));
+  if (!response.ok) {
+    let errorMsg = response.statusText;
+    try {
+      const errData = await response.json();
+      if (errData.detail) errorMsg = errData.detail;
+    } catch {}
+    throw new Error(errorMsg || "Failed to export album");
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition");
+  let filename = `album_${folderId}.zip`;
+  if (contentDisposition && contentDisposition.includes("filename=")) {
+    const match = contentDisposition.match(/filename="?([^";]+)"?/);
+    if (match && match[1]) {
+      filename = match[1];
+    }
+  }
+
+  const blob = await response.blob();
+  const blobUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(blobUrl);
 }
 

@@ -38,14 +38,19 @@ interface TrashViewProps {
 function formatRelativeTime(isoString?: string | null): string {
   if (!isoString) return "Recently";
   try {
-    const date = new Date(isoString);
+    // Normalize SQLite UTC timestamps: without 'Z', browser parses as local time causing a 7-hour offset!
+    const normalized = isoString.includes("Z") || isoString.includes("+")
+      ? isoString
+      : isoString.replace(" ", "T") + "Z";
+    const date = new Date(normalized);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffMs = Math.max(0, now.getTime() - date.getTime());
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-    if (diffMins < 1) return "Just now";
+    if (diffSecs < 60) return "Just now";
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays === 1) return "Yesterday";

@@ -5,7 +5,7 @@
  *          - Long-press multi-select system to select multiple albums/collections
  *          - Controlled and stateful collection drill-down sub-album views and breadcrumb navigation
  *          - Interactive Star favorite button on each card (isolated from drag/click)
- *          - Isolated 3-dots action menu for editing, cover thumbnail, moving, deleting
+ *          - Isolated 3-dots action menu for editing, cover thumbnail, moving, ZIP export, deleting
  *          - Floating multi-selection toolbar (bulk favorite, bulk move to collection, bulk delete)
  *          - Live search filtering by album and collection names
  *          - HTML5 drag-and-drop targets with prohibited collection nesting prevention
@@ -14,7 +14,7 @@
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, ui components
  * Public Members: FolderGrid
  * Side Effects: Triggers folder navigation, collection selection, favorite toggling, creation,
- *                deletion dialogs, customize/cover/move modals, and drag-and-drop assignments.
+ *                deletion dialogs, customize/cover/move modals, ZIP exports, and drag-and-drop assignments.
  * =============================================================================
  */
 
@@ -62,6 +62,7 @@ interface FolderGridProps {
   onMoveFolderToCollection?: (folderId: number, collectionId: number | null) => Promise<void>;
   onAddMediaToFolder?: (folderId: number, mediaIds: number[]) => Promise<void>;
   onUpdateFolderColor?: (folderId: number, color: string | null) => Promise<void>;
+  onExportFolderZip?: (folder: FolderItem) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folder: FolderItem) => void;
   onCanvasContextMenu?: (e: React.MouseEvent) => void;
   loading: boolean;
@@ -83,6 +84,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
   onMoveFolderToCollection,
   onAddMediaToFolder,
   onUpdateFolderColor: _onUpdateFolderColor,
+  onExportFolderZip,
   onFolderContextMenu,
   onCanvasContextMenu,
   loading,
@@ -881,6 +883,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                           onToggleFavoriteFolder(f.id, !f.is_favorite);
                         }
                       }}
+                      onExportZip={onExportFolderZip}
                       onDelete={(f) => onDeleteFolder(f)}
                       triggerClassName="bg-surface-base/85 backdrop-blur-xs shadow-md hover:bg-surface-container"
                     />
