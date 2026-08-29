@@ -6,7 +6,7 @@
  * Used by: frontend/src/App.tsx, frontend/src/api.ts, components/
  * Dependencies: None
  * Public Members: MediaItem, TimelineGroup, TimelineResponse, StorageStats,
- *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction
+ *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse
  * Side Effects: None (Type declarations only).
  * =============================================================================
  */
@@ -28,6 +28,8 @@ export interface MediaItem {
   folder_id?: number | null;
   folder_name?: string | null;
   is_animation?: boolean;
+  is_favorite?: boolean;
+  deleted_at?: string | null;
 }
 
 export interface TimelineGroup {
@@ -87,7 +89,12 @@ export interface FolderMediaItem {
 }
 
 export type FilterType = "all" | "photo" | "video";
-export type MainView = "timeline" | "albums";
+export type MainView = "timeline" | "albums" | "favorites" | "trash";
+
+export interface TrashResponse {
+  total: number;
+  items: MediaItem[];
+}
 export type DisplayLayout = "grid" | "dense" | "list" | "masonry";
 export type SortOption =
   | "date_desc"

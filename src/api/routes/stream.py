@@ -3,9 +3,9 @@
 Module: src.api.routes.stream
 Purpose: High-performance HTTP 206 Partial Content video/media streaming route.
          Utilizes StreamCacheManager with progressive live chunk streaming,
-         automated on-the-fly H.264 web transcoding for HEVC/ProRes videos,
-         and RFC 5987 Unicode Content-Disposition headers.
-Used by: HTML5 <video>, <audio>, Lightbox full-res media viewers.
+         fast FileResponse for cached media, automated on-the-fly H.264 web
+         transcoding for HEVC/ProRes videos, and RFC 5987 Unicode Content-Disposition headers.
+Used by: HTML5 <video>, <audio>, Lightbox full-res media viewers, GIF preview stream.
 Dependencies: fastapi, urllib.parse, src.database.repository, src.services.stream_cache,
               src.services.transcoder_service, typing
 Public Members: router, stream_media()
@@ -16,8 +16,8 @@ Side Effects: Streams byte chunks across HTTP response, caches hot stream files 
 import re
 import urllib.parse
 from typing import Optional
-from fastapi import APIRouter, Header, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
+from fastapi.responses import FileResponse, StreamingResponse
 from src.database.repository import MediaRepository
 from src.services.stream_cache import get_stream_cache
 from src.services.transcoder_service import ensure_web_stream_ready
@@ -47,6 +47,7 @@ async def stream_media(
     media_id: int,
     request: Request,
     range_header: Optional[str] = Header(None, alias="Range"),
+    preview: bool = Query(False, description="Lightweight on-demand stream for gallery hover previews"),
 ):
     """
     Streams media content with lightning-fast HTTP 206 Partial Content Range seeking.
@@ -86,11 +87,72 @@ async def stream_media(
             target_mime_type = "video/mp4"
             target_file_hash = f"{file_hash}_web"
 
-    # Case 1: No Range header (Full document request)
+    # Defensive MIME correction: Verify container magic bytes if cached file exists
+    if target_stream_path.exists() and target_stream_path.stat().st_size >= 12:
+        try:
+            with open(target_stream_path, "rb") as f_head:
+                head_bytes = f_head.read(12)
+                if len(head_bytes) >= 8 and head_bytes[4:8] == b"ftyp":
+                    target_mime_type = "video/mp4"
+                elif head_bytes.startswith(b"GIF87a") or head_bytes.startswith(b"GIF89a"):
+                    target_mime_type = "image/gif"
+        except Exception:
+            pass
+
+    # 1. Proactively check TDLib local download cache if file is not in data/cache
+    if not (target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size):
+        try:
+            from src.storage.tdlib_client import get_tdlib_client
+            td_client = get_tdlib_client()
+            if td_client.auth_state == "authorizationStateReady" and message_id and channel_id:
+                cid_raw = str(channel_id).lstrip("-").lstrip("100")
+                chat_id = int(f"-100{cid_raw}")
+                td_msg_id = message_id * (1 << 20)
+                msg = await td_client.send_request({
+                    "@type": "getMessage",
+                    "chat_id": chat_id,
+                    "message_id": td_msg_id,
+                })
+                content = msg.get("content", {})
+                file_info = (
+                    content.get("document", {}).get("document")
+                    or content.get("video", {}).get("video")
+                    or content.get("animation", {}).get("animation")
+                )
+                if file_info and file_info.get("id"):
+                    f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_info["id"]})
+                    local = f_stat.get("local", {})
+                    local_path = local.get("path")
+                    if local_path and Path(local_path).exists():
+                        lp = Path(local_path)
+                        if lp.stat().st_size == stream_file_size:
+                            import shutil
+                            try:
+                                shutil.copyfile(lp, target_stream_path)
+                                cache_manager.touch_cache(target_stream_path)
+                                cache_manager.prune_lru_cache()
+                            except Exception:
+                                target_stream_path = lp
+        except Exception:
+            pass
+
+    # 2. Instant SSD Fast Path: When file is fully cached on disk, serve via FileResponse
+    # Starlette's FileResponse natively provides kernel sendfile, precise Content-Length,
+    # and RFC 7233 byte-range seeking for both Range and non-Range requests in 0ms.
+    if target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size:
+        return FileResponse(
+            path=target_stream_path,
+            media_type=target_mime_type,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Disposition": content_disp,
+            },
+        )
+
+    # 3. Dynamic Progressive Streaming for uncached files
     if not range_header:
         headers = {
             "Accept-Ranges": "bytes",
-            "Content-Length": str(stream_file_size),
             "Content-Type": target_mime_type,
             "Content-Disposition": content_disp,
         }
@@ -103,13 +165,14 @@ async def stream_media(
                 expected_total_size=stream_file_size,
                 message_id=message_id,
                 channel_id=channel_id,
+                is_preview=preview,
             ),
             status_code=status.HTTP_200_OK,
             headers=headers,
             media_type=target_mime_type,
         )
 
-    # Case 2: HTTP Range Request (Partial Content)
+    # HTTP Range Request for uncached file
     match = RANGE_HEADER_REGEX.match(range_header.strip())
     if not match:
         raise HTTPException(
@@ -122,7 +185,6 @@ async def stream_media(
     start = int(raw_start)
     end = int(raw_end) if raw_end else stream_file_size - 1
 
-    # Validate range limits
     if start >= stream_file_size or end >= stream_file_size or start > end:
         raise HTTPException(
             status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
@@ -130,11 +192,14 @@ async def stream_media(
             headers={"Content-Range": f"bytes */{stream_file_size}"},
         )
 
-    content_length = (end - start) + 1
+    # Window open-ended ranges on uncached files to 2 MB
+    if not raw_end:
+        max_chunk_window = 2 * 1024 * 1024  # 2 MB
+        end = min(start + max_chunk_window - 1, stream_file_size - 1)
+
     headers = {
         "Content-Range": f"bytes {start}-{end}/{stream_file_size}",
         "Accept-Ranges": "bytes",
-        "Content-Length": str(content_length),
         "Content-Type": target_mime_type,
         "Content-Disposition": content_disp,
     }
@@ -148,6 +213,7 @@ async def stream_media(
             expected_total_size=stream_file_size,
             message_id=message_id,
             channel_id=channel_id,
+            is_preview=preview,
         ),
         status_code=status.HTTP_206_PARTIAL_CONTENT,
         headers=headers,

@@ -2,11 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/SelectionToolbar.tsx
  * Purpose: 21st.dev Floating Dynamic Island action dock shown when 1+ media items
- *          are selected. Provides bulk operations: Add to Album, Delete, Deselect.
+ *          are selected. Provides bulk operations: Add to Album, Favorite, Delete, Deselect.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: SelectionToolbar
- * Side Effects: Triggers bulk album assignment, deletion, and deselection callbacks.
+ * Side Effects: Triggers bulk album assignment, bulk favorite toggling, deletion, and deselection callbacks.
  * =============================================================================
  */
 
@@ -19,6 +19,7 @@ import {
   Loader2,
   Check,
   Plus,
+  Star,
 } from "lucide-react";
 import { FolderItem } from "../types";
 
@@ -27,6 +28,7 @@ interface SelectionToolbarProps {
   folders: FolderItem[];
   onAddToFolder: (folderId: number) => Promise<void>;
   onCreateFolderAndAdd: (name: string) => Promise<void>;
+  onFavoriteSelected?: () => Promise<void>;
   onDeleteSelected: () => Promise<void>;
   onDeselectAll: () => void;
 }
@@ -36,6 +38,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   folders,
   onAddToFolder,
   onCreateFolderAndAdd,
+  onFavoriteSelected,
   onDeleteSelected,
   onDeselectAll,
 }) => {
@@ -196,6 +199,19 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
               )}
             </AnimatePresence>
           </div>
+
+          {/* Favorite Selected */}
+          {onFavoriteSelected && (
+            <button
+              onClick={onFavoriteSelected}
+              disabled={isProcessing}
+              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-amber-400 hover:bg-amber-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer"
+              title="Add Selected to Favorites"
+            >
+              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+              <span className="hidden sm:inline">Favorite</span>
+            </button>
+          )}
 
           {/* Delete Selected */}
           <div className="relative">

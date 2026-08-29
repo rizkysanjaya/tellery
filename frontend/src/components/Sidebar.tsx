@@ -3,12 +3,12 @@
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
- *          Favorites section, Collections accordion, right-click context menu triggers,
- *          and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
+ *          Favorites section, Collections accordion, Trash recovery view navigation,
+ *          right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
- * Side Effects: Triggers view changes, album selection, media drop-to-album assignments, right-click context menu,
+ * Side Effects: Triggers view changes (timeline, albums, favorites, trash), album selection, media drop-to-album assignments, right-click context menu,
  *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, and favorite toggling.
  * =============================================================================
  */
@@ -43,6 +43,7 @@ import { FolderCustomizeModal } from "./ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./ui/FolderRenameModal";
 import { FolderCoverModal } from "./ui/FolderCoverModal";
 import { FolderMoveModal } from "./ui/FolderMoveModal";
+import { LiquidProgressBar } from "./ui/LiquidProgressBar";
 
 interface SidebarProps {
   currentView: MainView;
@@ -53,6 +54,9 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onSelectTimeline: () => void;
   onSelectAlbumsOverview: () => void;
+  onSelectFavorites?: () => void;
+  onSelectTrash?: () => void;
+  trashCount?: number;
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
   onDeleteFolder: (folder: FolderItem | number) => void | Promise<void>;
@@ -77,6 +81,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onSelectTimeline,
   onSelectAlbumsOverview,
+  onSelectFavorites,
+  onSelectTrash,
+  trashCount = 0,
   onSelectFolder,
   onCreateFolder,
   onDeleteFolder,
@@ -331,6 +338,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
               </span>
             </div>
+
+            {/* Media Breakdown Counters directly beneath Seulchive Vault */}
+            {stats && (
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-outline-variant/10 text-xs">
+                <div
+                  className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
+                  title={`${stats.total_photos} Photos / Images`}
+                >
+                  <Images className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="font-mono">{stats.total_photos}</span>
+                </div>
+                <div
+                  className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
+                  title={`${stats.total_videos} Videos`}
+                >
+                  <Video className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span className="font-mono">{stats.total_videos}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -378,9 +405,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <div
               onClick={() => {
-                setIsFavoritesExpanded((p) => !p);
+                if (onSelectFavorites) {
+                  onSelectFavorites();
+                  onCloseMobile();
+                } else {
+                  setIsFavoritesExpanded((p) => !p);
+                }
               }}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+                currentView === "favorites" && !activeFolder
+                  ? "neo-pressed bg-surface-base text-primary shadow-inner"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+              }`}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <button
@@ -389,7 +425,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     e.stopPropagation();
                     setIsFavoritesExpanded((p) => !p);
                   }}
-                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
+                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors cursor-pointer"
                 >
                   {isFavoritesExpanded ? (
                     <ChevronDown className="w-3.5 h-3.5" />
@@ -641,6 +677,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </div>
+
+          {/* 4. Trash (Data Recovery Vault) */}
+          <div
+            onClick={() => {
+              if (onSelectTrash) {
+                onSelectTrash();
+                onCloseMobile();
+              }
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+              currentView === "trash" && !activeFolder
+                ? "neo-pressed bg-surface-base text-rose-400 shadow-inner"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+            }`}
+          >
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <Trash2 className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+              <span className="truncate">Trash</span>
+            </div>
+            {typeof trashCount === "number" && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base font-mono ${
+                  trashCount > 0 ? "text-rose-400 font-semibold" : "text-on-surface-variant/60"
+                }`}
+              >
+                {trashCount}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
@@ -659,18 +724,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span>∞</span>
                 </div>
               </div>
-
-                {/* Photos & Videos Breakdown */}
-                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-surface-container-high text-xs">
-                  <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
-                    <Images className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="truncate">{stats.total_photos} items</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo">
-                    <Video className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="truncate">{stats.total_videos} items</span>
-                  </div>
-                </div>
 
                 {/* Local Disk Cache Meter & 1-Click Purge */}
                 {cacheStats && (
@@ -691,19 +744,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </span>
                     </div>
 
-                    {/* 3. Cache Progress Bar */}
-                    <div className="h-2 w-full bg-surface-base neo-pressed rounded-full overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-300 rounded-full ${
-                          cacheStats.percent_used > 85
-                            ? "bg-error"
-                            : cacheStats.percent_used > 60
-                            ? "bg-amber-400"
-                            : "bg-glow-indigo"
-                        }`}
-                        style={{ width: `${Math.min(100, Math.max(3, cacheStats.percent_used))}%` }}
-                      />
-                    </div>
+                    {/* 3. Cache Progress Bar (Liquid Theme) */}
+                    <LiquidProgressBar
+                      progress={cacheStats.percent_used}
+                      height="h-2.5"
+                      color={
+                        cacheStats.percent_used > 85
+                          ? "error"
+                          : cacheStats.percent_used > 60
+                          ? "amber"
+                          : "indigo"
+                      }
+                      isPulsing={isClearingCache}
+                    />
 
                     {/* Action Buttons: Obvious Clear Cache Button + Gears Setting Button */}
                     <div className="flex items-center gap-2 pt-0.5">

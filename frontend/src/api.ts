@@ -2,18 +2,20 @@
  * =============================================================================
  * Module: frontend/src/api.ts
  * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions,
- *          albums/folders, and Telegram Channel sync operations.
+ *          albums/folders, favorites, and Telegram Channel sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile,
- *                deleteMediaItem, fetchFolders, createFolder, deleteFolder,
+ *                deleteMediaItem, toggleFavoriteMedia, bulkToggleFavoriteMedia,
+ *                fetchFolders, createFolder, deleteFolder,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
- *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, fetchSyncStatus
+ *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, fetchSyncStatus,
+ *                fetchTrashMedia, restoreMediaItem, bulkRestoreMedia, permanentDeleteMediaItem, emptyTrash
  * Side Effects: Executes HTTP requests to backend REST API.
  * =============================================================================
  */
 
-import { CacheStats, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse } from "./types";
+import { CacheStats, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse } from "./types";
 
 const API_BASE = "";
 
@@ -23,7 +25,8 @@ export async function fetchTimeline(
   filterType: FilterType = "all",
   searchQuery: string = "",
   folderId?: number | null,
-  sortBy: string = "date_desc"
+  sortBy: string = "date_desc",
+  onlyFavorites: boolean = false
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
@@ -41,6 +44,10 @@ export async function fetchTimeline(
 
   if (folderId !== undefined && folderId !== null) {
     params.append("folder_id", folderId.toString());
+  }
+
+  if (onlyFavorites) {
+    params.append("only_favorites", "true");
   }
 
   const response = await fetch(`${API_BASE}/api/media?${params.toString()}`);
@@ -177,6 +184,32 @@ export async function deleteMediaItem(id: number): Promise<any> {
 
   if (!response.ok) {
     throw new Error(`Delete failed: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function toggleFavoriteMedia(mediaId: number, isFavorite: boolean): Promise<boolean> {
+  const response = await fetch(`${API_BASE}/api/media/${mediaId}/favorite`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update favorite status: ${response.statusText}`);
+  }
+  return true;
+}
+
+export async function bulkToggleFavoriteMedia(mediaIds: number[], isFavorite: boolean): Promise<{ updated_count: number }> {
+  const response = await fetch(`${API_BASE}/api/media/favorite/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_ids: mediaIds, is_favorite: isFavorite }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update bulk favorite status: ${response.statusText}`);
   }
   return response.json();
 }
@@ -422,6 +455,60 @@ export async function fetchSystemStats(): Promise<SystemStats> {
   const response = await fetch(`${API_BASE}/api/system/stats`);
   if (!response.ok) {
     throw new Error(`Failed to fetch system stats: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchTrashMedia(limit: number = 100, offset: number = 0): Promise<TrashResponse> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const response = await fetch(`${API_BASE}/api/media/trash?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch trash items: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function restoreMediaItem(mediaId: number): Promise<{ status: string; message: string }> {
+  const response = await fetch(`${API_BASE}/api/media/${mediaId}/restore`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to restore media: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function bulkRestoreMedia(mediaIds: number[]): Promise<{ status: string; count: number; message: string }> {
+  const response = await fetch(`${API_BASE}/api/media/trash/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_ids: mediaIds }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to bulk restore media: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function permanentDeleteMediaItem(mediaId: number): Promise<{ status: string; message: string }> {
+  const response = await fetch(`${API_BASE}/api/media/${mediaId}/permanent`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to permanently delete media: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function emptyTrash(): Promise<{ status: string; purged_count: number; message: string }> {
+  const response = await fetch(`${API_BASE}/api/media/trash/empty`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to empty trash: ${response.statusText}`);
   }
   return response.json();
 }

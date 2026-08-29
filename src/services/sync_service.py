@@ -212,10 +212,12 @@ class SyncService:
                 channel_entity = await self.telegram_client.get_target_entity(target_channel)
                 consecutive_indexed = 0
 
+                active_ids = []
                 async for message in self.telegram_client.raw_client.iter_messages(
                     channel_entity,
                     limit=limit,
                 ):
+                    active_ids.append(message.id)
                     if not message.media:
                         continue
 
@@ -233,6 +235,30 @@ class SyncService:
                     if not full_scan and consecutive_indexed >= 10:
                         break
 
+                # Deletion reconciliation: check cataloged messages in the scanned range
+                if active_ids:
+                    min_mid = min(active_ids)
+                    max_mid = max(active_ids)
+                    from src.database.connection import get_db_connection
+                    async with get_db_connection() as conn:
+                        async with conn.execute(
+                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND telegram_message_id BETWEEN ? AND ?",
+                            (min_mid, max_mid),
+                        ) as cursor:
+                            db_items = await cursor.fetchall()
+
+                        active_set = set(active_ids)
+                        deleted_in_tg = [r[0] for r in db_items if r[1] not in active_set]
+                        if deleted_in_tg:
+                            placeholders = ",".join("?" for _ in deleted_in_tg)
+                            await conn.execute(
+                                f"UPDATE media_items SET is_deleted = 1 WHERE id IN ({placeholders})",
+                                tuple(deleted_in_tg),
+                            )
+                            await conn.commit()
+                            stats["reconciled_deleted"] = len(deleted_in_tg)
+                            print(f"[SyncService] 🗑️ Reconciled {len(deleted_in_tg)} deleted items missing from Telegram")
+
             except Exception as e:
                 print(f"[SyncService] Error during channel synchronization: {e}")
                 stats["error"] = str(e)
@@ -246,9 +272,9 @@ class SyncService:
 
     async def setup_channel_live_listener(self) -> bool:
         """
-        Registers an async MTProto background event listener for new channel messages.
-        Whenever a user posts a photo/video directly to the Telegram channel from a mobile device
-        or desktop, it will be automatically indexed into TeleGallery in real-time.
+        Registers async MTProto background event listeners for new channel messages and deletions.
+        Whenever a user posts or deletes a photo/video directly in Telegram, TeleGallery
+        automatically synchronizes the catalog in real-time.
         """
         try:
             await self.telegram_client.start()
@@ -265,6 +291,22 @@ class SyncService:
                             print(f"[LiveSync] ⚡ Auto-ingested new media from Telegram: {item.get('file_name')} (ID: {item.get('id')})")
                     except Exception as err:
                         print(f"[LiveSync] Failed to auto-ingest message {event.message.id}: {err}")
+
+            @self.telegram_client.raw_client.on(events.MessageDeleted(chats=channel_entity))
+            async def on_channel_message_deleted(event):
+                if event.deleted_ids:
+                    try:
+                        from src.database.connection import get_db_connection
+                        async with get_db_connection() as conn:
+                            placeholders = ",".join("?" for _ in event.deleted_ids)
+                            await conn.execute(
+                                f"UPDATE media_items SET is_deleted = 1 WHERE telegram_message_id IN ({placeholders}) AND is_deleted = 0",
+                                tuple(event.deleted_ids),
+                            )
+                            await conn.commit()
+                        print(f"[LiveSync] 🗑️ Auto-soft-deleted {len(event.deleted_ids)} items removed from Telegram channel: {event.deleted_ids}")
+                    except Exception as err:
+                        print(f"[LiveSync] Failed to process message deletion event: {err}")
 
             self._listener_active = True
             print(f"[LiveSync] ✅ Real-time Telegram Channel listener active for channel: {target_channel}")

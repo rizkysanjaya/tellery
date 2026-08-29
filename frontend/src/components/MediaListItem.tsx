@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/MediaListItem.tsx
  * Purpose: Detailed table/list row layout component for a media item, displaying
- *          thumbnail, filename, folder tags, resolution, duration, file size, and actions.
+ *          thumbnail, constantly looping animated GIFs, on-hover animated video preview,
+ *          filename, folder tags, resolution, duration, file size, and actions.
  * Used by: frontend/src/components/TimelineGrid.tsx (in "list" layout mode)
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: MediaListItem
@@ -10,7 +11,7 @@
  * =============================================================================
  */
 
-import React from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Check,
   Play,
@@ -42,8 +43,6 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   onToggleSelect,
   onContextMenu,
 }) => {
-  const isVideo = item.mime_type.startsWith("video/");
-
   const formatFileSize = (bytes: number) => {
     if (!bytes) return "0 B";
     const k = 1024;
@@ -59,8 +58,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
     return `${mins}:${remainingSecs.toString().padStart(2, "0")}`;
   };
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "-";
+  const formatDate = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
       return d.toLocaleDateString(undefined, {
@@ -73,7 +71,90 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
     }
   };
 
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const hoverPreviewTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isVideo = item.mime_type.startsWith("video/");
+  const isGif = item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif");
+  const isAnimatedVideo = isVideo && (item.file_name.toLowerCase().includes(".gif.mp4") || (Boolean(item.duration_seconds && item.duration_seconds <= 15) && item.file_name.toLowerCase().includes("gif")));
+
+  useEffect(() => {
+    return () => {
+      if (hoverPreviewTimerRef.current) {
+        clearTimeout(hoverPreviewTimerRef.current);
+      }
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleMouseEnter = () => {
+    if (isVideo && !isAnimatedVideo) {
+      if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
+      hoverPreviewTimerRef.current = setTimeout(() => {
+        setIsPlayingPreview(true);
+      }, 300);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverPreviewTimerRef.current) {
+      clearTimeout(hoverPreviewTimerRef.current);
+      hoverPreviewTimerRef.current = null;
+    }
+    setIsPlayingPreview(false);
+  };
+
+  // Long-press detection refs
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressActiveRef = useRef(false);
+  const pointerStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    isLongPressActiveRef.current = false;
+    pointerStartPosRef.current = { x: e.clientX, y: e.clientY };
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressActiveRef.current = true;
+      onToggleSelect(item.id);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 450);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (pointerStartPosRef.current) {
+      const dist = Math.hypot(
+        e.clientX - pointerStartPosRef.current.x,
+        e.clientY - pointerStartPosRef.current.y
+      );
+      if (dist > 8 && longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }
+  };
+
+  const handlePointerUpOrCancel = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    pointerStartPosRef.current = null;
+  };
+
   const handleClick = (e: React.MouseEvent) => {
+    if (isLongPressActiveRef.current) {
+      isLongPressActiveRef.current = false;
+      return;
+    }
     if (e.shiftKey || e.ctrlKey || e.metaKey || isSelectionMode) {
       onToggleSelect(item.id, e);
       return;
@@ -110,6 +191,12 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   return (
     <div
       draggable
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUpOrCancel}
+      onPointerCancel={handlePointerUpOrCancel}
       onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
@@ -137,17 +224,38 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
           )}
         </div>
 
-        {/* Crisp Rounded Thumbnail / Live GIF */}
+        {/* Crisp Rounded Thumbnail / Constantly Playing GIF / Smooth Video Hover Preview */}
         <div className="relative w-14 h-14 rounded-neo-lg overflow-hidden bg-surface-container shrink-0 neo-image-wrapper border border-outline-variant/20 shadow-sm">
-          <img
-            src={item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif") ? item.stream_url : item.thumbnail_url}
-            alt={item.file_name}
-            className="w-full h-full object-cover pointer-events-none select-none"
-            loading="lazy"
-          />
-          {isVideo && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Play className="w-4.5 h-4.5 text-white fill-white" />
+          {isAnimatedVideo ? (
+            <video
+              src={item.stream_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover pointer-events-none select-none"
+            />
+          ) : (
+            <img
+              src={isGif ? item.stream_url : (item.thumbnail_url || item.stream_url)}
+              alt={item.file_name}
+              className="w-full h-full object-cover pointer-events-none select-none"
+              loading="lazy"
+            />
+          )}
+          {isVideo && !isAnimatedVideo && isPlayingPreview && (
+            <video
+              src={item.stream_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none z-[1] animate-in fade-in duration-200"
+            />
+          )}
+          {isVideo && !isAnimatedVideo && !isPlayingPreview && (
+            <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
+              <Play className="w-4 h-4 text-white fill-white" />
             </div>
           )}
         </div>

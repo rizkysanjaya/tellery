@@ -1,13 +1,13 @@
 """
 =============================================================================
 Module: src.services.archive_service
-Purpose: High-level media archival orchestration, deduplication, EXIF extraction & WebP thumbnails.
-         Accelerated with official native C++ TDLib multi-threaded uploader with Telethon fallback.
-Used by: src.cli.verify_pipeline, src.cli.import_folder, FastAPI routes.
+Purpose: High-level media archival orchestration, deduplication, EXIF extraction, WebP thumbnails,
+         safe soft-delete (Trash), 1-click restore, and permanent vault purging.
+Used by: src.cli.verify_pipeline, src.cli.import_folder, FastAPI routes (media, sync, stream).
 Dependencies: src.database.repository, src.storage.telegram_client, src.storage.tdlib_client,
               src.services.hasher, src.services.metadata_extractor, src.services.thumbnail_service, src.config
-Public Members: ArchiveService
-Side Effects: Database reads/writes, MTProto network uploads/downloads, local WebP file creation, audit logging.
+Public Members: ArchiveService (archive_file, delete_media_item, restore_media_item, restore_batch, purge_media_permanently, empty_trash, etc.)
+Side Effects: Database reads/writes, MTProto network uploads/downloads/deletes, local WebP file creation, audit logging.
 =============================================================================
 """
 
@@ -253,12 +253,76 @@ class ArchiveService:
 
     async def delete_media_item(self, media_id: int) -> dict[str, Any]:
         """
-        Deletes media item from Telegram MTProto storage channel, local SQLite catalog,
-        and local disk thumbnail cache.
+        Soft deletes media item (moves to Trash) while preserving Telegram vault message
+        and disk thumbnail for instantaneous recovery.
         """
         media = await self.repository.get_by_id(media_id)
         if not media:
             raise ValueError(f"Media item with ID {media_id} not found in catalog.")
+
+        # Soft delete in catalog
+        await self.repository.delete_media(media_id)
+
+        # Audit log
+        await self.repository.log_audit(
+            action="TRASH",
+            media_id=media_id,
+            file_hash=media["file_hash"],
+            details=f"Moved '{media['file_name']}' to Trash",
+        )
+
+        return {
+            "status": "trashed",
+            "media_id": media_id,
+            "file_name": media["file_name"],
+            "message": "Media item moved to Trash.",
+        }
+
+    async def restore_media_item(self, media_id: int) -> dict[str, Any]:
+        """
+        Restores a soft-deleted media item from Trash back to the active gallery.
+        """
+        media = await self.repository.get_by_id(media_id, include_deleted=True)
+        if not media:
+            raise ValueError(f"Media item with ID {media_id} not found.")
+
+        success = await self.repository.restore_media(media_id)
+        if not success:
+            raise RuntimeError(f"Failed to restore media item {media_id}.")
+
+        await self.repository.log_audit(
+            action="RESTORE",
+            media_id=media_id,
+            file_hash=media["file_hash"],
+            details=f"Restored '{media['file_name']}' from Trash",
+        )
+
+        return {
+            "status": "restored",
+            "media_id": media_id,
+            "file_name": media["file_name"],
+            "message": "Media item restored to gallery.",
+        }
+
+    async def restore_batch(self, media_ids: list[int]) -> dict[str, Any]:
+        """
+        Restores multiple media items from Trash in bulk.
+        """
+        count = await self.repository.restore_batch(media_ids)
+        return {
+            "status": "restored",
+            "count": count,
+            "message": f"Successfully restored {count} item(s) to gallery.",
+        }
+
+    async def purge_media_permanently(self, media_id: int) -> dict[str, Any]:
+        """
+        Permanently removes a media item from Telegram MTProto storage, disk thumbnail cache,
+        streaming disk cache, and SQLite catalog.
+        """
+        media = await self.repository.get_by_id(media_id, include_deleted=True)
+        if not media:
+            raise ValueError(f"Media item with ID {media_id} not found.")
 
         # 1. Delete message from Telegram storage channel
         try:
@@ -269,7 +333,7 @@ class ArchiveService:
         except Exception as e:
             print(f"[Warning] Failed to delete message {media['telegram_message_id']} from Telegram: {e}")
 
-        # 2. Delete local WebP thumbnail from disk if exists
+        # 2. Delete local WebP thumbnail from disk
         thumb_path = media.get("thumbnail_path")
         if thumb_path:
             p = Path(thumb_path)
@@ -279,20 +343,77 @@ class ArchiveService:
                 except Exception:
                     pass
 
-        # 3. Soft-delete from SQLite catalog
-        await self.repository.delete_media(media_id)
+        # 3. Clean up streaming disk cache if exists
+        try:
+            from src.services.stream_cache import get_stream_cache
+            cache = get_stream_cache()
+            bin_path = cache.get_cache_path(media["file_hash"])
+            if bin_path.exists():
+                bin_path.unlink()
+        except Exception:
+            pass
 
-        # 4. Record audit log
+        # 4. Permanently purge from database
+        await self.repository.purge_media_permanently(media_id)
+
+        # 5. Audit log
         await self.repository.log_audit(
-            action="DELETE",
+            action="PURGE_PERMANENT",
             media_id=media_id,
             file_hash=media["file_hash"],
-            details=f"Deleted '{media['file_name']}' (Message ID: {media['telegram_message_id']})",
+            details=f"Permanently purged '{media['file_name']}' from Telegram vault and database",
         )
 
         return {
-            "status": "deleted",
+            "status": "permanently_deleted",
             "media_id": media_id,
             "file_name": media["file_name"],
-            "message": "Media permanently deleted from Telegram vault and catalog.",
+            "message": "Media permanently deleted from Telegram vault and database.",
+        }
+
+    async def empty_trash(self) -> dict[str, Any]:
+        """
+        Permanently purges all items currently in Trash from Telegram storage and database.
+        """
+        items = await self.repository.get_all_trash_media()
+        purged_count = 0
+
+        for media in items:
+            try:
+                # Delete Telegram document
+                await self.telegram_client.delete_document(
+                    message_id=media["telegram_message_id"],
+                    channel_id=media["telegram_channel_id"],
+                )
+            except Exception as e:
+                print(f"[Warning] Telegram delete failed for message {media['telegram_message_id']}: {e}")
+
+            # Delete thumbnail
+            thumb_path = media.get("thumbnail_path")
+            if thumb_path:
+                p = Path(thumb_path)
+                if p.exists():
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+
+            # Clean cache file
+            try:
+                from src.services.stream_cache import get_stream_cache
+                cache = get_stream_cache()
+                bin_path = cache.get_cache_path(media["file_hash"])
+                if bin_path.exists():
+                    bin_path.unlink()
+            except Exception:
+                pass
+
+            # Purge from DB
+            await self.repository.purge_media_permanently(media["id"])
+            purged_count += 1
+
+        return {
+            "status": "emptied",
+            "purged_count": purged_count,
+            "message": f"Successfully emptied Trash. Permanently deleted {purged_count} item(s).",
         }

@@ -1,13 +1,12 @@
 """
 =============================================================================
 Module: src.api.routes.thumbnails
-Purpose: High-performance WebP thumbnail delivery endpoint with ultra-lightweight
-         on-demand extraction (native Telegram previews or 3MB partial header streaming)
-         preventing full-file download locks.
-Used by: Gallery UI Grid, Lightbox previews, Folder Cover Cards.
+Purpose: High-performance WebP thumbnail & animated WebP video preview delivery
+         endpoints with ultra-lightweight on-demand extraction preventing full-file download locks.
+Used by: Gallery UI Grid, Lightbox previews, Folder Cover Cards, Video Hover Previews.
 Dependencies: fastapi, pathlib, tempfile, src.database.repository, src.config,
               src.services.thumbnail_service, src.storage.telegram_client
-Public Members: router, get_media_thumbnail()
+Public Members: router, get_media_thumbnail(), get_media_preview()
 Side Effects: Serves cached WebP files from disk; writes extracted WebP to disk
               and updates SQLite thumbnail_path for instant sub-20ms subsequent reads.
 =============================================================================
@@ -170,3 +169,62 @@ async def get_media_thumbnail(media_id: int):
         print(f"[Thumbnail] On-demand thumbnail generation failed for media {media_id}: {e}")
 
     raise HTTPException(status_code=404, detail="Thumbnail not available for this item")
+
+
+@router.get("/{media_id:int}/preview")
+async def get_media_preview(media_id: int):
+    """
+    Serves an ultra-lightweight animated WebP hover preview (~100 KB) for videos.
+    If cached preview exists, returns immediately via kernel sendfile.
+    If local video file is available, generates preview on-the-fly and saves to disk.
+    Falls back to static thumbnail (0ms) if source video is not yet on local disk.
+    """
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    file_hash = item["file_hash"]
+    settings = get_settings()
+    preview_path = settings.thumbnails_path / f"{file_hash}_preview.webp"
+
+    # 1. Fast path: Cached preview already exists
+    if preview_path.exists() and preview_path.stat().st_size > 0:
+        return FileResponse(
+            path=preview_path,
+            media_type="image/webp",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
+    # 2. Check if local video source is available in stream cache or tdlib directory
+    from src.services.stream_cache import get_stream_cache
+    stream_cache = get_stream_cache()
+    cached_source = stream_cache.get_cache_path(file_hash)
+    if not (cached_source.exists() and cached_source.stat().st_size > 0):
+        data_dir = Path(settings.db_path).parent
+        td_doc = data_dir / "tdlib" / "files" / "documents" / item["file_name"]
+        td_anim = data_dir / "tdlib" / "files" / "animations" / item["file_name"]
+        if td_doc.exists() and td_doc.stat().st_size > 0:
+            cached_source = td_doc
+        elif td_anim.exists() and td_anim.stat().st_size > 0:
+            cached_source = td_anim
+
+    if cached_source.exists() and cached_source.stat().st_size > 0:
+        from src.services.thumbnail_service import generate_video_preview
+        gen = generate_video_preview(cached_source, file_hash)
+        if gen and Path(gen).exists():
+            return FileResponse(
+                path=Path(gen),
+                media_type="image/webp",
+                headers={"Cache-Control": "public, max-age=31536000, immutable"},
+            )
+
+    # 3. Fallback to standard static thumbnail (0ms response, zero Telegram network call)
+    thumb_path = settings.thumbnails_path / f"{file_hash}.webp"
+    if thumb_path.exists() and thumb_path.stat().st_size > 0:
+        return FileResponse(
+            path=thumb_path,
+            media_type="image/webp",
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
+    raise HTTPException(status_code=404, detail="Preview not available")

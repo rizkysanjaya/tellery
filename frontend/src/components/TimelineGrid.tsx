@@ -2,16 +2,17 @@
  * =============================================================================
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
- *          contextual empty states (search queries, empty albums, empty vault),
- *          and per-section select-all toggles for multi-select mode.
- * Used by: frontend/src/App.tsx
+ *          contextual empty states (search queries, empty albums, empty vault, empty favorites),
+ *          per-section select-all toggles for multi-select mode, and natural aspect
+ *          masonry showcase with strict left-to-right chronological sorting.
+ * Used by: frontend/src/App.tsx, frontend/src/components/FavoritesView.tsx
  * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx, frontend/src/components/MediaListItem.tsx, lucide-react
  * Public Members: TimelineGrid
- * Side Effects: Dispatches media item click, selection toggle, search clearing, and context menu events.
+ * Side Effects: Dispatches media item click, selection toggle, favorite toggle, search clearing, and context menu events.
  * =============================================================================
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Calendar,
   Image as ImageIcon,
@@ -27,12 +28,42 @@ import { DisplayLayout, MediaItem, SortOption, TimelineGroup } from "../types";
 import { MediaCard } from "./MediaCard";
 import { MediaListItem } from "./MediaListItem";
 
+function useResponsiveColumns(): number {
+  const [columnCount, setColumnCount] = useState<number>(() => {
+    if (typeof window === "undefined") return 4;
+    const w = window.innerWidth;
+    if (w >= 1280) return 6;
+    if (w >= 1024) return 5;
+    if (w >= 768) return 4;
+    if (w >= 640) return 3;
+    return 2;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      let next = 2;
+      if (w >= 1280) next = 6;
+      else if (w >= 1024) next = 5;
+      else if (w >= 768) next = 4;
+      else if (w >= 640) next = 3;
+      setColumnCount((prev) => (prev !== next ? next : prev));
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return columnCount;
+}
+
 interface TimelineGridProps {
   groups: TimelineGroup[];
   selectedIds: Set<number>;
   searchQuery?: string;
   onClearSearch?: () => void;
   activeFolderName?: string;
+  emptyContextLabel?: string;
   layout?: DisplayLayout;
   sortBy?: SortOption;
   onSortChange?: (sort: SortOption) => void;
@@ -41,6 +72,7 @@ interface TimelineGridProps {
   onSelectAllInGroup: (ids: number[]) => void;
   onDeselectAllInGroup: (ids: number[]) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
+  onToggleFavorite?: (id: number, isFavorite: boolean) => void;
   loading: boolean;
 }
 
@@ -50,6 +82,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   searchQuery,
   onClearSearch,
   activeFolderName,
+  emptyContextLabel,
   layout = "grid",
   sortBy = "date_desc",
   onSortChange,
@@ -58,9 +91,11 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   onSelectAllInGroup,
   onDeselectAllInGroup,
   onContextMenu,
+  onToggleFavorite,
   loading,
 }) => {
   const isSelectionMode = selectedIds.size > 0;
+  const columnCount = useResponsiveColumns();
 
   const toggleSort = (column: "name" | "date" | "size") => {
     if (!onSortChange) return;
@@ -73,6 +108,17 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
     }
   };
 
+  // 1. Initial or Search Loading State (when no groups are ready to display yet)
+  if (loading && groups.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-in fade-in duration-200">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs text-on-surface-variant font-medium">Loading media items...</p>
+      </div>
+    );
+  }
+
+  // 2. Empty State
   if (!loading && groups.length === 0) {
     const isSearchActive = Boolean(searchQuery && searchQuery.trim());
 
@@ -93,7 +139,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
               </>
             ) : (
               <>
-                No media matching <span className="font-semibold text-primary font-mono">"{searchQuery?.trim()}"</span> in your vault
+                No media matching <span className="font-semibold text-primary font-mono">"{searchQuery?.trim()}"</span> {emptyContextLabel || "in your vault"}
               </>
             )}
           </p>
@@ -284,28 +330,42 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     selectedIds={selectedIds}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
+                    onToggleFavorite={onToggleFavorite}
                     onContextMenu={onContextMenu}
                   />
                 ))}
               </div>
             ) : layout === "masonry" ? (
-              /* Natural Aspect-Ratio Showcase Grid */
-              <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 xl:columns-6 gap-2 sm:gap-2.5 space-y-2 sm:space-y-2.5">
-                {group.items.map((item) => (
-                  <div key={item.id} className="break-inside-avoid">
-                    <MediaCard
-                      item={item}
-                      isSelected={selectedIds.has(item.id)}
-                      isSelectionMode={isSelectionMode}
-                      selectedIds={selectedIds}
-                      aspectMode="natural"
-                      onClick={() => onSelectMedia(item)}
-                      onToggleSelect={onToggleSelect}
-                      onContextMenu={onContextMenu}
-                    />
+              /* Natural Aspect-Ratio Showcase Grid (Ordered strictly Left-to-Right) */
+              (() => {
+                const columns = Array.from({ length: columnCount }, () => [] as MediaItem[]);
+                group.items.forEach((item, idx) => {
+                  columns[idx % columnCount].push(item);
+                });
+
+                return (
+                  <div className="flex gap-2 sm:gap-2.5 items-start">
+                    {columns.map((colItems, colIdx) => (
+                      <div key={colIdx} className="flex-1 flex flex-col gap-2 sm:gap-2.5 min-w-0">
+                        {colItems.map((item) => (
+                          <MediaCard
+                            key={item.id}
+                            item={item}
+                            isSelected={selectedIds.has(item.id)}
+                            isSelectionMode={isSelectionMode}
+                            selectedIds={selectedIds}
+                            aspectMode="natural"
+                            onClick={() => onSelectMedia(item)}
+                            onToggleSelect={onToggleSelect}
+                            onToggleFavorite={onToggleFavorite}
+                            onContextMenu={onContextMenu}
+                          />
+                        ))}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                );
+              })()
             ) : (
               /* Standard Square Responsive Grid */
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
@@ -318,6 +378,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     selectedIds={selectedIds}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
+                    onToggleFavorite={onToggleFavorite}
                     onContextMenu={onContextMenu}
                   />
                 ))}
@@ -326,12 +387,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
           </section>
         );
       })}
-
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
     </div>
   );
 };

@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/Header.tsx
  * Purpose: Neomorphic top navigation header with spotlight search,
- *          segmented filter pills, sort popover menu, and layout switchers.
+ *          segmented filter pills, sort popover menu, view awareness, and layout switchers.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, AnimatedTabs
  * Public Members: Header
@@ -79,8 +79,11 @@ export const Header: React.FC<HeaderProps> = ({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isAlbumsOverview = currentView === "albums" && !activeFolder;
+  const isFavoritesOverview = currentView === "favorites" && !activeFolder;
   const searchPlaceholder = isAlbumsOverview
     ? "Search albums & collections..."
+    : isFavoritesOverview
+    ? "Search in favorites..."
     : activeFolder
     ? `Search in "${activeFolder.name}"...`
     : "Search vault (photos, videos, cameras, 2026)...";

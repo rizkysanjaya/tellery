@@ -27,6 +27,7 @@ import {
   Copy,
 } from "lucide-react";
 import { UploadTask } from "../types";
+import { LiquidProgressBar } from "./ui/LiquidProgressBar";
 
 interface UploadManagerProps {
   tasks: UploadTask[];
@@ -220,20 +221,16 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                   </div>
                 </div>
 
-                {/* Progress Bar */}
+                {/* Liquid Progress Bar */}
                 {(task.status === "uploading" ||
                   task.status === "processing" ||
                   task.status === "pending") && (
-                  <div className="w-full h-1.5 bg-surface-container-high rounded-full overflow-hidden">
-                    <div
-                      style={{ width: `${task.progress}%` }}
-                      className={`h-full rounded-full transition-all duration-150 bg-glow-indigo ${
-                        task.status === "processing"
-                          ? "animate-pulse"
-                          : ""
-                      }`}
-                    />
-                  </div>
+                  <LiquidProgressBar
+                    progress={task.progress}
+                    height="h-2"
+                    color="indigo"
+                    isPulsing={task.status === "processing"}
+                  />
                 )}
               </div>
             );

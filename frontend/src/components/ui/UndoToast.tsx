@@ -13,6 +13,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { RotateCcw, Trash2, X } from "lucide-react";
+import { LiquidProgressBar } from "./LiquidProgressBar";
 
 interface UndoToastProps {
   actionId?: number | string;
@@ -113,11 +114,13 @@ export const UndoToast: React.FC<UndoToastProps> = ({
               <X className="w-3.5 h-3.5" />
             </button>
 
-            {/* 10-second countdown progress bar at bottom */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-high overflow-hidden">
-              <div
-                style={{ width: `${progress}%` }}
-                className="h-full bg-gradient-to-r from-red-500 via-primary to-indigo-400 transition-[width] duration-75 ease-linear rounded-full shadow-[0_0_8px_rgba(129,140,248,0.5)]"
+            {/* 10-second countdown liquid progress bar at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 overflow-hidden rounded-b-neo-xl">
+              <LiquidProgressBar
+                progress={progress}
+                height="h-1.5"
+                color="error"
+                showGlow={false}
               />
             </div>
           </div>

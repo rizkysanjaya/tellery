@@ -6,7 +6,8 @@ Used by: src.api.routes.media, src.api.routes.stream, src.api.routes.folders.
 Dependencies: pydantic, typing
 Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse,
                 FolderResponse, CreateFolderRequest, AddMediaToFolderRequest,
-                UpdateFolderColorRequest
+                UpdateFolderColorRequest, FavoriteMediaRequest, BulkFavoriteMediaRequest,
+                RestoreMediaBatchRequest, TrashResponse
 Side Effects: None
 =============================================================================
 """
@@ -33,6 +34,21 @@ class MediaItemResponse(BaseModel):
     created_at: str
     folder_id: Optional[int] = None
     folder_name: Optional[str] = None
+    is_favorite: bool = False
+    deleted_at: Optional[str] = None
+
+
+class RestoreMediaBatchRequest(BaseModel):
+    """Payload for batch restoring soft-deleted media items from Trash."""
+
+    media_ids: list[int]
+
+
+class TrashResponse(BaseModel):
+    """Response payload for Trash list view."""
+
+    total: int
+    items: list[MediaItemResponse]
 
 
 class TimelineGroup(BaseModel):
@@ -129,3 +145,17 @@ class UpdateFolderColorRequest(BaseModel):
     """Payload for updating a folder's icon color. Send null to reset."""
 
     color: Optional[str] = Field(None, description="Hex color string e.g. '#6366f1', or null to reset")
+
+
+class FavoriteMediaRequest(BaseModel):
+    """Payload for toggling favorite status of a media item."""
+
+    is_favorite: bool = Field(description="True to mark as favorite, False to unfavorite")
+
+
+class BulkFavoriteMediaRequest(BaseModel):
+    """Payload for batch toggling favorite status of multiple media items."""
+
+    media_ids: list[int] = Field(min_length=1, description="List of media IDs to update")
+    is_favorite: bool = Field(description="True to mark as favorite, False to unfavorite")
+

@@ -1,12 +1,12 @@
 """
-=============================================================================
+============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media catalog, folders/albums, and audit logging.
+Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery, and audit logging.
 Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media, src.api.routes.folders.
 Dependencies: aiosqlite, src.database.connection
-Public Members: MediaRepository
+Public Members: MediaRepository (get_timeline, get_by_id, update_favorite, delete_media, restore_media, restore_batch, get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media, etc.)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
-=============================================================================
+============================================================================
 """
 
 from typing import Any, Optional
@@ -38,15 +38,17 @@ class MediaRepository:
                 return dict(row) if row else None
 
     @staticmethod
-    async def get_by_id(media_id: int) -> Optional[dict[str, Any]]:
+    async def get_by_id(media_id: int, include_deleted: bool = False) -> Optional[dict[str, Any]]:
         """Retrieves media item by primary key."""
-        query = """
+        condition = "WHERE id = ?" if include_deleted else "WHERE id = ? AND is_deleted = 0"
+        query = f"""
             SELECT id, file_hash, file_name, file_size, mime_type,
                    telegram_channel_id, telegram_message_id, telegram_file_id,
                    width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at
+                   date_taken, thumbnail_path, created_at, deleted_at,
+                   COALESCE(is_favorite, 0) as is_favorite
             FROM media_items
-            WHERE id = ? AND is_deleted = 0
+            {condition}
             LIMIT 1;
         """
         async with get_db_connection() as conn:
@@ -105,22 +107,26 @@ class MediaRepository:
         search_query: Optional[str] = None,
         folder_id: Optional[int] = None,
         sort_by: str = "date_desc",
+        only_favorites: bool = False,
     ) -> tuple[int, list[dict[str, Any]]]:
         """
         Retrieves paginated media items with flexible sorting and filtering.
-        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc.
+        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
+
+        if only_favorites:
+            where_clauses.append("m.is_favorite = 1")
 
         if folder_id is not None:
             where_clauses.append("mf.folder_id = ?")
             params.append(folder_id)
 
         if media_type == "photo":
-            where_clauses.append("m.mime_type LIKE 'image/%'")
+            where_clauses.append("(m.mime_type NOT LIKE 'video/%' OR m.mime_type LIKE 'image/%' OR m.file_name LIKE '%.gif' OR m.file_name LIKE '%.webp')")
         elif media_type == "video":
-            where_clauses.append("m.mime_type LIKE 'video/%'")
+            where_clauses.append("(m.mime_type LIKE 'video/%' AND NOT (m.file_name LIKE '%.gif') AND NOT (m.file_name LIKE '%.gif.mp4') AND NOT (m.file_name LIKE '%.webp'))")
 
         if search_query:
             where_clauses.append("(m.file_name LIKE ? OR m.camera_make LIKE ? OR m.camera_model LIKE ?)")
@@ -151,6 +157,7 @@ class MediaRepository:
                    m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
                    m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
                    m.date_taken, m.thumbnail_path, m.created_at,
+                   COALESCE(m.is_favorite, 0) as is_favorite,
                    strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
                    mf.folder_id as folder_id,
                    f.name as folder_name
@@ -180,12 +187,13 @@ class MediaRepository:
     async def get_stats() -> dict[str, Any]:
         """
         Retrieves aggregate statistics for the entire archive in a single pass.
+        Counts non-videos, GIFs, and WebP as photos/images.
         """
         query = """
             SELECT 
                 COUNT(*) as total_items,
-                SUM(CASE WHEN mime_type LIKE 'image/%' THEN 1 ELSE 0 END) as total_photos,
-                SUM(CASE WHEN mime_type LIKE 'video/%' THEN 1 ELSE 0 END) as total_videos,
+                SUM(CASE WHEN mime_type NOT LIKE 'video/%' OR file_name LIKE '%.gif' OR file_name LIKE '%.webp' THEN 1 ELSE 0 END) as total_photos,
+                SUM(CASE WHEN mime_type LIKE 'video/%' AND NOT (file_name LIKE '%.gif') AND NOT (file_name LIKE '%.gif.mp4') AND NOT (file_name LIKE '%.webp') THEN 1 ELSE 0 END) as total_videos,
                 COALESCE(SUM(file_size), 0) as total_size_bytes
             FROM media_items
             WHERE is_deleted = 0;
@@ -202,14 +210,106 @@ class MediaRepository:
 
     @staticmethod
     async def delete_media(media_id: int) -> bool:
-        """Soft deletes media item from SQLite catalog and removes folder associations."""
-        query_soft_delete = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
-        query_clean_folders = "DELETE FROM media_folders WHERE media_id = ?;"
+        """
+        Soft deletes media item from SQLite catalog by setting is_deleted=1 and deleted_at timestamp.
+        Album associations in media_folders are preserved so restoring reinstates album memberships.
+        Cost: O(1) point update on primary key id.
+        """
+        query = "UPDATE media_items SET is_deleted = 1, deleted_at = datetime('now') WHERE id = ?;"
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query_soft_delete, (media_id,))
-            await conn.execute(query_clean_folders, (media_id,))
+            cursor = await conn.execute(query, (media_id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    @staticmethod
+    async def restore_media(media_id: int) -> bool:
+        """
+        Restores a soft-deleted media item back to active timeline and original albums.
+        Cost: O(1) point update on primary key id.
+        """
+        query = "UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (media_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def restore_batch(media_ids: list[int]) -> int:
+        """
+        Restores multiple soft-deleted media items in a single atomic statement.
+        Cost: O(M) where M is batch size.
+        """
+        if not media_ids:
+            return 0
+        placeholders = ",".join("?" for _ in media_ids)
+        query = f"UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id IN ({placeholders});"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, media_ids)
+            await conn.commit()
+            return cursor.rowcount
+
+    @staticmethod
+    async def get_trash_items(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        """
+        Retrieves paginated list of soft-deleted media items in Trash.
+        Cost: O(log K + limit) where K is number of trashed items via partial index idx_media_trash.
+        """
+        query = """
+            SELECT 
+                id, file_hash, file_name, file_size, mime_type,
+                telegram_channel_id, telegram_message_id, telegram_file_id,
+                width, height, duration_seconds, camera_make, camera_model,
+                date_taken, thumbnail_path, is_favorite, created_at, deleted_at
+            FROM media_items
+            WHERE is_deleted = 1
+            ORDER BY deleted_at DESC
+            LIMIT ? OFFSET ?;
+        """
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (limit, offset))
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    @staticmethod
+    async def get_trash_count() -> int:
+        """
+        Returns the total number of items currently in Trash.
+        Cost: O(log K) via partial index idx_media_trash.
+        """
+        query = "SELECT COUNT(*) FROM media_items WHERE is_deleted = 1;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query)
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    @staticmethod
+    async def purge_media_permanently(media_id: int) -> bool:
+        """
+        Permanently removes a media record from SQLite catalog and cleans up folder links.
+        Cost: Atomic transaction with FK cleanup.
+        """
+        async with get_db_connection() as conn:
+            await conn.execute("DELETE FROM media_folders WHERE media_id = ?;", (media_id,))
+            cursor = await conn.execute("DELETE FROM media_items WHERE id = ?;", (media_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def get_all_trash_media() -> list[dict[str, Any]]:
+        """
+        Returns all soft-deleted items for bulk Telegram purging.
+        """
+        query = """
+            SELECT 
+                id, file_hash, file_name, file_size, mime_type,
+                telegram_channel_id, telegram_message_id, thumbnail_path
+            FROM media_items
+            WHERE is_deleted = 1;
+        """
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query)
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
 
     @staticmethod
     async def update_media_metadata(
@@ -234,6 +334,34 @@ class MediaRepository:
             cursor = await conn.execute(query, (duration_seconds, width, height, media_id))
             await conn.commit()
             return cursor.rowcount > 0
+
+    @staticmethod
+    async def update_favorite(media_id: int, is_favorite: bool) -> bool:
+        """
+        Updates favorite status for a single media item.
+        Cost: O(1) point update on primary key id.
+        """
+        query = "UPDATE media_items SET is_favorite = ? WHERE id = ? AND is_deleted = 0;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (1 if is_favorite else 0, media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def bulk_update_favorite(media_ids: list[int], is_favorite: bool) -> int:
+        """
+        Batch updates favorite status for multiple media items.
+        Cost: O(K) where K = len(media_ids) via indexed primary key scan.
+        """
+        if not media_ids:
+            return 0
+        placeholders = ",".join("?" for _ in media_ids)
+        query = f"UPDATE media_items SET is_favorite = ? WHERE id IN ({placeholders}) AND is_deleted = 0;"
+        params = [1 if is_favorite else 0] + media_ids
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, params)
+            await conn.commit()
+            return cursor.rowcount
 
     # =========================================================================
     # Folder & Album Repository Methods

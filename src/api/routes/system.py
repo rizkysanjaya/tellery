@@ -11,6 +11,7 @@ Side Effects: Deletes cached stream media files on disk during purge requests.
 =============================================================================
 """
 
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from src.services.stream_cache import get_stream_cache
@@ -49,10 +50,10 @@ async def update_cache_limit(req: CacheLimitRequest):
 async def clear_cache():
     """
     Purges 100% of non-in-flight stream cache files from local disk,
-    instantly reclaiming local drive storage.
+    instantly reclaiming local drive storage asynchronously.
     """
     cache = get_stream_cache()
-    result = cache.clear_all_cache()
+    result = await asyncio.to_thread(cache.clear_all_cache)
     return {
         "status": "success",
         "message": f"Purged {result['files_deleted']} cached files ({result['freed_formatted']} reclaimed)",

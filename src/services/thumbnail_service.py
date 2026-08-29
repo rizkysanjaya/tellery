@@ -2,11 +2,13 @@
 =============================================================================
 Module: src.services.thumbnail_service
 Purpose: High-performance local WebP thumbnail generation & disk caching for
-         both images (Pillow EXIF-aware) and videos (OpenCV frame extraction).
-Used by: src.services.archive_service, src.services.sync_service, src.cli.import_folder, FastAPI thumbnail routes.
+         both images (Pillow EXIF-aware) and videos (OpenCV frame extraction),
+         plus ultra-lightweight animated WebP preview generation for instant 0ms video hover.
+Used by: src.services.archive_service, src.services.sync_service, src.cli.import_folder, FastAPI thumbnail/preview routes.
 Dependencies: PIL.Image, PIL.ImageOps, cv2, io, pathlib, src.config
-Public Members: generate_thumbnail(), generate_image_thumbnail(), generate_video_thumbnail(), generate_thumbnail_from_bytes()
-Side Effects: Reads source media file from disk/bytes, creates and saves WebP thumbnail in storage/thumbnails.
+Public Members: generate_thumbnail(), generate_image_thumbnail(), generate_video_thumbnail(),
+                generate_thumbnail_from_bytes(), generate_video_preview()
+Side Effects: Reads source media file from disk/bytes, creates and saves WebP thumbnail/preview in .thumbnails/.
 =============================================================================
 """
 
@@ -192,3 +194,77 @@ def generate_thumbnail(
             quality=quality,
         )
     return None
+
+
+def generate_video_preview(
+    file_path: Union[str, Path],
+    file_hash: str,
+    max_dimension: int = 320,
+    num_frames: int = 12,
+    quality: int = 70,
+) -> Optional[str]:
+    """
+    Extracts 10-12 keyframes from the first 2.5 seconds of a video and encodes them
+    into an ultra-lightweight (~80-150 KB) looping animated WebP file.
+    Enables instant 0ms hover preview in the frontend without streaming full multi-MB videos.
+    """
+    settings = get_settings()
+    thumb_dir = settings.thumbnails_path
+    target_preview_file = thumb_dir / f"{file_hash}_preview.webp"
+
+    if target_preview_file.exists() and target_preview_file.stat().st_size > 0:
+        return str(target_preview_file.as_posix())
+
+    source_path = Path(file_path)
+    if not source_path.exists():
+        return None
+
+    cap = None
+    try:
+        cap = cv2.VideoCapture(str(source_path))
+        if not cap.isOpened():
+            return None
+
+        fps = cap.get(cv2.CAP_PROP_FPS) or 24.0
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 1)
+
+        # Sample across the first 2.5 seconds (or full video if shorter)
+        sample_duration_frames = min(total_frames, int(fps * 2.5))
+        if sample_duration_frames < 2:
+            return None
+
+        step = max(1, sample_duration_frames // num_frames)
+        frames: list[Image.Image] = []
+
+        for i in range(0, sample_duration_frames, step):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, i)
+            ret, frame = cap.read()
+            if not ret or frame is None:
+                break
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            pil_img = Image.fromarray(rgb)
+            pil_img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
+            frames.append(pil_img)
+
+        if not frames:
+            return None
+
+        target_preview_file.parent.mkdir(parents=True, exist_ok=True)
+        frames[0].save(
+            target_preview_file,
+            format="WEBP",
+            save_all=True,
+            append_images=frames[1:],
+            duration=125,  # 8 fps animation
+            loop=0,
+            quality=quality,
+            method=4,
+        )
+        return str(target_preview_file.as_posix())
+    except Exception as e:
+        print(f"[Thumbnail] Failed to generate video preview for {file_hash}: {e}")
+        return None
+    finally:
+        if cap is not None:
+            cap.release()
+
