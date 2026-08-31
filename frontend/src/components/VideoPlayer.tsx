@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/VideoPlayer.tsx
- * Purpose: Top-tier custom dark studio video player with custom scrubber, hover time badge,
+ * Purpose: Top-tier custom dark studio video player with custom scrubber, hover preview,
  *          buffered range tracking, playback speed controls, picture-in-picture,
  *          custom right-click context menu (Loop, Speed, PiP, URL copy, Stats for Nerds),
  *          keyboard shortcuts (YouTube/Netflix style), and auto-hiding controls.
@@ -48,6 +48,8 @@ const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const rafScrubRef = useRef<number | null>(null);
   const scrubBarRef = useRef<HTMLDivElement>(null);
   const playedBarRef = useRef<HTMLDivElement>(null);
@@ -384,6 +386,32 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     }
   };
 
+  const isPortrait = Boolean(item.height && item.width && item.height > item.width);
+
+  // Render preview frame on canvas with dynamic aspect-ratio preservation
+  const renderPreviewFrame = useCallback(() => {
+    if (!previewVideoRef.current || !previewCanvasRef.current) return;
+    const video = previewVideoRef.current;
+    const canvas = previewCanvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx || video.readyState < 2) return;
+
+    const vW = video.videoWidth || (isPortrait ? 9 : 16);
+    const vH = video.videoHeight || (isPortrait ? 16 : 9);
+    const portrait = vH > vW;
+
+    const targetW = portrait ? 90 : 160;
+    const targetH = portrait ? 160 : 90;
+
+    if (canvas.width !== targetW || canvas.height !== targetH) {
+      canvas.width = targetW;
+      canvas.height = targetH;
+    }
+
+    ctx.clearRect(0, 0, targetW, targetH);
+    ctx.drawImage(video, 0, 0, targetW, targetH);
+  }, [isPortrait]);
+
   // Scrub bar interactions
   const calculateScrubTime = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!scrubBarRef.current || !videoRef.current) return 0;
@@ -399,6 +427,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     const targetHoverTime = ratio * (duration || 1);
     setHoverPosition(ratio * 100);
     setHoverTime(targetHoverTime);
+
+    if (previewVideoRef.current) {
+      previewVideoRef.current.currentTime = targetHoverTime;
+    }
   };
 
   const handleScrubMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -585,6 +617,17 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
         className="w-full h-full max-h-[88vh] object-contain cursor-pointer"
       />
 
+      {/* Hidden Offscreen Preview Video for Fast Frame Canvas Painting */}
+      <video
+        ref={previewVideoRef}
+        src={item.stream_url}
+        playsInline
+        preload="auto"
+        muted
+        onSeeked={renderPreviewFrame}
+        className="hidden"
+      />
+
       {/* Center Big Replay Button Overlay when Video Ends */}
       {isEnded && !isLoading && !hasError && (
         <button
@@ -672,13 +715,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             onMouseDown={handleScrubMouseDown}
             className="w-full h-2 hover:h-3 neo-pressed rounded-full relative cursor-pointer transition-all duration-150 group/scrubber flex items-center"
           >
-            {/* Scrubber Hover Time Tooltip */}
+            {/* YouTube-Style Hover Thumbnail Preview Tooltip */}
             {hoverTime !== null && (
               <div
-                style={{ left: `${Math.max(5, Math.min(95, hoverPosition))}%` }}
-                className="absolute bottom-5 -translate-x-1/2 z-30 flex items-center px-2.5 py-1 bg-surface-base/98 border border-outline-variant/30 rounded-neo shadow-lg pointer-events-none animate-in fade-in duration-100"
+                style={{ left: `${Math.max(14, Math.min(86, hoverPosition))}%` }}
+                className="absolute bottom-5 -translate-x-1/2 z-30 flex flex-col items-center gap-1.5 p-1.5 bg-surface-base/98 border border-outline-variant/30 rounded-neo-lg shadow-[0_12px_32px_rgba(0,0,0,0.7)] pointer-events-none animate-in fade-in zoom-in-95 duration-100"
               >
-                <span className="text-[11px] font-mono font-bold text-primary">
+                <canvas
+                  ref={previewCanvasRef}
+                  width={isPortrait ? 90 : 160}
+                  height={isPortrait ? 160 : 90}
+                  className={`rounded-neo bg-black object-contain border border-outline-variant/20 shadow-inner ${
+                    isPortrait ? "w-24 h-40 sm:w-28 sm:h-48" : "w-36 h-20 sm:w-44 sm:h-26"
+                  }`}
+                />
+                <span className="text-[11px] font-mono font-bold text-on-surface bg-surface-container px-2 py-0.5 rounded-full shadow-inner">
                   {formatTime(hoverTime)}
                 </span>
               </div>

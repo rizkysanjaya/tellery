@@ -2,14 +2,12 @@
  * =============================================================================
  * Module: frontend/src/index.css
  * Purpose: Global styling, Silk Cloud dynamic Light & Dark neomorphic theme variables,
- *          high-performance GPU-composited shadow tokens, responsive scrollbars, and
- *          hardware-composited liquid droplet dock keyframe animations.
- * Used by: frontend/src/main.tsx, frontend/src/components/ui/DragDropDock.tsx
+ *          high-performance GPU-composited shadow tokens, and responsive scrollbars.
+ * Used by: frontend/src/main.tsx
  * Dependencies: tailwindcss
  * Public Members: .neo-raised, .neo-pressed, .neo-card, .neo-frame, .neo-image-wrapper,
- *                .neo-button, .neo-button-primary, @keyframes dockDropletRise,
- *                @keyframes dockDropletBase, @keyframes dockIconPop
- * Side Effects: Applies dynamic light/dark CSS variables and global keyframes.
+ *                .neo-button, .neo-button-primary
+ * Side Effects: Applies dynamic light/dark CSS variables to HTML root.
  * =============================================================================
  */
 
@@ -283,98 +281,3 @@
     transform: translateX(-50%);
   }
 }
-
-/* ═══════════════════════════════════════════════════════════════════
-   Hardware-Composited Liquid Droplet Dock Animations (CodeShack GPU Physics)
-   ═══════════════════════════════════════════════════════════════════ */
-
-@keyframes dockDropletRise {
-  0% {
-    transform: translate3d(0, 60px, 0) scale(0.45, 0.45);
-    opacity: 0.5;
-  }
-  38% {
-    /* Viscous liquid stretch: elongation into teardrop pear shape before snap */
-    transform: translate3d(0, 22px, 0) scale(0.72, 1.45);
-    opacity: 1;
-  }
-  62% {
-    /* Apex snap: neck snaps, sphere squashes horizontally from surface tension */
-    transform: translate3d(0, -6px, 0) scale(1.22, 0.82);
-  }
-  84% {
-    /* Elastic liquid oscillation */
-    transform: translate3d(0, 2px, 0) scale(0.96, 1.04);
-  }
-  100% {
-    /* Resting pristine round circle */
-    transform: translate3d(0, 0, 0) scale(1, 1);
-    opacity: 1;
-  }
-}
-
-@keyframes dockDropletBase {
-  0% {
-    transform: translate3d(0, 0, 0) scale(1.1, 0.8);
-    opacity: 0.8;
-  }
-  38% {
-    /* Stretches upward toward the pulling droplet */
-    transform: translate3d(0, -6px, 0) scale(0.65, 1.35);
-    opacity: 0.9;
-  }
-  60% {
-    /* Snaps back down */
-    transform: translate3d(0, 4px, 0) scale(0.3, 0.2);
-    opacity: 0.3;
-  }
-  100% {
-    transform: translate3d(0, 8px, 0) scale(0, 0);
-    opacity: 0;
-  }
-}
-
-@keyframes dockBorderFade {
-  0%, 58% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-@keyframes dockIconPop {
-  0%, 62% {
-    opacity: 0;
-    transform: translate3d(0, 0, 0) scale(0);
-  }
-  82% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1.2);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-.animate-dock-droplet-rise {
-  animation: dockDropletRise 0.44s cubic-bezier(0.18, 0.89, 0.32, 1.15) forwards;
-  will-change: transform, opacity;
-}
-
-.animate-dock-droplet-base {
-  animation: dockDropletBase 0.44s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-  will-change: transform, opacity;
-}
-
-.animate-dock-border-fade {
-  animation: dockBorderFade 0.44s ease forwards;
-  will-change: transform, opacity;
-}
-
-.animate-dock-icon-pop {
-  animation: dockIconPop 0.46s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  will-change: transform, opacity;
-}
-

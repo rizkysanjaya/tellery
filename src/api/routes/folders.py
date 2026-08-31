@@ -1,17 +1,15 @@
 """
 =============================================================================
 Module: src.api.routes.folders
-Purpose: REST endpoints for creating, managing, organizing, renaming, customizing folders,
-         and exporting full albums as ZIP archives with zero-copy kernel streaming.
+Purpose: REST endpoints for creating, managing, organizing, renaming, and customizing folders, icons, and favorites.
 Used by: Web UI Album views, Lightbox folder assignment drawer, Sidebar, and Action menus.
-Dependencies: fastapi, src.database.repository, src.api.schemas, src.services.zip_export_service
+Dependencies: fastapi, src.database.repository, src.api.schemas
 Public Members: router
-Side Effects: Inserts, updates, and deletes records in folders and media_folders tables, spools temp album ZIPs.
+Side Effects: Inserts, updates, and deletes records in folders and media_folders tables.
 =============================================================================
 """
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, status
 from src.api.schemas import (
     AddMediaToFolderRequest,
     CreateFolderRequest,
@@ -21,7 +19,6 @@ from src.api.schemas import (
     UpdateFolderRequest,
 )
 from src.database.repository import MediaRepository
-from src.services.zip_export_service import get_zip_export_service
 
 router = APIRouter(prefix="/api/folders", tags=["Folders & Albums"])
 
@@ -216,31 +213,3 @@ async def remove_media_from_folder(folder_id: int, media_id: int):
         raise HTTPException(status_code=404, detail="Media association not found in this folder")
 
     return {"status": "removed", "folder_id": folder_id, "media_id": media_id}
-
-
-@router.get("/{folder_id:int}/export-zip")
-async def export_album_as_zip(
-    folder_id: int,
-    background_tasks: BackgroundTasks,
-):
-    """
-    Creates and streams a ZIP archive containing all media items in the specified album.
-    Employs ZIP_STORED and kernel sendfile FileResponse to eliminate memory/CPU bloat.
-    Automatically unlinks the temporary archive file upon completion.
-    """
-    zip_service = get_zip_export_service()
-    try:
-        zip_path, sanitized_name = await zip_service.create_album_archive(folder_id)
-        export_filename = f"{sanitized_name}.zip"
-
-        background_tasks.add_task(zip_service.cleanup_archive, zip_path)
-        return FileResponse(
-            path=zip_path,
-            media_type="application/zip",
-            filename=export_filename,
-            background=background_tasks,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to export album as zip: {e}")

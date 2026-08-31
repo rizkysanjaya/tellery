@@ -29,7 +29,6 @@ CREATE TABLE IF NOT EXISTS media_items (
     camera_model TEXT,                        -- Camera model (from EXIF)
     date_taken TEXT,                          -- ISO8601 capture timestamp (from EXIF)
     thumbnail_path TEXT,                      -- Relative path to cached WebP preview
-    is_favorite INTEGER NOT NULL DEFAULT 0,   -- 1 if marked favorite, 0 otherwise
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     is_deleted INTEGER NOT NULL DEFAULT 0     -- Soft delete flag
 );
@@ -41,10 +40,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_media_file_hash
 
 CREATE INDEX IF NOT EXISTS idx_media_timeline 
     ON media_items(COALESCE(date_taken, created_at) DESC);
-
-CREATE INDEX IF NOT EXISTS idx_media_favorite 
-    ON media_items(is_favorite) 
-    WHERE is_deleted = 0 AND is_favorite = 1;
 
 CREATE INDEX IF NOT EXISTS idx_media_filename 
     ON media_items(file_name COLLATE NOCASE) 

@@ -4,9 +4,9 @@ Module: src.api.app
 Purpose: FastAPI application factory, lifespan startup/shutdown, and middleware configuration.
 Used by: src.main, Uvicorn ASGI server.
 Dependencies: fastapi, src.database.connection, src.storage.telegram_client,
-              src.storage.tdlib_client, src.services.sync_service, src.api.routes
+              src.services.sync_service, src.api.routes
 Public Members: create_app()
-Side Effects: Initializes DB, MTProto client, TDLib C++ engine, and live channel sync listener on server startup.
+Side Effects: Initializes DB, MTProto client, and live channel sync listener on server startup.
 =============================================================================
 """
 
@@ -31,9 +31,8 @@ from src.storage.telegram_client import get_telegram_client
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Application lifespan manager:
-    - Startup: Initializes SQLite WAL database, connects Telegram MTProto client,
-      starts high-speed C++ TDLib 16-stream hardware engine, and registers live channel listener.
-    - Shutdown: Disconnects MTProto and TDLib clients cleanly.
+    - Startup: Initializes SQLite WAL database, connects Telegram MTProto client, and starts live channel listener.
+    - Shutdown: Disconnects Telegram client cleanly.
     """
     print("\n[*] TeleGallery Archive Engine starting up...")
     await init_db()
@@ -41,20 +40,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await telegram_client.start()
     print("[*] Telegram MTProto Client connected.")
     print("[*] SQLite WAL Catalog initialized.")
-
-    # Initialize high-speed C++ TDLib Client
-    from src.storage.tdlib_client import get_tdlib_client
-    td_client = get_tdlib_client()
-    try:
-        await td_client.start()
-        import asyncio
-        for _ in range(60):
-            if td_client.auth_state == "authorizationStateReady":
-                print("[*] TDLib C++ 16-Stream Hardware Engine connected and ready.")
-                break
-            await asyncio.sleep(0.05)
-    except Exception as e:
-        print(f"[!] Warning: Could not initialize TDLib client: {e}")
 
     # Initialize Real-time Channel Listener
     sync_service = get_sync_service()
@@ -66,16 +51,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     print("\n[*] TeleGallery Archive Engine shutting down...")
-    try:
-        await td_client.close()
-        print("[*] TDLib C++ Client disconnected.")
-    except Exception as e:
-        print(f"[!] Warning during TDLib shutdown: {e}")
-    try:
-        await telegram_client.stop()
-        print("[*] Telegram MTProto Client disconnected.")
-    except Exception as e:
-        print(f"[!] Warning during MTProto shutdown: {e}")
+    await telegram_client.stop()
+    print("[*] Telegram MTProto Client disconnected.")
 
 
 def create_app() -> FastAPI:

@@ -200,9 +200,8 @@ async def get_media_preview(media_id: int):
     stream_cache = get_stream_cache()
     cached_source = stream_cache.get_cache_path(file_hash)
     if not (cached_source.exists() and cached_source.stat().st_size > 0):
-        data_dir = Path(settings.db_path).parent
-        td_doc = data_dir / "tdlib" / "files" / "documents" / item["file_name"]
-        td_anim = data_dir / "tdlib" / "files" / "animations" / item["file_name"]
+        td_doc = settings.data_dir / "tdlib" / "files" / "documents" / item["file_name"]
+        td_anim = settings.data_dir / "tdlib" / "files" / "animations" / item["file_name"]
         if td_doc.exists() and td_doc.stat().st_size > 0:
             cached_source = td_doc
         elif td_anim.exists() and td_anim.stat().st_size > 0:

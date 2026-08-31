@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/ContextMenu.tsx
  * Purpose: Context-aware popup menu tailored to current view & targets:
- *          - Media item target (open, select, favorite toggle, move to folder, single/batch ZIP download, delete)
+ *          - Media item target (open, select, move to folder, download, delete)
  *          - Album target (open, rename, customize, move to collection, favorite, delete)
  *          - Collection target (open, rename, customize, delete)
  *          - Timeline empty canvas (select all photos, upload media)
@@ -12,7 +12,7 @@
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: ContextMenu, ContextMenuPosition
- * Side Effects: Dispatches item selection, favorite toggle, navigation, deletion, creation, upload, and batch ZIP download events.
+ * Side Effects: Dispatches item selection, navigation, deletion, creation, and upload events.
  * =============================================================================
  */
 
@@ -60,7 +60,6 @@ interface ContextMenuProps {
   onAddToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onCreateFolderAndAdd: (name: string, mediaIds: number[]) => Promise<void>;
   onDeleteMedia: (mediaIds: number[]) => Promise<void>;
-  onDownloadBatch?: (mediaIds: number[]) => void;
   onTriggerUpload: () => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
   onSelectFolder?: (folder: FolderItem) => void;
@@ -69,7 +68,6 @@ interface ContextMenuProps {
   onSetFolderCover?: (folder: FolderItem) => void;
   onOpenMoveModal?: (folder: FolderItem) => void;
   onToggleFavoriteFolder?: (folderId: number, isFavorite: boolean) => void;
-  onToggleFavoriteMedia?: (mediaId: number, isFavorite: boolean) => void;
   onDeleteFolder?: (folder: FolderItem | number) => void;
   onBackToOverview?: () => void;
   onRefreshData?: () => void;
@@ -88,7 +86,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onAddToFolder,
   onCreateFolderAndAdd,
   onDeleteMedia,
-  onDownloadBatch,
   onTriggerUpload,
   onCreateFolder,
   onSelectFolder,
@@ -97,7 +94,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onSetFolderCover,
   onOpenMoveModal,
   onToggleFavoriteFolder,
-  onToggleFavoriteMedia,
   onDeleteFolder,
   onBackToOverview,
   onRefreshData,
@@ -229,11 +225,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   };
 
   const handleDownload = () => {
-    if (count > 1 && onDownloadBatch) {
-      onDownloadBatch(effectiveMediaIds);
-      onClose();
-      return;
-    }
     if (!targetItem) return;
     const a = document.createElement("a");
     a.href = targetItem.stream_url;
@@ -281,19 +272,6 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <CheckSquare className="w-4 h-4 text-on-surface-variant" />
             <span>{isTargetSelected ? "Deselect Item" : "Select Item"}</span>
           </button>
-
-          {onToggleFavoriteMedia && (
-            <button
-              onClick={() => {
-                onToggleFavoriteMedia(targetItem.id, !targetItem.is_favorite);
-                onClose();
-              }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
-            >
-              <Star className={`w-4 h-4 ${targetItem.is_favorite ? "text-amber-400 fill-amber-400" : "text-on-surface-variant"}`} />
-              <span>{targetItem.is_favorite ? "Remove from Favorites" : "Add to Favorites"}</span>
-            </button>
-          )}
 
           {/* Move / Add to Album Submenu */}
           <div
@@ -390,8 +368,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             onClick={handleDownload}
             className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
           >
-            <Download className="w-4 h-4 text-sky-400" />
-            <span>{count > 1 ? `Download ${count} Items (.ZIP)` : "Download File"}</span>
+            <Download className="w-4 h-4 text-on-surface-variant" />
+            <span>Download File</span>
           </button>
 
           <div className="h-px bg-outline-variant/20 my-1" />

@@ -2,11 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/SelectionToolbar.tsx
  * Purpose: 21st.dev Floating Dynamic Island action dock shown when 1+ media items
- *          are selected. Provides bulk operations: Add to Album, Favorite, Download ZIP, Move to Trash, Deselect.
+ *          are selected. Provides bulk operations: Add to Album, Delete, Deselect.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: SelectionToolbar
- * Side Effects: Triggers bulk album assignment, bulk favorite toggling, batch ZIP download, deletion, and deselection callbacks.
+ * Side Effects: Triggers bulk album assignment, deletion, and deselection callbacks.
  * =============================================================================
  */
 
@@ -19,8 +19,6 @@ import {
   Loader2,
   Check,
   Plus,
-  Star,
-  Download,
 } from "lucide-react";
 import { FolderItem } from "../types";
 
@@ -29,8 +27,6 @@ interface SelectionToolbarProps {
   folders: FolderItem[];
   onAddToFolder: (folderId: number) => Promise<void>;
   onCreateFolderAndAdd: (name: string) => Promise<void>;
-  onFavoriteSelected?: () => Promise<void>;
-  onDownloadSelected?: () => Promise<void>;
   onDeleteSelected: () => Promise<void>;
   onDeselectAll: () => void;
 }
@@ -40,8 +36,6 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   folders,
   onAddToFolder,
   onCreateFolderAndAdd,
-  onFavoriteSelected,
-  onDownloadSelected,
   onDeleteSelected,
   onDeselectAll,
 }) => {
@@ -203,32 +197,6 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
             </AnimatePresence>
           </div>
 
-          {/* Favorite Selected */}
-          {onFavoriteSelected && (
-            <button
-              onClick={onFavoriteSelected}
-              disabled={isProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-amber-400 hover:bg-amber-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer"
-              title="Add Selected to Favorites"
-            >
-              <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="hidden sm:inline">Favorite</span>
-            </button>
-          )}
-
-          {/* Download Selected as ZIP */}
-          {onDownloadSelected && (
-            <button
-              onClick={onDownloadSelected}
-              disabled={isProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-sky-400 hover:bg-sky-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
-              title="Download selected as ZIP archive"
-            >
-              <Download className="w-4 h-4 text-sky-400" />
-              <span className="hidden sm:inline">Download ZIP</span>
-            </button>
-          )}
-
           {/* Delete Selected */}
           <div className="relative">
             <button
@@ -237,7 +205,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                 setShowFolderPicker(false);
               }}
               className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-error hover:bg-error-container/20 rounded-neo text-xs font-medium transition-all cursor-pointer"
-              title="Move Selected to Trash"
+              title="Delete Selected"
             >
               <Trash2 className="w-4 h-4 text-error" />
               <span className="hidden sm:inline">Delete</span>
@@ -254,7 +222,8 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                   className="absolute bottom-full right-0 mb-3 w-64 neo-card bg-surface-base border border-error/30 rounded-neo-lg p-4 z-50"
                 >
                   <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
-                    Move <span className="text-on-surface font-bold">{selectedCount}</span> item{selectedCount === 1 ? "" : "s"} to Trash? You can restore them anytime.
+                    Permanently delete <span className="text-on-surface font-bold">{selectedCount}</span> items
+                    from your vault? This cannot be undone.
                   </p>
                   <div className="flex items-center gap-2">
                     <button

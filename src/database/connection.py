@@ -1,11 +1,11 @@
 """
 =============================================================================
 Module: src.database.connection
-Purpose: Async SQLite connection lifecycle manager with WAL, PRAGMA tuning, and lightweight schema migrations.
+Purpose: Async SQLite connection lifecycle manager with WAL and PRAGMA tuning.
 Used by: src.database.repository, src.services, CLI scripts.
 Dependencies: aiosqlite, src.config
 Public Members: get_db_connection(), init_db()
-Side Effects: Creates SQLite database file on disk, executes schema DDL, runs non-blocking column migrations.
+Side Effects: Creates SQLite database file on disk, executes schema DDL.
 =============================================================================
 """
 
@@ -60,17 +60,4 @@ async def init_db() -> None:
             await conn.execute("ALTER TABLE folders ADD COLUMN is_collection INTEGER NOT NULL DEFAULT 0;")
         if "cover_media_id" not in cols:
             await conn.execute("ALTER TABLE folders ADD COLUMN cover_media_id INTEGER REFERENCES media_items(id) ON DELETE SET NULL;")
-        
-        # media_items table migrations
-        cursor = await conn.execute("PRAGMA table_info(media_items);")
-        media_cols = [row[1] for row in await cursor.fetchall()]
-        if "is_favorite" not in media_cols:
-            await conn.execute("ALTER TABLE media_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
-            await conn.execute("CREATE INDEX IF NOT EXISTS idx_media_favorite ON media_items(is_favorite) WHERE is_deleted = 0 AND is_favorite = 1;")
-        if "deleted_at" not in media_cols:
-            await conn.execute("ALTER TABLE media_items ADD COLUMN deleted_at TEXT;")
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_media_trash ON media_items(deleted_at DESC) WHERE is_deleted = 1;"
-            )
         await conn.commit()
-

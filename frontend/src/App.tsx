@@ -3,34 +3,27 @@
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
- *          multi-select system, virtual folders & icon/color customization, dedicated dual-section
- *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
- *          Trash & Data Recovery system (safe soft-delete, 1-click restore, permanent delete, empty trash),
- *          batch ZIP archive downloads for multi-selected items, album ZIP exports,
- *          smart EXIF & metadata filtering (camera devices, orientation, resolution, calendar periods),
- *          chronological date-jump scrubber bar, search, lightbox, drag-and-drop, context-aware right-click menus,
+ *          multi-select system, virtual folders & icon/color customization, album favorites & rename,
+ *          search, filtering, lightbox, drag-and-drop, context-aware right-click menus,
  *          floating back-to-top button on noticeable scroll, media delete confirmation modals
  *          with 10-second undo countdown, Telegram vault uploads, and Telegram channel sync.
  * Used by: frontend/src/main.tsx
  * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats/trash/filter-meta over HTTP, executes uploads, soft deletions,
- *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
- *                favorites toggles, folder assignments, vault sync, and persists theme/layout in localStorage.
+ * Side Effects: Fetches timeline/folders/stats over HTTP, executes uploads, deletions,
+ *                folder color & icon updates, favorites toggles, folder assignments, vault sync, and persists theme/layout in localStorage.
  * =============================================================================
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { UploadCloud, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addMediaToFolder,
   createFolder,
   createMediaAlias,
   deleteFolder,
   deleteMediaItem,
-  toggleFavoriteMedia,
-  bulkToggleFavoriteMedia,
   fetchFolders,
   fetchStats,
   fetchTimeline,
@@ -39,21 +32,11 @@ import {
   updateFolderColor,
   updateFolder,
   uploadMediaFile,
-  fetchTrashMedia,
-  restoreMediaItem,
-  bulkRestoreMedia,
-  permanentDeleteMediaItem,
-  emptyTrash,
-  downloadBatchMediaZip,
-  exportAlbumZip,
-  fetchFilterMetadata,
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
 import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
 import { FolderGrid } from "./components/FolderGrid";
-import { FavoritesView } from "./components/FavoritesView";
-import { TrashView } from "./components/TrashView";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
 import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
@@ -61,7 +44,6 @@ import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
 import { UploadManager } from "./components/UploadManager";
-import { ExifFilterDrawer } from "./components/ExifFilterDrawer";
 import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
@@ -76,11 +58,9 @@ import { DragDropDock } from "./components/ui/DragDropDock";
 import { DragStackedPreview } from "./components/ui/DragStackedPreview";
 import { BackToTopButton } from "./components/ui/BackToTopButton";
 import {
-  ActiveExifFilters,
   ConflictResolutionAction,
   DisplayLayout,
   DuplicateConflict,
-  FilterMetadataResponse,
   FilterType,
   FolderItem,
   MainView,
@@ -136,7 +116,6 @@ export const App: React.FC = () => {
   const debouncedSearchQueryRef = useRef<string>("");
   const sortByRef = useRef<SortOption>("date_desc");
   const groupsRef = useRef<TimelineGroup[]>([]);
-  const currentViewRef = useRef<MainView>("timeline");
 
   useEffect(() => {
     activeFolderRef.current = activeFolder;
@@ -154,10 +133,6 @@ export const App: React.FC = () => {
     groupsRef.current = groups;
   }, [groups]);
 
-  useEffect(() => {
-    currentViewRef.current = currentView;
-  }, [currentView]);
-
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
@@ -165,11 +140,6 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
-
-  // Trash View State
-  const [trashItems, setTrashItems] = useState<MediaItem[]>([]);
-  const [trashTotal, setTrashTotal] = useState<number>(0);
-  const [loadingTrash, setLoadingTrash] = useState(false);
 
   const handleDisplayLayoutChange = (layout: DisplayLayout) => {
     setDisplayLayout(layout);
@@ -261,51 +231,19 @@ export const App: React.FC = () => {
       });
   }, []);
 
-  const loadTrash = useCallback(async () => {
-    setLoadingTrash(true);
-    try {
-      const res = await fetchTrashMedia();
-      setTrashItems(res.items);
-      setTrashTotal(res.total);
-    } catch (err) {
-      console.error("Failed to load trash items:", err);
-    } finally {
-      setLoadingTrash(false);
-    }
-  }, []);
-
-  // Smart EXIF & Date Filters State
-  const [filterMetadata, setFilterMetadata] = useState<FilterMetadataResponse | null>(null);
-  const [activeExifFilters, setActiveExifFilters] = useState<ActiveExifFilters>({});
-  const [isExifDrawerOpen, setIsExifDrawerOpen] = useState(false);
-
-  const loadFilterMetadata = useCallback(() => {
-    fetchFilterMetadata().then(setFilterMetadata).catch(console.error);
-  }, []);
-
-  // Initial load for stats, folders, filter metadata & trash count
+  // Initial load for stats & folders
   useEffect(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
-    loadFilterMetadata();
-    fetchTrashMedia(1, 0)
-      .then((res) => setTrashTotal(res.total))
-      .catch(console.error);
-  }, [loadFolders, loadFilterMetadata]);
+  }, [loadFolders]);
 
-  // Instant timeline loading on tab, filter, sort, EXIF filter, or folder selection (0ms delay)
+  // Instant timeline loading on tab, filter, sort, or folder selection (0ms delay)
   useEffect(() => {
-    if (currentView === "trash") {
-      loadTrash();
-      return;
-    }
-
     let isMounted = true;
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView, activeExifFilters)
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy)
       .then((res) => {
         if (isMounted) {
           setGroups(res.groups);
@@ -322,17 +260,15 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadTrash, activeExifFilters]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy]);
 
   const loadData = useCallback(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
-    loadFilterMetadata();
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView, activeExifFilters)
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -341,7 +277,7 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadFolders, loadFilterMetadata, activeExifFilters]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, loadFolders]);
 
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -368,55 +304,6 @@ export const App: React.FC = () => {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
-
-  const handleRestoreItem = useCallback(async (mediaId: number) => {
-    try {
-      await restoreMediaItem(mediaId);
-      setTrashItems((prev) => prev.filter((i) => i.id !== mediaId));
-      setTrashTotal((prev) => Math.max(0, prev - 1));
-      showToast("Media restored to gallery", "success");
-      loadData();
-    } catch (err: any) {
-      showToast(err.message || "Failed to restore media", "error");
-    }
-  }, [showToast, loadData]);
-
-  const handleBulkRestore = useCallback(async (mediaIds: number[]) => {
-    try {
-      await bulkRestoreMedia(mediaIds);
-      const set = new Set(mediaIds);
-      setTrashItems((prev) => prev.filter((i) => !set.has(i.id)));
-      setTrashTotal((prev) => Math.max(0, prev - mediaIds.length));
-      showToast(`Restored ${mediaIds.length} item(s) to gallery`, "success");
-      loadData();
-    } catch (err: any) {
-      showToast(err.message || "Failed to restore items", "error");
-    }
-  }, [showToast, loadData]);
-
-  const handlePermanentDelete = useCallback(async (mediaId: number) => {
-    try {
-      await permanentDeleteMediaItem(mediaId);
-      setTrashItems((prev) => prev.filter((i) => i.id !== mediaId));
-      setTrashTotal((prev) => Math.max(0, prev - 1));
-      showToast("Media permanently deleted from Telegram", "success");
-      fetchStats().then(setStats).catch(console.error);
-    } catch (err: any) {
-      showToast(err.message || "Failed to permanently delete media", "error");
-    }
-  }, [showToast]);
-
-  const handleEmptyTrash = useCallback(async () => {
-    try {
-      const res = await emptyTrash();
-      setTrashItems([]);
-      setTrashTotal(0);
-      showToast(res.message || "Trash emptied successfully", "success");
-      fetchStats().then(setStats).catch(console.error);
-    } catch (err: any) {
-      showToast(err.message || "Failed to empty trash", "error");
-    }
-  }, [showToast]);
 
   const [draggedMediaState, setDraggedMediaState] = useState<{
     isDragging: boolean;
@@ -666,20 +553,17 @@ export const App: React.FC = () => {
     setPendingDeletion(null);
     pendingDeletionRef.current = null;
 
-    // Perform backend soft-deletion (move to Trash) asynchronously
+    // Perform permanent backend deletion asynchronously
     for (const item of itemsToDelete) {
       try {
         await deleteMediaItem(item.id);
       } catch (err) {
-        console.error(`Failed to move media to trash ${item.id}:`, err);
+        console.error(`Failed to permanently delete media ${item.id}:`, err);
       }
     }
-    // Refresh stats, folders, & trash total
+    // Refresh stats & folders
     fetchStats().then(setStats).catch(console.error);
     fetchFolders().then(setFolders).catch(console.error);
-    fetchTrashMedia(1, 0)
-      .then((res) => setTrashTotal(res.total))
-      .catch(console.error);
   }, []);
 
   const handleUndoDelete = useCallback(() => {
@@ -738,17 +622,15 @@ export const App: React.FC = () => {
       });
     }
 
-    // 2. Synchronize current view (Timeline, Favorites, or Active Album) in background so no page refresh is ever needed
+    // 2. Synchronize current view (Timeline or Active Album) in background so no page refresh is ever needed
     const currentFolderId = activeFolderRef.current ? activeFolderRef.current.id : null;
-    const isFavoritesView = currentViewRef.current === "favorites" && !activeFolderRef.current;
     fetchTimeline(
       0,
       100,
       activeFilterRef.current,
       debouncedSearchQueryRef.current,
       currentFolderId,
-      sortByRef.current,
-      isFavoritesView
+      sortByRef.current
     )
       .then((res) => {
         setGroups(res.groups);
@@ -848,28 +730,6 @@ export const App: React.FC = () => {
     const itemsToDelete = flatItems.filter((i) => idSet.has(i.id));
     if (itemsToDelete.length > 0) {
       queueDeleteItems(itemsToDelete);
-    }
-  };
-
-  const handleDownloadBatchSelected = async (mediaIds?: number[]) => {
-    const ids = mediaIds || Array.from(selectedIds);
-    if (ids.length === 0) return;
-    showToast(`Preparing ZIP archive for ${ids.length} item${ids.length === 1 ? "" : "s"}...`, "info");
-    try {
-      await downloadBatchMediaZip(ids);
-      showToast(`Downloaded ${ids.length} item${ids.length === 1 ? "" : "s"} as ZIP!`, "success");
-    } catch (err: any) {
-      showToast(`Download failed: ${err.message || "Unknown error"}`, "error");
-    }
-  };
-
-  const handleExportAlbumZip = async (folder: FolderItem) => {
-    showToast(`Preparing ZIP export for album "${folder.name}"...`, "info");
-    try {
-      await exportAlbumZip(folder.id);
-      showToast(`Exported album "${folder.name}" as ZIP!`, "success");
-    } catch (err: any) {
-      showToast(`Export failed: ${err.message || "Unknown error"}`, "error");
     }
   };
 
@@ -1237,74 +1097,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleToggleFavoriteMedia = async (mediaId: number, isFavorite: boolean) => {
-    // Optimistic UI state update
-    setGroups((prev) =>
-      prev.map((g) => ({
-        ...g,
-        items: g.items.map((item) =>
-          item.id === mediaId ? { ...item, is_favorite: isFavorite } : item
-        ),
-      }))
-    );
-    if (selectedMedia && selectedMedia.id === mediaId) {
-      setSelectedMedia((prev) => (prev ? { ...prev, is_favorite: isFavorite } : null));
-    }
-
-    try {
-      await toggleFavoriteMedia(mediaId, isFavorite);
-      showToast(
-        isFavorite ? "Added to Favorites" : "Removed from Favorites",
-        "info"
-      );
-      if (currentView === "favorites") {
-        loadData();
-      }
-    } catch (err: any) {
-      // Rollback
-      setGroups((prev) =>
-        prev.map((g) => ({
-          ...g,
-          items: g.items.map((item) =>
-            item.id === mediaId ? { ...item, is_favorite: !isFavorite } : item
-          ),
-        }))
-      );
-      showToast(err.message || "Failed to update favorite status.", "error");
-    }
-  };
-
-  const handleBulkToggleFavoriteMedia = async (mediaIds: number[], isFavorite: boolean) => {
-    if (mediaIds.length === 0) return;
-    const targetSet = new Set(mediaIds);
-
-    // Optimistic UI state update
-    setGroups((prev) =>
-      prev.map((g) => ({
-        ...g,
-        items: g.items.map((item) =>
-          targetSet.has(item.id) ? { ...item, is_favorite: isFavorite } : item
-        ),
-      }))
-    );
-
-    try {
-      await bulkToggleFavoriteMedia(mediaIds, isFavorite);
-      showToast(
-        isFavorite
-          ? `Added ${mediaIds.length} ${mediaIds.length === 1 ? "item" : "items"} to Favorites`
-          : `Removed ${mediaIds.length} ${mediaIds.length === 1 ? "item" : "items"} from Favorites`,
-        "success"
-      );
-      if (currentView === "favorites") {
-        loadData();
-      }
-    } catch (err: any) {
-      loadData();
-      showToast(err.message || "Failed to update bulk favorite status.", "error");
-    }
-  };
-
   const handleSetFolderCover = async (folderId: number, mediaId: number | null) => {
     const target = folders.find((f) => f.id === folderId);
     const entityType = target?.is_collection ? "Collection" : "Album";
@@ -1471,14 +1263,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const activeExifFilterCount = [
-    activeExifFilters.camera,
-    activeExifFilters.orientation,
-    activeExifFilters.min_resolution,
-    activeExifFilters.year,
-    activeExifFilters.month,
-  ].filter(Boolean).length;
-
   return (
     <AuroraBackground>
       <div
@@ -1521,45 +1305,18 @@ export const App: React.FC = () => {
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onSelectTimeline={() => {
-          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(null);
           setSelectedCollection(null);
           setSelectedIds(new Set());
         }}
         onSelectAlbumsOverview={() => {
-          setSearchQuery("");
           setCurrentView("albums");
           setActiveFolder(null);
           setSelectedCollection(null);
           setSelectedIds(new Set());
         }}
-        onSelectFavorites={() => {
-          setSearchQuery("");
-          setCurrentView("favorites");
-          setActiveFolder(null);
-          setSelectedCollection(null);
-          setSelectedIds(new Set());
-          setGroups((prev) =>
-            prev
-              .map((g) => ({
-                ...g,
-                items: g.items.filter((i) => Boolean(i.is_favorite)),
-              }))
-              .filter((g) => g.items.length > 0)
-          );
-        }}
-        onSelectTrash={() => {
-          setSearchQuery("");
-          setCurrentView("trash");
-          setActiveFolder(null);
-          setSelectedCollection(null);
-          setSelectedIds(new Set());
-          loadTrash();
-        }}
-        trashCount={trashTotal}
         onSelectFolder={(folder) => {
-          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(folder);
           setSelectedIds(new Set());
@@ -1574,7 +1331,6 @@ export const App: React.FC = () => {
         onAddMediaToFolder={handleBulkAddToFolder}
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
         onSyncVault={handleSyncVault}
-        onExportFolderZip={handleExportAlbumZip}
         onFolderContextMenu={handleFolderContextMenu}
         isSyncing={isSyncing}
       />
@@ -1597,79 +1353,7 @@ export const App: React.FC = () => {
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
-          activeExifFilterCount={activeExifFilterCount}
-          onOpenExifFilters={() => setIsExifDrawerOpen(true)}
         />
-
-        {/* Active EXIF & Date Filters Pill Banner */}
-        {activeExifFilterCount > 0 && (
-          <div className="bg-surface-container-low border-b border-outline-variant/15 px-4 lg:px-8 py-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              <span className="text-on-surface-variant font-medium">Active filters:</span>
-              {activeExifFilters.camera && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
-                  Camera: {activeExifFilters.camera}
-                  <button
-                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, camera: null }))}
-                    className="hover:text-primary-hover cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {activeExifFilters.orientation && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium capitalize">
-                  {activeExifFilters.orientation}
-                  <button
-                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, orientation: null }))}
-                    className="hover:text-primary-hover cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {activeExifFilters.min_resolution && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
-                  {activeExifFilters.min_resolution === "4k" ? "4K+ UHD" : "Full HD (1080p+)"}
-                  <button
-                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, min_resolution: null }))}
-                    className="hover:text-primary-hover cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {activeExifFilters.year && !activeExifFilters.month && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
-                  Year: {activeExifFilters.year}
-                  <button
-                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, year: null }))}
-                    className="hover:text-primary-hover cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-              {activeExifFilters.month && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
-                  Period: {activeExifFilters.month}
-                  <button
-                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, month: null }))}
-                    className="hover:text-primary-hover cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => setActiveExifFilters({})}
-              className="text-xs text-error hover:underline font-semibold shrink-0 cursor-pointer"
-            >
-              Clear all
-            </button>
-          </div>
-        )}
 
         {/* Main Content Viewport */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 pt-6">
@@ -1730,7 +1414,7 @@ export const App: React.FC = () => {
             );
           })()}
 
-          {/* View Switcher: Albums Grid vs Favorites View vs Timeline Grid */}
+          {/* View Switcher: Albums Grid vs Timeline Grid */}
           {currentView === "albums" && !activeFolder ? (
             <FolderGrid
               folders={folders}
@@ -1751,47 +1435,9 @@ export const App: React.FC = () => {
               onMoveFolderToCollection={handleMoveToCollection}
               onAddMediaToFolder={handleBulkAddToFolder}
               onUpdateFolderColor={handleUpdateFolderColor}
-              onExportFolderZip={handleExportAlbumZip}
               onFolderContextMenu={handleFolderContextMenu}
               onCanvasContextMenu={handleCanvasContextMenu}
               loading={loadingFolders}
-            />
-          ) : currentView === "favorites" && !activeFolder ? (
-            <FavoritesView
-              favoriteFolders={folders.filter((f) => f.is_favorite)}
-              mediaGroups={groups}
-              selectedIds={selectedIds}
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
-              displayLayout={displayLayout}
-              onLayoutChange={handleDisplayLayoutChange}
-              sortBy={sortBy}
-              onSortChange={handleSortChange}
-              searchQuery={searchQuery}
-              onClearSearch={() => setSearchQuery("")}
-              onSelectMedia={setSelectedMedia}
-              onToggleSelect={handleToggleSelect}
-              onSelectAllInGroup={handleSelectAllInGroup}
-              onDeselectAllInGroup={handleDeselectAllInGroup}
-              onMediaContextMenu={handleCardContextMenu}
-              onSelectFolder={(folder) => {
-                setActiveFolder(folder);
-                setCurrentView("timeline");
-              }}
-              onToggleFavoriteFolder={handleToggleFavoriteFolder}
-              onToggleFavoriteMedia={handleToggleFavoriteMedia}
-              onFolderContextMenu={handleFolderContextMenu}
-              loading={loading}
-            />
-          ) : currentView === "trash" && !activeFolder ? (
-            <TrashView
-              items={trashItems}
-              isLoading={loadingTrash}
-              onRestoreItem={handleRestoreItem}
-              onBulkRestore={handleBulkRestore}
-              onPermanentDelete={handlePermanentDelete}
-              onEmptyTrash={handleEmptyTrash}
-              onRefresh={loadTrash}
             />
           ) : (
             <TimelineGrid
@@ -1808,7 +1454,6 @@ export const App: React.FC = () => {
               onSelectAllInGroup={handleSelectAllInGroup}
               onDeselectAllInGroup={handleDeselectAllInGroup}
               onContextMenu={handleCardContextMenu}
-              onToggleFavorite={handleToggleFavoriteMedia}
               loading={loading}
             />
           )}
@@ -1830,8 +1475,6 @@ export const App: React.FC = () => {
               folders={folders}
               onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
               onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
-              onFavoriteSelected={() => handleBulkToggleFavoriteMedia(Array.from(selectedIds), true)}
-              onDownloadSelected={() => handleDownloadBatchSelected()}
               onDeleteSelected={() => handleBulkDeleteSelected()}
               onDeselectAll={handleDeselectAll}
             />
@@ -1854,7 +1497,6 @@ export const App: React.FC = () => {
           onAddToFolder={handleBulkAddToFolder}
           onCreateFolderAndAdd={handleBulkCreateFolderAndAdd}
           onDeleteMedia={handlePromptDeleteMedia}
-          onDownloadBatch={(mediaIds) => handleDownloadBatchSelected(mediaIds)}
           onTriggerUpload={() => hiddenFileInputRef.current?.click()}
           onCreateFolder={handleCreateFolder}
           onSelectFolder={(folder) => {
@@ -1866,7 +1508,6 @@ export const App: React.FC = () => {
           onSetFolderCover={(folder) => setFolderToCover(folder)}
           onOpenMoveModal={(folder) => setFolderToMove(folder)}
           onToggleFavoriteFolder={handleToggleFavoriteFolder}
-          onToggleFavoriteMedia={handleToggleFavoriteMedia}
           onDeleteFolder={handlePromptDeleteFolder}
           onBackToOverview={() => {
             setActiveFolder(null);
@@ -1941,7 +1582,6 @@ export const App: React.FC = () => {
           onNext={handleNext}
           hasPrev={currentIndex > 0}
           hasNext={currentIndex >= 0 && currentIndex < flatItems.length - 1}
-          onToggleFavorite={handleToggleFavoriteMedia}
           onDelete={handleDeleteMedia}
         />
       )}
@@ -1987,33 +1627,16 @@ export const App: React.FC = () => {
         displayLayout={displayLayout}
         sortBy={sortBy}
         onSelectTimeline={() => {
-          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(null);
           setSelectedIds(new Set());
         }}
         onSelectAlbumsOverview={() => {
-          setSearchQuery("");
           setCurrentView("albums");
           setActiveFolder(null);
           setSelectedIds(new Set());
         }}
-        onSelectFavorites={() => {
-          setSearchQuery("");
-          setCurrentView("favorites");
-          setActiveFolder(null);
-          setSelectedIds(new Set());
-          setGroups((prev) =>
-            prev
-              .map((g) => ({
-                ...g,
-                items: g.items.filter((i) => Boolean(i.is_favorite)),
-              }))
-              .filter((g) => g.items.length > 0)
-          );
-        }}
         onSelectFolder={(folder) => {
-          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(folder);
           setSelectedIds(new Set());
@@ -2032,16 +1655,6 @@ export const App: React.FC = () => {
         items={mediaToDelete || []}
         onConfirm={handleConfirmMediaDelete}
         onCancel={() => setMediaToDelete(null)}
-      />
-
-      {/* Smart EXIF & Date Filters Popover Drawer */}
-      <ExifFilterDrawer
-        isOpen={isExifDrawerOpen}
-        onClose={() => setIsExifDrawerOpen(false)}
-        metadata={filterMetadata}
-        activeFilters={activeExifFilters}
-        onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
-        onResetFilters={() => setActiveExifFilters({})}
       />
 
       {/* 10-Second Undo Delete Toast */}
@@ -2078,7 +1691,13 @@ export const App: React.FC = () => {
           handleBulkAddToFolder(folderId, ids);
         }}
         onDropFavorite={async (ids) => {
-          await handleBulkToggleFavoriteMedia(ids, true);
+          const favFolder = folders.find((f) => f.name.toLowerCase() === "favorites" || f.is_favorite);
+          if (favFolder) {
+            await handleBulkAddToFolder(favFolder.id, ids);
+            showToast(`Added ${ids.length} ${ids.length === 1 ? "item" : "items"} to Favorites`, "success");
+          } else {
+            showToast(`No Favorites album found to store favorited items`, "info");
+          }
         }}
         onDropDeselect={() => {
           setSelectedIds(new Set());

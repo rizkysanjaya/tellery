@@ -1,13 +1,11 @@
 """
 =============================================================================
 Module: src.api.routes.media
-Purpose: REST endpoints for media catalog timeline feeds, smart EXIF & date filtering,
-         filter metadata aggregation, item details, favorites, trash/recovery system,
-         batch ZIP download, and archive stats.
+Purpose: REST endpoints for media catalog timeline feeds, item details, and archive stats.
 Used by: Web Gallery UI, Frontend clients.
-Dependencies: fastapi, datetime, src.database.repository, src.api.schemas, src.services.archive_service, src.services.zip_export_service
+Dependencies: fastapi, datetime, src.database.repository, src.api.schemas
 Public Members: router
-Side Effects: Reads and updates SQLite catalog records, manages Telegram vault messages/thumbnails, spools temporary ZIP archives.
+Side Effects: Reads SQLite catalog records.
 =============================================================================
 """
 
@@ -15,24 +13,17 @@ from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from src.api.schemas import (
     MediaItemResponse,
     StatsResponse,
     TimelineGroup,
     TimelineResponse,
-    FavoriteMediaRequest,
-    BulkFavoriteMediaRequest,
-    RestoreMediaBatchRequest,
-    BatchDownloadRequest,
-    TrashResponse,
-    FilterMetadataResponse,
 )
 from src.database.repository import MediaRepository
 from src.services.archive_service import ArchiveService
 from src.services.upload_tracker import get_upload_tracker
-from src.services.zip_export_service import get_zip_export_service
 
 router = APIRouter(prefix="/api/media", tags=["Media Catalog"])
 
@@ -106,8 +97,6 @@ def _to_media_response(item: dict) -> MediaItemResponse:
         created_at=item["created_at"],
         folder_id=item.get("folder_id"),
         folder_name=item.get("folder_name"),
-        is_favorite=bool(item.get("is_favorite", 0)),
-        deleted_at=item.get("deleted_at"),
     )
 
 
@@ -119,17 +108,10 @@ async def get_timeline(
     q: Optional[str] = Query(None, description="Search query by filename or camera model"),
     folder_id: Optional[int] = Query(None, description="Filter by virtual folder ID"),
     sort_by: str = Query("date_desc", pattern="^(date_desc|date_asc|name_asc|name_desc|size_desc|size_asc)$"),
-    only_favorites: bool = Query(False, description="Filter to only favorited media items"),
-    camera: Optional[str] = Query(None, description="Filter by camera make or model"),
-    orientation: Optional[str] = Query(None, pattern="^(landscape|portrait|square)$", description="Filter by media orientation"),
-    min_resolution: Optional[str] = Query(None, pattern="^(4k|fhd)$", description="Filter by minimum resolution"),
-    year: Optional[int] = Query(None, description="Filter by calendar year"),
-    month: Optional[str] = Query(None, description="Filter by ISO month (e.g. 2026-08)"),
 ):
     """
     Retrieves chronological or attribute-sorted timeline feed.
-    Supports filtering by media type, search keyword, virtual folder, custom sorting, favorites,
-    smart EXIF camera make/model, orientation, resolution, and calendar periods.
+    Supports filtering by media type, search keyword, virtual folder, and custom sorting.
     """
     filter_type = type if type in ("photo", "video") else None
     total_count, raw_items = await MediaRepository.get_timeline(
@@ -139,12 +121,6 @@ async def get_timeline(
         search_query=q,
         folder_id=folder_id,
         sort_by=sort_by,
-        only_favorites=only_favorites,
-        camera=camera,
-        orientation=orientation,
-        min_resolution=min_resolution,
-        year=year,
-        month=month,
     )
 
     # Group items preserving active sort order
@@ -292,16 +268,6 @@ async def get_stats():
     )
 
 
-@router.get("/filters/meta", response_model=FilterMetadataResponse)
-async def get_filter_metadata():
-    """
-    Retrieves aggregate EXIF and chronological metadata for smart filtering and date scrubber.
-    Cost: Indexed aggregate queries.
-    """
-    meta = await MediaRepository.get_filter_metadata()
-    return FilterMetadataResponse(**meta)
-
-
 @router.get("/upload/progress/{upload_id}")
 async def get_upload_progress(upload_id: str):
     """
@@ -381,7 +347,8 @@ async def get_media_item(media_id: int):
 @router.delete("/{media_id:int}")
 async def delete_media_item(media_id: int):
     """
-    Soft deletes a media item (moves to Trash) while keeping Telegram message and local thumbnails safe.
+    Permanently deletes a media item from the Telegram vault,
+    removes it from the SQLite catalog, and cleans up local thumbnail cache.
     """
     archive_service = ArchiveService()
     try:
@@ -390,111 +357,7 @@ async def delete_media_item(media_id: int):
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to move media item to Trash: {e}")
-
-
-@router.get("/trash", response_model=TrashResponse)
-async def get_trash_media(
-    limit: int = Query(100, ge=1, le=500),
-    offset: int = Query(0, ge=0),
-):
-    """
-    Retrieves paginated list of soft-deleted media items in Trash.
-    """
-    items = await MediaRepository.get_trash_items(limit=limit, offset=offset)
-    total = await MediaRepository.get_trash_count()
-    return TrashResponse(
-        total=total,
-        items=[_to_media_response(i) for i in items],
-    )
-
-
-@router.post("/{media_id:int}/restore")
-async def restore_media_item(media_id: int):
-    """
-    Restores a soft-deleted media item from Trash back to the gallery.
-    """
-    archive_service = ArchiveService()
-    try:
-        result = await archive_service.restore_media_item(media_id)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to restore media item: {e}")
-
-
-@router.post("/trash/restore")
-async def restore_trash_batch(body: RestoreMediaBatchRequest):
-    """
-    Restores a batch of media items from Trash back to the gallery.
-    """
-    archive_service = ArchiveService()
-    try:
-        result = await archive_service.restore_batch(body.media_ids)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to restore batch: {e}")
-
-
-@router.delete("/{media_id:int}/permanent")
-async def delete_media_permanently(media_id: int):
-    """
-    Permanently deletes a media item from the Telegram vault, disk caches, and database.
-    """
-    archive_service = ArchiveService()
-    try:
-        result = await archive_service.purge_media_permanently(media_id)
-        return result
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to permanently delete media: {e}")
-
-
-@router.post("/trash/empty")
-async def empty_trash():
-    """
-    Permanently purges all items currently in Trash from Telegram storage and database.
-    """
-    archive_service = ArchiveService()
-    try:
-        result = await archive_service.empty_trash()
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to empty Trash: {e}")
-
-
-@router.post("/download-batch")
-async def download_media_batch(
-    body: BatchDownloadRequest,
-    background_tasks: BackgroundTasks,
-):
-    """
-    Creates and streams a ZIP archive containing the requested media items.
-    Employs ZIP_STORED and kernel sendfile FileResponse to eliminate memory/CPU bloat.
-    Automatically unlinks the temporary archive file upon completion.
-    """
-    if not body.media_ids:
-        raise HTTPException(status_code=400, detail="No media items provided.")
-
-    zip_service = get_zip_export_service()
-    try:
-        zip_path = await zip_service.create_batch_archive(body.media_ids)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        export_filename = f"telegallery_batch_{timestamp}.zip"
-
-        background_tasks.add_task(zip_service.cleanup_archive, zip_path)
-        return FileResponse(
-            path=zip_path,
-            media_type="application/zip",
-            filename=export_filename,
-            background=background_tasks,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate batch archive: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete media item: {e}")
 
 
 @router.get("/{media_id:int}/folders")
@@ -585,32 +448,4 @@ async def update_media_metadata(media_id: int, payload: dict):
     )
 
     return {"status": "updated", "media_id": media_id}
-
-
-@router.patch("/{media_id:int}/favorite")
-async def toggle_favorite(media_id: int, payload: FavoriteMediaRequest):
-    """
-    Toggles favorite status for a single media item.
-    Cost: O(1) indexed point update.
-    """
-    item = await MediaRepository.get_by_id(media_id)
-    if not item:
-        raise HTTPException(status_code=404, detail="Media item not found")
-
-    success = await MediaRepository.update_favorite(media_id, payload.is_favorite)
-    if not success:
-        raise HTTPException(status_code=500, detail="Failed to update favorite status")
-
-    return {"status": "ok", "media_id": media_id, "is_favorite": payload.is_favorite}
-
-
-@router.post("/favorite/bulk")
-async def bulk_toggle_favorite(payload: BulkFavoriteMediaRequest):
-    """
-    Batch updates favorite status for multiple media items.
-    Cost: O(K) where K = len(media_ids).
-    """
-    updated_count = await MediaRepository.bulk_update_favorite(payload.media_ids, payload.is_favorite)
-    return {"status": "ok", "updated_count": updated_count, "is_favorite": payload.is_favorite}
-
 

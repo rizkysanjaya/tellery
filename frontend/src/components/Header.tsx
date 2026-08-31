@@ -2,12 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/Header.tsx
  * Purpose: Neomorphic top navigation header with spotlight search,
- *          segmented filter pills, smart EXIF & date filter trigger, sort popover menu,
- *          view awareness, and layout switchers.
+ *          segmented filter pills, sort popover menu, and layout switchers.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, AnimatedTabs
  * Public Members: Header
- * Side Effects: Dispatches search, filter, EXIF drawer toggle, sort, and layout change events.
+ * Side Effects: Dispatches search, filter, sort, and layout change events.
  * =============================================================================
  */
 
@@ -29,7 +28,6 @@ import {
   Command,
   Sun,
   Moon,
-  SlidersHorizontal,
 } from "lucide-react";
 import { DisplayLayout, FilterType, FolderItem, MainView, SortOption } from "../types";
 import { AnimatedTabs, TabItem } from "./ui/AnimatedTabs";
@@ -49,8 +47,6 @@ interface HeaderProps {
   onToggleMobileSidebar: () => void;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
-  activeExifFilterCount?: number;
-  onOpenExifFilters?: () => void;
 }
 
 const SORT_LABELS: Record<SortOption, { label: string; group: string }> = {
@@ -77,19 +73,14 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileSidebar,
   theme = "dark",
   onToggleTheme,
-  activeExifFilterCount = 0,
-  onOpenExifFilters,
 }) => {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortMenuRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const isAlbumsOverview = currentView === "albums" && !activeFolder;
-  const isFavoritesOverview = currentView === "favorites" && !activeFolder;
   const searchPlaceholder = isAlbumsOverview
     ? "Search albums & collections..."
-    : isFavoritesOverview
-    ? "Search in favorites..."
     : activeFolder
     ? `Search in "${activeFolder.name}"...`
     : "Search vault (photos, videos, cameras, 2026)...";
@@ -196,27 +187,6 @@ export const Header: React.FC<HeaderProps> = ({
               onChange={onFilterChange}
               layoutIdPrefix="media-filter"
             />
-
-            {/* Smart EXIF & Date Filters Button */}
-            {onOpenExifFilters && (
-              <button
-                onClick={onOpenExifFilters}
-                className={`relative flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-neo-lg text-sm font-semibold transition-all cursor-pointer ${
-                  activeExifFilterCount > 0
-                    ? "neo-pressed text-primary bg-surface-base font-bold shadow-xs"
-                    : "neo-raised text-on-surface-variant hover:text-on-surface bg-surface-container hover:scale-[1.02]"
-                }`}
-                title="Smart EXIF & Metadata Filters"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span className="hidden lg:inline">Filters</span>
-                {activeExifFilterCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[11px] font-bold flex items-center justify-center -ml-0.5 shadow-xs">
-                    {activeExifFilterCount}
-                  </span>
-                )}
-              </button>
-            )}
 
             {/* Sort Menu Dropdown */}
             {onSortChange && (

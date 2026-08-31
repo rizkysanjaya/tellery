@@ -2,8 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/ui/CommandPalette.tsx
  * Purpose: 21st.dev / Raycast-style spotlight command palette dialog triggered by
- *          Ctrl+K or header search. Enables rapid keyboard navigation (Timeline, Favorites,
- *          Albums), view switching, sorting, album jumps, upload actions, and vault sync.
+ *          Ctrl+K or header search. Enables rapid keyboard navigation, view switching,
+ *          sorting, album jumps, upload actions, and vault synchronization.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts
  * Public Members: CommandPalette
@@ -17,7 +17,6 @@ import {
   Search,
   Clock,
   Folder,
-  Star,
   Upload,
   Grid,
   LayoutGrid,
@@ -52,7 +51,6 @@ interface CommandPaletteProps {
   sortBy: SortOption;
   onSelectTimeline: () => void;
   onSelectAlbumsOverview: () => void;
-  onSelectFavorites?: () => void;
   onSelectFolder: (folder: FolderItem) => void;
   onDisplayLayoutChange: (layout: DisplayLayout) => void;
   onSortChange: (sort: SortOption) => void;
@@ -72,7 +70,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   sortBy,
   onSelectTimeline,
   onSelectAlbumsOverview,
-  onSelectFavorites,
   onSelectFolder,
   onDisplayLayoutChange,
   onSortChange,
@@ -106,18 +103,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       active: currentView === "timeline" && !activeFolder,
       action: () => {
         onSelectTimeline();
-        onClose();
-      },
-    },
-    {
-      id: "nav-favorites",
-      category: "Navigation",
-      title: "Favorites",
-      subtitle: "View starred albums and favorited media items",
-      icon: <Star className="w-4 h-4 text-amber-400 fill-amber-400" />,
-      active: currentView === "favorites" && !activeFolder,
-      action: () => {
-        if (onSelectFavorites) onSelectFavorites();
         onClose();
       },
     },

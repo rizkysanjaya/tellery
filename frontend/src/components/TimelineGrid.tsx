@@ -2,13 +2,13 @@
  * =============================================================================
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
- *          contextual empty states, per-section select-all toggles, chronological
- *          date-jump scrubber bar, and natural aspect masonry showcase.
- * Used by: frontend/src/App.tsx, frontend/src/components/FavoritesView.tsx
- * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx,
- *               frontend/src/components/MediaListItem.tsx, frontend/src/components/TimelineDateScrubber.tsx, lucide-react
+ *          contextual empty states (search queries, empty albums, empty vault),
+ *          per-section select-all toggles for multi-select mode, and natural aspect
+ *          masonry showcase with strict left-to-right chronological sorting.
+ * Used by: frontend/src/App.tsx
+ * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx, frontend/src/components/MediaListItem.tsx, lucide-react
  * Public Members: TimelineGrid
- * Side Effects: Dispatches media item click, selection toggle, favorite toggle, search clearing, and context menu events.
+ * Side Effects: Dispatches media item click, selection toggle, search clearing, and context menu events.
  * =============================================================================
  */
 
@@ -27,7 +27,6 @@ import {
 import { DisplayLayout, MediaItem, SortOption, TimelineGroup } from "../types";
 import { MediaCard } from "./MediaCard";
 import { MediaListItem } from "./MediaListItem";
-import { TimelineDateScrubber } from "./TimelineDateScrubber";
 
 function useResponsiveColumns(): number {
   const [columnCount, setColumnCount] = useState<number>(() => {
@@ -64,7 +63,6 @@ interface TimelineGridProps {
   searchQuery?: string;
   onClearSearch?: () => void;
   activeFolderName?: string;
-  emptyContextLabel?: string;
   layout?: DisplayLayout;
   sortBy?: SortOption;
   onSortChange?: (sort: SortOption) => void;
@@ -73,7 +71,6 @@ interface TimelineGridProps {
   onSelectAllInGroup: (ids: number[]) => void;
   onDeselectAllInGroup: (ids: number[]) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
-  onToggleFavorite?: (id: number, isFavorite: boolean) => void;
   loading: boolean;
 }
 
@@ -83,7 +80,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   searchQuery,
   onClearSearch,
   activeFolderName,
-  emptyContextLabel,
   layout = "grid",
   sortBy = "date_desc",
   onSortChange,
@@ -92,7 +88,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   onSelectAllInGroup,
   onDeselectAllInGroup,
   onContextMenu,
-  onToggleFavorite,
   loading,
 }) => {
   const isSelectionMode = selectedIds.size > 0;
@@ -109,17 +104,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
     }
   };
 
-  // 1. Initial or Search Loading State (when no groups are ready to display yet)
-  if (loading && groups.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-in fade-in duration-200">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-        <p className="text-xs text-on-surface-variant font-medium">Loading media items...</p>
-      </div>
-    );
-  }
-
-  // 2. Empty State
   if (!loading && groups.length === 0) {
     const isSearchActive = Boolean(searchQuery && searchQuery.trim());
 
@@ -140,7 +124,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
               </>
             ) : (
               <>
-                No media matching <span className="font-semibold text-primary font-mono">"{searchQuery?.trim()}"</span> {emptyContextLabel || "in your vault"}
+                No media matching <span className="font-semibold text-primary font-mono">"{searchQuery?.trim()}"</span> in your vault
               </>
             )}
           </p>
@@ -192,10 +176,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   }
 
   return (
-    <div className="space-y-10 pb-20 relative">
-      {/* Apple/Google Photos-style Chronological Date-Jump Scrubber */}
-      {groups.length > 1 && <TimelineDateScrubber groups={groups} />}
-
+    <div className="space-y-10 pb-20">
       {groups.map((group) => {
         const groupItemIds = group.items.map((i) => i.id);
         const allSelected =
@@ -204,11 +185,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
         const someSelected = groupItemIds.some((id) => selectedIds.has(id));
 
         return (
-          <section
-            key={group.period_key}
-            id={`timeline-group-${group.period_key}`}
-            className="space-y-3.5 scroll-mt-24"
-          >
+          <section key={group.period_key} className="space-y-3.5">
             {/* Floating Rounded Month/Year Header Card */}
             <div className="sticky top-[68px] z-30 py-2">
               <div className="flex items-center justify-between w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl px-5 py-3 neo-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] group/header">
@@ -338,7 +315,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     selectedIds={selectedIds}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
-                    onToggleFavorite={onToggleFavorite}
                     onContextMenu={onContextMenu}
                   />
                 ))}
@@ -365,7 +341,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                             aspectMode="natural"
                             onClick={() => onSelectMedia(item)}
                             onToggleSelect={onToggleSelect}
-                            onToggleFavorite={onToggleFavorite}
                             onContextMenu={onContextMenu}
                           />
                         ))}
@@ -386,7 +361,6 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     selectedIds={selectedIds}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
-                    onToggleFavorite={onToggleFavorite}
                     onContextMenu={onContextMenu}
                   />
                 ))}
@@ -395,6 +369,12 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
           </section>
         );
       })}
+
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
     </div>
   );
 };
