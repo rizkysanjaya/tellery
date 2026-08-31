@@ -7,13 +7,14 @@
  *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
  *          Trash & Data Recovery system (safe soft-delete, 1-click restore, permanent delete, empty trash),
  *          batch ZIP archive downloads for multi-selected items, album ZIP exports,
- *          search, filtering, lightbox, drag-and-drop, context-aware right-click menus,
+ *          smart EXIF & metadata filtering (camera devices, orientation, resolution, calendar periods),
+ *          chronological date-jump scrubber bar, search, lightbox, drag-and-drop, context-aware right-click menus,
  *          floating back-to-top button on noticeable scroll, media delete confirmation modals
  *          with 10-second undo countdown, Telegram vault uploads, and Telegram channel sync.
  * Used by: frontend/src/main.tsx
  * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats/trash over HTTP, executes uploads, soft deletions,
+ * Side Effects: Fetches timeline/folders/stats/trash/filter-meta over HTTP, executes uploads, soft deletions,
  *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
  *                favorites toggles, folder assignments, vault sync, and persists theme/layout in localStorage.
  * =============================================================================
@@ -21,7 +22,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, ChevronLeft, ChevronRight } from "lucide-react";
+import { UploadCloud, ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   addMediaToFolder,
   createFolder,
@@ -45,6 +46,7 @@ import {
   emptyTrash,
   downloadBatchMediaZip,
   exportAlbumZip,
+  fetchFilterMetadata,
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
@@ -59,6 +61,7 @@ import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
 import { UploadManager } from "./components/UploadManager";
+import { ExifFilterDrawer } from "./components/ExifFilterDrawer";
 import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
@@ -73,9 +76,11 @@ import { DragDropDock } from "./components/ui/DragDropDock";
 import { DragStackedPreview } from "./components/ui/DragStackedPreview";
 import { BackToTopButton } from "./components/ui/BackToTopButton";
 import {
+  ActiveExifFilters,
   ConflictResolutionAction,
   DisplayLayout,
   DuplicateConflict,
+  FilterMetadataResponse,
   FilterType,
   FolderItem,
   MainView,
@@ -269,16 +274,26 @@ export const App: React.FC = () => {
     }
   }, []);
 
-  // Initial load for stats, folders, & trash count
+  // Smart EXIF & Date Filters State
+  const [filterMetadata, setFilterMetadata] = useState<FilterMetadataResponse | null>(null);
+  const [activeExifFilters, setActiveExifFilters] = useState<ActiveExifFilters>({});
+  const [isExifDrawerOpen, setIsExifDrawerOpen] = useState(false);
+
+  const loadFilterMetadata = useCallback(() => {
+    fetchFilterMetadata().then(setFilterMetadata).catch(console.error);
+  }, []);
+
+  // Initial load for stats, folders, filter metadata & trash count
   useEffect(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
+    loadFilterMetadata();
     fetchTrashMedia(1, 0)
       .then((res) => setTrashTotal(res.total))
       .catch(console.error);
-  }, [loadFolders]);
+  }, [loadFolders, loadFilterMetadata]);
 
-  // Instant timeline loading on tab, filter, sort, or folder selection (0ms delay)
+  // Instant timeline loading on tab, filter, sort, EXIF filter, or folder selection (0ms delay)
   useEffect(() => {
     if (currentView === "trash") {
       loadTrash();
@@ -290,7 +305,7 @@ export const App: React.FC = () => {
 
     const folderId = activeFolder ? activeFolder.id : null;
     const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView)
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView, activeExifFilters)
       .then((res) => {
         if (isMounted) {
           setGroups(res.groups);
@@ -307,16 +322,17 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadTrash]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadTrash, activeExifFilters]);
 
   const loadData = useCallback(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
+    loadFilterMetadata();
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
     const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView)
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView, activeExifFilters)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -325,7 +341,7 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadFolders]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadFolders, loadFilterMetadata, activeExifFilters]);
 
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -1455,6 +1471,14 @@ export const App: React.FC = () => {
     }
   };
 
+  const activeExifFilterCount = [
+    activeExifFilters.camera,
+    activeExifFilters.orientation,
+    activeExifFilters.min_resolution,
+    activeExifFilters.year,
+    activeExifFilters.month,
+  ].filter(Boolean).length;
+
   return (
     <AuroraBackground>
       <div
@@ -1573,7 +1597,79 @@ export const App: React.FC = () => {
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          activeExifFilterCount={activeExifFilterCount}
+          onOpenExifFilters={() => setIsExifDrawerOpen(true)}
         />
+
+        {/* Active EXIF & Date Filters Pill Banner */}
+        {activeExifFilterCount > 0 && (
+          <div className="bg-surface-container-low border-b border-outline-variant/15 px-4 lg:px-8 py-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="text-on-surface-variant font-medium">Active filters:</span>
+              {activeExifFilters.camera && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  Camera: {activeExifFilters.camera}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, camera: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.orientation && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium capitalize">
+                  {activeExifFilters.orientation}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, orientation: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.min_resolution && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  {activeExifFilters.min_resolution === "4k" ? "4K+ UHD" : "Full HD (1080p+)"}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, min_resolution: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.year && !activeExifFilters.month && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  Year: {activeExifFilters.year}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, year: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.month && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  Period: {activeExifFilters.month}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, month: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setActiveExifFilters({})}
+              className="text-xs text-error hover:underline font-semibold shrink-0 cursor-pointer"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {/* Main Content Viewport */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 pt-6">
@@ -1936,6 +2032,16 @@ export const App: React.FC = () => {
         items={mediaToDelete || []}
         onConfirm={handleConfirmMediaDelete}
         onCancel={() => setMediaToDelete(null)}
+      />
+
+      {/* Smart EXIF & Date Filters Popover Drawer */}
+      <ExifFilterDrawer
+        isOpen={isExifDrawerOpen}
+        onClose={() => setIsExifDrawerOpen(false)}
+        metadata={filterMetadata}
+        activeFilters={activeExifFilters}
+        onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
+        onResetFilters={() => setActiveExifFilters({})}
       />
 
       {/* 10-Second Undo Delete Toast */}

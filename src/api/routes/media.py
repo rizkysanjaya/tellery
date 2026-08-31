@@ -1,8 +1,9 @@
 """
 =============================================================================
 Module: src.api.routes.media
-Purpose: REST endpoints for media catalog timeline feeds, item details, favorites,
-         trash/recovery system (restore, permanent delete, empty trash), batch ZIP download, and archive stats.
+Purpose: REST endpoints for media catalog timeline feeds, smart EXIF & date filtering,
+         filter metadata aggregation, item details, favorites, trash/recovery system,
+         batch ZIP download, and archive stats.
 Used by: Web Gallery UI, Frontend clients.
 Dependencies: fastapi, datetime, src.database.repository, src.api.schemas, src.services.archive_service, src.services.zip_export_service
 Public Members: router
@@ -26,6 +27,7 @@ from src.api.schemas import (
     RestoreMediaBatchRequest,
     BatchDownloadRequest,
     TrashResponse,
+    FilterMetadataResponse,
 )
 from src.database.repository import MediaRepository
 from src.services.archive_service import ArchiveService
@@ -118,10 +120,16 @@ async def get_timeline(
     folder_id: Optional[int] = Query(None, description="Filter by virtual folder ID"),
     sort_by: str = Query("date_desc", pattern="^(date_desc|date_asc|name_asc|name_desc|size_desc|size_asc)$"),
     only_favorites: bool = Query(False, description="Filter to only favorited media items"),
+    camera: Optional[str] = Query(None, description="Filter by camera make or model"),
+    orientation: Optional[str] = Query(None, pattern="^(landscape|portrait|square)$", description="Filter by media orientation"),
+    min_resolution: Optional[str] = Query(None, pattern="^(4k|fhd)$", description="Filter by minimum resolution"),
+    year: Optional[int] = Query(None, description="Filter by calendar year"),
+    month: Optional[str] = Query(None, description="Filter by ISO month (e.g. 2026-08)"),
 ):
     """
     Retrieves chronological or attribute-sorted timeline feed.
-    Supports filtering by media type, search keyword, virtual folder, custom sorting, and favorites.
+    Supports filtering by media type, search keyword, virtual folder, custom sorting, favorites,
+    smart EXIF camera make/model, orientation, resolution, and calendar periods.
     """
     filter_type = type if type in ("photo", "video") else None
     total_count, raw_items = await MediaRepository.get_timeline(
@@ -132,6 +140,11 @@ async def get_timeline(
         folder_id=folder_id,
         sort_by=sort_by,
         only_favorites=only_favorites,
+        camera=camera,
+        orientation=orientation,
+        min_resolution=min_resolution,
+        year=year,
+        month=month,
     )
 
     # Group items preserving active sort order
@@ -277,6 +290,16 @@ async def get_stats():
         channel_avatar_url="/api/media/avatar/channel" if channel_has_avatar else None,
         user_avatar_url="/api/media/avatar/user" if user_has_avatar else None,
     )
+
+
+@router.get("/filters/meta", response_model=FilterMetadataResponse)
+async def get_filter_metadata():
+    """
+    Retrieves aggregate EXIF and chronological metadata for smart filtering and date scrubber.
+    Cost: Indexed aggregate queries.
+    """
+    meta = await MediaRepository.get_filter_metadata()
+    return FilterMetadataResponse(**meta)
 
 
 @router.get("/upload/progress/{upload_id}")

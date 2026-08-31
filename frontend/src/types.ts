@@ -2,11 +2,12 @@
  * =============================================================================
  * Module: frontend/src/types.ts
  * Purpose: TypeScript type declarations, API contracts, duplicate conflict interfaces,
- *          and state models for TeleGallery frontend.
+ *          smart EXIF/timeline filter models, and state models for TeleGallery frontend.
  * Used by: frontend/src/App.tsx, frontend/src/api.ts, components/
  * Dependencies: None
  * Public Members: MediaItem, TimelineGroup, TimelineResponse, StorageStats,
- *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse
+ *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse,
+ *                 CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, ActiveExifFilters
  * Side Effects: None (Type declarations only).
  * =============================================================================
  */
@@ -148,4 +149,47 @@ export interface SystemStats {
   total_cloud_bytes: number;
   total_cloud_formatted: string;
   local_cache: CacheStats;
+}
+
+export interface CameraFilterItem {
+  make: string;
+  model: string;
+  label: string;
+  count: number;
+}
+
+export interface PeriodSummaryItem {
+  period_key: string;
+  label: string;
+  year: number;
+  count: number;
+  first_media_id?: number | null;
+}
+
+export interface YearSummaryItem {
+  year: number;
+  count: number;
+}
+
+export interface OrientationsSummary {
+  landscape: number;
+  portrait: number;
+  square: number;
+  uhd_4k: number;
+  fhd: number;
+}
+
+export interface FilterMetadataResponse {
+  cameras: CameraFilterItem[];
+  periods: PeriodSummaryItem[];
+  years: YearSummaryItem[];
+  orientations: OrientationsSummary;
+}
+
+export interface ActiveExifFilters {
+  camera?: string | null;
+  orientation?: "landscape" | "portrait" | "square" | null;
+  min_resolution?: "4k" | "fhd" | null;
+  year?: number | null;
+  month?: string | null;
 }

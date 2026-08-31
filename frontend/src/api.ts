@@ -5,7 +5,7 @@
  *          albums/folders, favorites, and Telegram Channel sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
- * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile,
+ * Public Members: fetchTimeline, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
  *                deleteMediaItem, toggleFavoriteMedia, bulkToggleFavoriteMedia,
  *                fetchFolders, createFolder, deleteFolder,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
@@ -16,7 +16,7 @@
  * =============================================================================
  */
 
-import { CacheStats, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse } from "./types";
+import { ActiveExifFilters, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse } from "./types";
 
 const API_BASE = "";
 
@@ -27,7 +27,8 @@ export async function fetchTimeline(
   searchQuery: string = "",
   folderId?: number | null,
   sortBy: string = "date_desc",
-  onlyFavorites: boolean = false
+  onlyFavorites: boolean = false,
+  exifFilters?: ActiveExifFilters
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
@@ -51,9 +52,35 @@ export async function fetchTimeline(
     params.append("only_favorites", "true");
   }
 
+  if (exifFilters) {
+    if (exifFilters.camera) {
+      params.append("camera", exifFilters.camera);
+    }
+    if (exifFilters.orientation) {
+      params.append("orientation", exifFilters.orientation);
+    }
+    if (exifFilters.min_resolution) {
+      params.append("min_resolution", exifFilters.min_resolution);
+    }
+    if (exifFilters.year) {
+      params.append("year", exifFilters.year.toString());
+    }
+    if (exifFilters.month) {
+      params.append("month", exifFilters.month);
+    }
+  }
+
   const response = await fetch(`${API_BASE}/api/media?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch timeline: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchFilterMetadata(): Promise<FilterMetadataResponse> {
+  const response = await fetch(`${API_BASE}/api/media/filters/meta`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch filter metadata: ${response.statusText}`);
   }
   return response.json();
 }

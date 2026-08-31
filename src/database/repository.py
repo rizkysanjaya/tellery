@@ -1,10 +1,10 @@
 """
 ============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery, and audit logging.
+Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery, EXIF filtering, timeline scrubber, and audit logging.
 Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media, src.api.routes.folders.
 Dependencies: aiosqlite, src.database.connection
-Public Members: MediaRepository (get_timeline, get_by_id, update_favorite, delete_media, restore_media, restore_batch, get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media, etc.)
+Public Members: MediaRepository (get_timeline, get_by_id, update_favorite, delete_media, restore_media, restore_batch, get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media, get_all_folder_media, get_filter_metadata)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
 ============================================================================
 """
@@ -108,10 +108,16 @@ class MediaRepository:
         folder_id: Optional[int] = None,
         sort_by: str = "date_desc",
         only_favorites: bool = False,
+        camera: Optional[str] = None,
+        orientation: Optional[str] = None,
+        min_resolution: Optional[str] = None,
+        year: Optional[int] = None,
+        month: Optional[str] = None,
     ) -> tuple[int, list[dict[str, Any]]]:
         """
         Retrieves paginated media items with flexible sorting and filtering.
-        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites.
+        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites,
+        camera/device model, orientation (landscape/portrait/square), min_resolution (4k/fhd), year, month.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
@@ -132,6 +138,30 @@ class MediaRepository:
             where_clauses.append("(m.file_name LIKE ? OR m.camera_make LIKE ? OR m.camera_model LIKE ?)")
             pattern = f"%{search_query}%"
             params.extend([pattern, pattern, pattern])
+
+        if camera:
+            where_clauses.append("(m.camera_make LIKE ? OR m.camera_model LIKE ? OR (m.camera_make || ' ' || m.camera_model) LIKE ?)")
+            cam_pat = f"%{camera}%"
+            params.extend([cam_pat, cam_pat, cam_pat])
+
+        if orientation == "landscape":
+            where_clauses.append("(m.width IS NOT NULL AND m.height IS NOT NULL AND m.width > m.height)")
+        elif orientation == "portrait":
+            where_clauses.append("(m.width IS NOT NULL AND m.height IS NOT NULL AND m.height > m.width)")
+        elif orientation == "square":
+            where_clauses.append("(m.width IS NOT NULL AND m.height IS NOT NULL AND m.width = m.height)")
+
+        if min_resolution == "4k":
+            where_clauses.append("(m.width >= 3840 OR m.height >= 2160)")
+        elif min_resolution == "fhd":
+            where_clauses.append("(m.width >= 1920 OR m.height >= 1080)")
+
+        if month:
+            where_clauses.append("strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) = ?")
+            params.append(month)
+        elif year:
+            where_clauses.append("CAST(strftime('%Y', COALESCE(m.date_taken, m.created_at)) AS INTEGER) = ?")
+            params.append(year)
 
         where_sql = " AND ".join(where_clauses)
 
@@ -527,6 +557,108 @@ class MediaRepository:
                 return [dict(r) for r in rows]
 
     get_folder_media = get_all_folder_media
+
+    @staticmethod
+    async def get_filter_metadata() -> dict[str, Any]:
+        """
+        Extracts aggregate metadata for smart EXIF filtering and timeline date-jump scrubber.
+        Cost: Highly selective indexed aggregate queries. Minimum disk I/O, zero table scan overhead.
+        """
+        import calendar
+        async with get_db_connection() as conn:
+            # 1. Detected Cameras / Devices
+            cam_query = """
+                SELECT camera_make, camera_model, COUNT(*) as item_count
+                FROM media_items
+                WHERE is_deleted = 0 AND (camera_make IS NOT NULL OR camera_model IS NOT NULL)
+                GROUP BY camera_make, camera_model
+                ORDER BY item_count DESC;
+            """
+            cursor = await conn.execute(cam_query)
+            cam_rows = await cursor.fetchall()
+            cameras = []
+            for r in cam_rows:
+                make = (r["camera_make"] or "").strip()
+                model = (r["camera_model"] or "").strip()
+                if make and model:
+                    label = model if make.lower() in model.lower() else f"{make} {model}"
+                else:
+                    label = make or model or "Unknown Device"
+                cameras.append({
+                    "make": make,
+                    "model": model,
+                    "label": label,
+                    "count": r["item_count"]
+                })
+
+            # 2. Chronological Periods (Years and Months for Date-Jump Scrubber)
+            periods_query = """
+                SELECT strftime('%Y-%m', COALESCE(date_taken, created_at)) as period_key,
+                       COUNT(*) as item_count,
+                       MIN(id) as first_media_id
+                FROM media_items
+                WHERE is_deleted = 0
+                GROUP BY period_key
+                ORDER BY period_key DESC;
+            """
+            cursor = await conn.execute(periods_query)
+            period_rows = await cursor.fetchall()
+
+            periods = []
+            years_dict: dict[int, int] = {}
+
+            for r in period_rows:
+                pkey = r["period_key"]
+                if not pkey:
+                    continue
+                try:
+                    y_str, m_str = pkey.split("-")
+                    year = int(y_str)
+                    month_num = int(m_str)
+                    month_name = calendar.month_name[month_num]
+                    label = f"{month_name} {year}"
+                    years_dict[year] = years_dict.get(year, 0) + r["item_count"]
+                except Exception:
+                    label = pkey
+                    year = 0
+
+                periods.append({
+                    "period_key": pkey,
+                    "label": label,
+                    "year": year,
+                    "count": r["item_count"],
+                    "first_media_id": r["first_media_id"],
+                })
+
+            years = [{"year": y, "count": count} for y, count in sorted(years_dict.items(), reverse=True)]
+
+            # 3. Media Orientations & Resolutions
+            orientations_query = """
+                SELECT 
+                    SUM(CASE WHEN width > height THEN 1 ELSE 0 END) as landscape_count,
+                    SUM(CASE WHEN height > width THEN 1 ELSE 0 END) as portrait_count,
+                    SUM(CASE WHEN width = height THEN 1 ELSE 0 END) as square_count,
+                    SUM(CASE WHEN width >= 3840 OR height >= 2160 THEN 1 ELSE 0 END) as uhd_4k_count,
+                    SUM(CASE WHEN (width >= 1920 OR height >= 1080) AND (width < 3840 AND height < 2160) THEN 1 ELSE 0 END) as fhd_count
+                FROM media_items
+                WHERE is_deleted = 0 AND width IS NOT NULL AND height IS NOT NULL;
+            """
+            cursor = await conn.execute(orientations_query)
+            counts_row = await cursor.fetchone()
+            orientations = {
+                "landscape": counts_row["landscape_count"] or 0 if counts_row else 0,
+                "portrait": counts_row["portrait_count"] or 0 if counts_row else 0,
+                "square": counts_row["square_count"] or 0 if counts_row else 0,
+                "uhd_4k": counts_row["uhd_4k_count"] or 0 if counts_row else 0,
+                "fhd": counts_row["fhd_count"] or 0 if counts_row else 0,
+            }
+
+            return {
+                "cameras": cameras,
+                "periods": periods,
+                "years": years,
+                "orientations": orientations,
+            }
 
     @staticmethod
     async def delete_folder(folder_id: int) -> bool:

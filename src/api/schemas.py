@@ -7,7 +7,8 @@ Dependencies: pydantic, typing
 Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse,
                 FolderResponse, CreateFolderRequest, AddMediaToFolderRequest,
                 UpdateFolderColorRequest, FavoriteMediaRequest, BulkFavoriteMediaRequest,
-                RestoreMediaBatchRequest, BatchDownloadRequest, TrashResponse
+                RestoreMediaBatchRequest, BatchDownloadRequest, TrashResponse,
+                CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse
 Side Effects: None
 =============================================================================
 """
@@ -55,6 +56,51 @@ class TrashResponse(BaseModel):
 
     total: int
     items: list[MediaItemResponse]
+
+
+class CameraFilterItem(BaseModel):
+    """Camera make/model metadata and photo counts."""
+
+    make: str
+    model: str
+    label: str
+    count: int
+
+
+class PeriodSummaryItem(BaseModel):
+    """Chronological month/year period item for timeline date-jump scrubber."""
+
+    period_key: str
+    label: str
+    year: int
+    count: int
+    first_media_id: Optional[int] = None
+
+
+class YearSummaryItem(BaseModel):
+    """Year summary for high-level timeline jump."""
+
+    year: int
+    count: int
+
+
+class OrientationsSummary(BaseModel):
+    """Media orientation and resolution counts."""
+
+    landscape: int
+    portrait: int
+    square: int
+    uhd_4k: int
+    fhd: int
+
+
+class FilterMetadataResponse(BaseModel):
+    """Aggregate EXIF and timeline metadata for smart filtering and scrubber."""
+
+    cameras: list[CameraFilterItem]
+    periods: list[PeriodSummaryItem]
+    years: list[YearSummaryItem]
+    orientations: OrientationsSummary
 
 
 class TimelineGroup(BaseModel):

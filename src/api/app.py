@@ -67,7 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     print("\n[*] TeleGallery Archive Engine shutting down...")
     try:
-        await td_client.stop()
+        await td_client.close()
         print("[*] TDLib C++ Client disconnected.")
     except Exception as e:
         print(f"[!] Warning during TDLib shutdown: {e}")
