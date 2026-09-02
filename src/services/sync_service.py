@@ -3,10 +3,11 @@
 Module: src.services.sync_service
 Purpose: Telegram Channel Ingestion, Manual Sync, and Real-time Live Message Ingest Engine.
          Indexes photos, videos, and raw documents sent directly to Telegram storage channels,
-         extracting technical attributes, generating WebP thumbnails, and avoiding duplicate entries.
+         extracting technical attributes, generating WebP thumbnails, and coordinating with
+         ArchiveService to prevent in-flight duplicate ingestion.
 Used by: src.api.routes.sync, src.api.app (lifespan background listener)
-Dependencies: telethon, datetime, pathlib, src.database.repository, src.services.thumbnail_service,
-              src.storage.telegram_client, src.config
+Dependencies: telethon, datetime, pathlib, src.database.repository, src.services.archive_service,
+              src.services.thumbnail_service, src.storage.telegram_client, src.config
 Public Members: SyncService, get_sync_service()
 Side Effects: Downloads preview thumbnails from Telegram MTProto, generates WebP files in data/thumbnails/,
               writes rows to media_items and audit_logs in SQLite database.
@@ -82,9 +83,19 @@ class SyncService:
             except ValueError:
                 pass
 
-        # 1. Fast O(log N) check: Is this exact channel message already indexed?
+        # 1. Fast O(log N) check: Is this exact channel message already indexed or currently in flight?
+        from src.services.archive_service import ArchiveService
+        if ArchiveService.is_message_in_flight(message.id):
+            return {"status": "skipped", "reason": "upload_in_flight", "item": None}
+
         if isinstance(target_channel_id, int):
             existing = await self.repository.get_by_channel_message(target_channel_id, message.id)
+            if not existing:
+                existing = await self.repository.get_by_message_id(message.id)
+            if existing:
+                return {"status": "skipped", "reason": "already_indexed", "item": existing}
+        else:
+            existing = await self.repository.get_by_message_id(message.id)
             if existing:
                 return {"status": "skipped", "reason": "already_indexed", "item": existing}
 
@@ -284,6 +295,9 @@ class SyncService:
             @self.telegram_client.raw_client.on(events.NewMessage(chats=channel_entity))
             async def on_new_channel_message(event):
                 if event.message and event.message.media:
+                    from src.services.archive_service import ArchiveService
+                    if ArchiveService.is_message_in_flight(event.message.id):
+                        return
                     try:
                         res = await self.ingest_telegram_message(event.message, target_channel)
                         if res and res.get("status") == "indexed":

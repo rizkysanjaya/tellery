@@ -3,7 +3,7 @@
  * Module: frontend/src/components/UploadManager.tsx
  * Purpose: Google Drive-style floating upload manager widget with individual per-file
  *          progress bars, byte transfer counters, processing/syncing indicators,
- *          duplicate conflict badges, collapsible panel, and completion badges.
+ *          target album badges, duplicate conflict badges, collapsible panel, and completion badges.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: UploadManager
@@ -168,7 +168,14 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
                       )}
                     </div>
                     <div className="truncate">
-                      <p className="text-xs font-semibold text-on-surface truncate">{task.name}</p>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <p className="text-xs font-semibold text-on-surface truncate">{task.name}</p>
+                        {task.folderName && (
+                          <span className="shrink-0 text-[9px] px-1.5 py-0.2 rounded bg-surface-container-highest text-primary font-medium">
+                            {task.folderName}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] text-on-surface-variant font-mono">
                         {task.status === "uploading" && (
                           <span>

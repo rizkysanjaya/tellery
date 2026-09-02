@@ -3,22 +3,31 @@
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
+ *          hash-based URL routing & state persistence (#/timeline, #/albums, #/albums/:id, #/favorites, #/trash),
+ *          browser Back/Forward history navigation, deep linking across page refreshes (F5),
  *          multi-select system, virtual folders & icon/color customization, dedicated dual-section
  *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
- *          search, filtering, lightbox, drag-and-drop, context-aware right-click menus,
- *          floating back-to-top button on noticeable scroll, media delete confirmation modals
- *          with 10-second undo countdown, Telegram vault uploads, and Telegram channel sync.
+ *          Trash & Data Recovery system (safe soft-delete, 1-click restore, permanent delete, empty trash),
+ *          batch ZIP archive downloads for multi-selected items, album ZIP exports,
+ *          smart EXIF & metadata filtering (camera devices, orientation, resolution, calendar periods),
+ *          chronological date-jump scrubber bar, full-window zero-flicker drag-and-drop global dropzone,
+ *          deep recursive folder scanner (HTML5 FileSystem API) with batch deduplication and automatic album creation,
+ *          search, lightbox, context-aware right-click menus, floating back-to-top button on noticeable scroll,
+ *          media delete confirmation modals with 10-second undo countdown, Telegram vault uploads, and vault sync.
  * Used by: frontend/src/main.tsx
- * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react
+ * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
+ *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats over HTTP, executes uploads, deletions,
- *                folder color & icon updates, favorites toggles, folder assignments, vault sync, and persists theme/layout in localStorage.
+ * Side Effects: Fetches timeline/folders/stats/trash/filter-meta over HTTP, executes uploads, soft deletions,
+ *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
+ *                favorites toggles, folder assignments, vault sync, updates browser window.location.hash history,
+ *                and persists theme/layout in localStorage.
  * =============================================================================
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
   addMediaToFolder,
   createFolder,
@@ -35,12 +44,21 @@ import {
   updateFolderColor,
   updateFolder,
   uploadMediaFile,
+  fetchTrashMedia,
+  restoreMediaItem,
+  bulkRestoreMedia,
+  permanentDeleteMediaItem,
+  emptyTrash,
+  downloadBatchMediaZip,
+  exportAlbumZip,
+  fetchFilterMetadata,
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
 import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
 import { FolderGrid } from "./components/FolderGrid";
 import { FavoritesView } from "./components/FavoritesView";
+import { TrashView } from "./components/TrashView";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
 import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
@@ -48,6 +66,9 @@ import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
 import { UploadManager } from "./components/UploadManager";
+import { GlobalDropzone } from "./components/GlobalDropzone";
+import { extractDroppedMedia, ScannedMediaItem } from "./utils/fileSystemScanner";
+import { ExifFilterDrawer } from "./components/ExifFilterDrawer";
 import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
@@ -62,9 +83,11 @@ import { DragDropDock } from "./components/ui/DragDropDock";
 import { DragStackedPreview } from "./components/ui/DragStackedPreview";
 import { BackToTopButton } from "./components/ui/BackToTopButton";
 import {
+  ActiveExifFilters,
   ConflictResolutionAction,
   DisplayLayout,
   DuplicateConflict,
+  FilterMetadataResponse,
   FilterType,
   FolderItem,
   MainView,
@@ -74,9 +97,13 @@ import {
   TimelineGroup,
   UploadTask,
 } from "./types";
+import { parseRouteFromHash, syncHashWithState } from "./utils/navigation";
 
 export const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<MainView>("timeline");
+  const initialRoute = useMemo(() => parseRouteFromHash(window.location.hash), []);
+  const [currentView, setCurrentView] = useState<MainView>(initialRoute.view);
+  const pendingFolderIdRef = useRef<number | null>(initialRoute.folderId ?? null);
+  const pendingCollectionIdRef = useRef<number | null>(initialRoute.collectionId ?? null);
   const [groups, setGroups] = useState<TimelineGroup[]>([]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [activeFolder, setActiveFolder] = useState<FolderItem | null>(null);
@@ -121,6 +148,12 @@ export const App: React.FC = () => {
   const sortByRef = useRef<SortOption>("date_desc");
   const groupsRef = useRef<TimelineGroup[]>([]);
   const currentViewRef = useRef<MainView>("timeline");
+  const foldersRef = useRef<FolderItem[]>([]);
+  const dragCounterRef = useRef<number>(0);
+
+  useEffect(() => {
+    foldersRef.current = folders;
+  }, [folders]);
 
   useEffect(() => {
     activeFolderRef.current = activeFolder;
@@ -142,6 +175,11 @@ export const App: React.FC = () => {
     currentViewRef.current = currentView;
   }, [currentView]);
 
+  const selectedCollectionRef = useRef<FolderItem | null>(null);
+  useEffect(() => {
+    selectedCollectionRef.current = selectedCollection;
+  }, [selectedCollection]);
+
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
   }, []);
@@ -149,6 +187,11 @@ export const App: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingFolders, setLoadingFolders] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
+
+  // Trash View State
+  const [trashItems, setTrashItems] = useState<MediaItem[]>([]);
+  const [trashTotal, setTrashTotal] = useState<number>(0);
+  const [loadingTrash, setLoadingTrash] = useState(false);
 
   const handleDisplayLayoutChange = (layout: DisplayLayout) => {
     setDisplayLayout(layout);
@@ -187,6 +230,10 @@ export const App: React.FC = () => {
 
   // Upload Tasks Queue State & Hidden File Input Ref
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
+  const uploadTasksRef = useRef<UploadTask[]>([]);
+  useEffect(() => {
+    uploadTasksRef.current = uploadTasks;
+  }, [uploadTasks]);
   const [isDragging, setIsDragging] = useState(false);
   const hiddenFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -233,6 +280,29 @@ export const App: React.FC = () => {
       .then((res) => {
         setFolders(res);
         setLoadingFolders(false);
+
+        // Resolve pending deep link route from URL hash if present
+        if (pendingFolderIdRef.current !== null) {
+          const targetId = pendingFolderIdRef.current;
+          pendingFolderIdRef.current = null;
+          const found = res.find((f) => f.id === targetId);
+          if (found) {
+            setActiveFolder(found);
+          } else {
+            setCurrentView("albums");
+            syncHashWithState("albums", null, null, true);
+          }
+        } else if (pendingCollectionIdRef.current !== null) {
+          const targetColId = pendingCollectionIdRef.current;
+          pendingCollectionIdRef.current = null;
+          const foundCol = res.find((f) => f.id === targetColId);
+          if (foundCol) {
+            setSelectedCollection(foundCol);
+          } else {
+            setCurrentView("albums");
+            syncHashWithState("albums", null, null, true);
+          }
+        }
       })
       .catch((err) => {
         console.error(err);
@@ -240,20 +310,55 @@ export const App: React.FC = () => {
       });
   }, []);
 
-  // Initial load for stats & folders
+  const loadTrash = useCallback(async () => {
+    setLoadingTrash(true);
+    try {
+      const res = await fetchTrashMedia();
+      setTrashItems(res.items);
+      setTrashTotal(res.total);
+    } catch (err) {
+      console.error("Failed to load trash items:", err);
+    } finally {
+      setLoadingTrash(false);
+    }
+  }, []);
+
+  // Smart EXIF & Date Filters State
+  const [filterMetadata, setFilterMetadata] = useState<FilterMetadataResponse | null>(null);
+  const [activeExifFilters, setActiveExifFilters] = useState<ActiveExifFilters>({});
+  const activeExifFiltersRef = useRef<ActiveExifFilters>({});
+  useEffect(() => {
+    activeExifFiltersRef.current = activeExifFilters;
+  }, [activeExifFilters]);
+  const [isExifDrawerOpen, setIsExifDrawerOpen] = useState(false);
+
+  const loadFilterMetadata = useCallback(() => {
+    fetchFilterMetadata().then(setFilterMetadata).catch(console.error);
+  }, []);
+
+  // Initial load for stats, folders, filter metadata & trash count
   useEffect(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
-  }, [loadFolders]);
+    loadFilterMetadata();
+    fetchTrashMedia(1, 0)
+      .then((res) => setTrashTotal(res.total))
+      .catch(console.error);
+  }, [loadFolders, loadFilterMetadata]);
 
-  // Instant timeline loading on tab, filter, sort, or folder selection (0ms delay)
+  // Instant timeline loading on tab, filter, sort, EXIF filter, or folder selection (0ms delay)
   useEffect(() => {
+    if (currentView === "trash") {
+      loadTrash();
+      return;
+    }
+
     let isMounted = true;
     setLoading(true);
 
-    const folderId = activeFolder ? activeFolder.id : null;
+    const folderId = activeFolder ? activeFolder.id : pendingFolderIdRef.current;
     const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView)
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView, activeExifFilters)
       .then((res) => {
         if (isMounted) {
           setGroups(res.groups);
@@ -270,16 +375,85 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadTrash, activeExifFilters]);
+
+  // Synchronize browser URL hash when view, activeFolder, or selectedCollection changes in React state
+  useEffect(() => {
+    // If pending folder or collection deep link is still resolving, don't overwrite the hash
+    if (pendingFolderIdRef.current !== null || pendingCollectionIdRef.current !== null) {
+      return;
+    }
+    syncHashWithState(currentView, activeFolder, selectedCollection);
+  }, [currentView, activeFolder, selectedCollection]);
+
+  // Handle browser Back / Forward history navigation (hashchange event)
+  const handleHashChange = useCallback(() => {
+    const route = parseRouteFromHash(window.location.hash);
+
+    const currentFId = activeFolderRef.current?.id ?? null;
+    const targetFId = route.folderId ?? null;
+    const currentColId = selectedCollectionRef.current?.id ?? null;
+    const targetColId = route.collectionId ?? null;
+    const currentV = currentViewRef.current;
+
+    // Skip if state is already identical to parsed hash route
+    if (currentV === route.view && currentFId === targetFId && currentColId === targetColId) {
+      return;
+    }
+
+    if (route.folderId) {
+      const folder = foldersRef.current.find((f) => f.id === route.folderId);
+      if (folder) {
+        setActiveFolder(folder);
+        setSelectedCollection(null);
+        setCurrentView("timeline");
+      } else {
+        pendingFolderIdRef.current = route.folderId;
+        setCurrentView("timeline");
+      }
+    } else if (route.collectionId) {
+      const col = foldersRef.current.find((f) => f.id === route.collectionId);
+      if (col) {
+        setActiveFolder(null);
+        setSelectedCollection(col);
+        setCurrentView("albums");
+      } else {
+        pendingCollectionIdRef.current = route.collectionId;
+        setCurrentView("albums");
+      }
+    } else {
+      setActiveFolder(null);
+      setSelectedCollection(null);
+      setCurrentView(route.view);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("hashchange", handleHashChange);
+    return () => {
+      window.removeEventListener("hashchange", handleHashChange);
+    };
+  }, [handleHashChange]);
 
   const loadData = useCallback(() => {
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
+    loadFilterMetadata();
     setLoading(true);
 
-    const folderId = activeFolder ? activeFolder.id : null;
-    const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView)
+    const currentFolder = activeFolderRef.current;
+    const folderId = currentFolder ? currentFolder.id : null;
+    const isFavoritesView = currentViewRef.current === "favorites" && !currentFolder;
+    fetchTimeline(
+      0,
+      100,
+      activeFilterRef.current,
+      debouncedSearchQueryRef.current,
+      folderId,
+      sortByRef.current,
+      isFavoritesView,
+      activeExifFiltersRef.current
+    )
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -288,7 +462,12 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadFolders]);
+  }, [loadFolders, loadFilterMetadata]);
+
+  const loadDataRef = useRef(loadData);
+  useEffect(() => {
+    loadDataRef.current = loadData;
+  }, [loadData]);
 
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -315,6 +494,55 @@ export const App: React.FC = () => {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const handleRestoreItem = useCallback(async (mediaId: number) => {
+    try {
+      await restoreMediaItem(mediaId);
+      setTrashItems((prev) => prev.filter((i) => i.id !== mediaId));
+      setTrashTotal((prev) => Math.max(0, prev - 1));
+      showToast("Media restored to gallery", "success");
+      loadData();
+    } catch (err: any) {
+      showToast(err.message || "Failed to restore media", "error");
+    }
+  }, [showToast, loadData]);
+
+  const handleBulkRestore = useCallback(async (mediaIds: number[]) => {
+    try {
+      await bulkRestoreMedia(mediaIds);
+      const set = new Set(mediaIds);
+      setTrashItems((prev) => prev.filter((i) => !set.has(i.id)));
+      setTrashTotal((prev) => Math.max(0, prev - mediaIds.length));
+      showToast(`Restored ${mediaIds.length} item(s) to gallery`, "success");
+      loadData();
+    } catch (err: any) {
+      showToast(err.message || "Failed to restore items", "error");
+    }
+  }, [showToast, loadData]);
+
+  const handlePermanentDelete = useCallback(async (mediaId: number) => {
+    try {
+      await permanentDeleteMediaItem(mediaId);
+      setTrashItems((prev) => prev.filter((i) => i.id !== mediaId));
+      setTrashTotal((prev) => Math.max(0, prev - 1));
+      showToast("Media permanently deleted from Telegram", "success");
+      fetchStats().then(setStats).catch(console.error);
+    } catch (err: any) {
+      showToast(err.message || "Failed to permanently delete media", "error");
+    }
+  }, [showToast]);
+
+  const handleEmptyTrash = useCallback(async () => {
+    try {
+      const res = await emptyTrash();
+      setTrashItems([]);
+      setTrashTotal(0);
+      showToast(res.message || "Trash emptied successfully", "success");
+      fetchStats().then(setStats).catch(console.error);
+    } catch (err: any) {
+      showToast(err.message || "Failed to empty trash", "error");
+    }
+  }, [showToast]);
 
   const [draggedMediaState, setDraggedMediaState] = useState<{
     isDragging: boolean;
@@ -564,17 +792,20 @@ export const App: React.FC = () => {
     setPendingDeletion(null);
     pendingDeletionRef.current = null;
 
-    // Perform permanent backend deletion asynchronously
+    // Perform backend soft-deletion (move to Trash) asynchronously
     for (const item of itemsToDelete) {
       try {
         await deleteMediaItem(item.id);
       } catch (err) {
-        console.error(`Failed to permanently delete media ${item.id}:`, err);
+        console.error(`Failed to move media to trash ${item.id}:`, err);
       }
     }
-    // Refresh stats & folders
+    // Refresh stats, folders, & trash total
     fetchStats().then(setStats).catch(console.error);
     fetchFolders().then(setFolders).catch(console.error);
+    fetchTrashMedia(1, 0)
+      .then((res) => setTrashTotal(res.total))
+      .catch(console.error);
   }, []);
 
   const handleUndoDelete = useCallback(() => {
@@ -746,16 +977,55 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleDownloadBatchSelected = async (mediaIds?: number[]) => {
+    const ids = mediaIds || Array.from(selectedIds);
+    if (ids.length === 0) return;
+    showToast(`Preparing ZIP archive for ${ids.length} item${ids.length === 1 ? "" : "s"}...`, "info");
+    try {
+      await downloadBatchMediaZip(ids);
+      showToast(`Downloaded ${ids.length} item${ids.length === 1 ? "" : "s"} as ZIP!`, "success");
+    } catch (err: any) {
+      showToast(`Download failed: ${err.message || "Unknown error"}`, "error");
+    }
+  };
+
+  const handleExportAlbumZip = async (folder: FolderItem) => {
+    showToast(`Preparing ZIP export for album "${folder.name}"...`, "info");
+    try {
+      await exportAlbumZip(folder.id);
+      showToast(`Exported album "${folder.name}" as ZIP!`, "success");
+    } catch (err: any) {
+      showToast(`Export failed: ${err.message || "Unknown error"}`, "error");
+    }
+  };
+
   // =========================================================================
   // Upload Handlers
   // =========================================================================
 
-  const handleUploadFiles = (files: FileList | File[]) => {
+  const handleUploadFiles = (
+    files: FileList | File[],
+    targetFolderId?: number | null,
+    targetFolderName?: string
+  ) => {
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
     // Reset batch conflict preference for new upload batches
     batchConflictPreferenceRef.current = null;
+
+    const assignedFolderId =
+      targetFolderId !== undefined
+        ? targetFolderId
+        : activeFolderRef.current
+        ? activeFolderRef.current.id
+        : null;
+    const assignedFolderName =
+      targetFolderName !== undefined
+        ? targetFolderName
+        : activeFolderRef.current
+        ? activeFolderRef.current.name
+        : undefined;
 
     const newTasks: UploadTask[] = fileArray.map((f, idx) => ({
       id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
@@ -766,6 +1036,8 @@ export const App: React.FC = () => {
       progress: 0,
       loadedBytes: 0,
       status: "pending",
+      folderId: assignedFolderId,
+      folderName: assignedFolderName,
     }));
 
     setUploadTasks((prev) => [...newTasks, ...prev]);
@@ -814,7 +1086,8 @@ export const App: React.FC = () => {
                     : t
                 )
               );
-            }
+            },
+            task.folderId
           );
 
           if (result && result.status === "duplicate") {
@@ -896,7 +1169,7 @@ export const App: React.FC = () => {
                     : t
                 )
               );
-              loadData();
+              loadDataRef.current();
             } else if (chosenAction === "rename_existing") {
               const renamedName = chosenName || task.name;
               await renameMediaItem(result.media_id, renamedName);
@@ -918,7 +1191,7 @@ export const App: React.FC = () => {
                     : t
                 )
               );
-              loadData();
+              loadDataRef.current();
             }
           } else {
             setUploadTasks((prev) =>
@@ -928,7 +1201,7 @@ export const App: React.FC = () => {
                   : t
               )
             );
-            loadData();
+            loadDataRef.current();
           }
         } catch (err: any) {
           console.error(`Upload error for ${task.name}:`, err);
@@ -950,6 +1223,191 @@ export const App: React.FC = () => {
     );
     await Promise.all(activeWorkers);
   };
+
+  const handleDroppedItems = async (scannedItems: ScannedMediaItem[]) => {
+    if (!scannedItems || scannedItems.length === 0) return;
+
+    // 1. Deduplicate incoming items within the batch by filename, size, and modified timestamp
+    const seenInBatch = new Set<string>();
+    const uniqueScanned: ScannedMediaItem[] = [];
+    for (const item of scannedItems) {
+      const key = `${item.file.name}__${item.file.size}__${item.file.lastModified}`;
+      if (!seenInBatch.has(key)) {
+        seenInBatch.add(key);
+        uniqueScanned.push(item);
+      }
+    }
+
+    // 2. Filter out items that are already being processed or queued in uploadTasks
+    const activeTasks = uploadTasksRef.current || [];
+    const activeKeys = new Set(
+      activeTasks
+        .filter((t) => t.status === "pending" || t.status === "uploading" || t.status === "processing")
+        .map((t) => `${t.name}__${t.size}`)
+    );
+    const deduplicatedItems = uniqueScanned.filter(
+      (item) => !activeKeys.has(`${item.file.name}__${item.file.size}`)
+    );
+
+    if (deduplicatedItems.length === 0) return;
+
+    const currentActiveFolder = activeFolderRef.current;
+
+    // Case A: User is currently viewing an Album
+    if (currentActiveFolder) {
+      // If the active container is a Collection, allow creating sub-albums under this collection
+      if (currentActiveFolder.is_collection) {
+        const distinctFolderNames = Array.from(
+          new Set(
+            deduplicatedItems
+              .map((item) => item.rootFolderName)
+              .filter((name): name is string => Boolean(name && name.trim()))
+          )
+        );
+
+        const folderNameToItemMap = new Map<string, FolderItem>();
+        let currentFolders = [...foldersRef.current];
+
+        for (const folderName of distinctFolderNames) {
+          const cleanName = folderName.trim();
+          const existing = currentFolders.find(
+            (f) =>
+              f.parent_id === currentActiveFolder.id &&
+              f.name.toLowerCase() === cleanName.toLowerCase()
+          );
+          if (existing) {
+            folderNameToItemMap.set(folderName, existing);
+          } else {
+            try {
+              const newFolder = await createFolder(cleanName, currentActiveFolder.id);
+              currentFolders = [newFolder, ...currentFolders];
+              foldersRef.current = currentFolders;
+              setFolders(currentFolders);
+              folderNameToItemMap.set(folderName, newFolder);
+            } catch (err) {
+              console.error(`Failed to auto-create sub-album "${cleanName}":`, err);
+            }
+          }
+        }
+
+        const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) => {
+          let targetFolderId = currentActiveFolder.id;
+          let targetFolderName = currentActiveFolder.name;
+
+          if (item.rootFolderName && folderNameToItemMap.has(item.rootFolderName)) {
+            const target = folderNameToItemMap.get(item.rootFolderName)!;
+            targetFolderId = target.id;
+            targetFolderName = target.name;
+          }
+
+          return {
+            id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+            file: item.file,
+            name: item.file.name,
+            size: item.file.size,
+            type: item.file.type,
+            progress: 0,
+            loadedBytes: 0,
+            status: "pending",
+            folderId: targetFolderId,
+            folderName: targetFolderName,
+          };
+        });
+
+        batchConflictPreferenceRef.current = null;
+        setUploadTasks((prev) => [...newTasks, ...prev]);
+        processUploadQueue(newTasks);
+        return;
+      }
+
+      // Normal Album: User dropped files or a folder INTO this active album.
+      // Every photo and video goes directly into this opened album!
+      const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) => ({
+        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+        file: item.file,
+        name: item.file.name,
+        size: item.file.size,
+        type: item.file.type,
+        progress: 0,
+        loadedBytes: 0,
+        status: "pending",
+        folderId: currentActiveFolder.id,
+        folderName: currentActiveFolder.name,
+      }));
+
+      batchConflictPreferenceRef.current = null;
+      setUploadTasks((prev) => [...newTasks, ...prev]);
+      processUploadQueue(newTasks);
+      return;
+    }
+
+    // Case B: User is in Timeline or Albums overview (activeFolder is null)
+    // Dropped folders automatically become new root Albums!
+    const distinctFolderNames = Array.from(
+      new Set(
+        deduplicatedItems
+          .map((item) => item.rootFolderName)
+          .filter((name): name is string => Boolean(name && name.trim()))
+      )
+    );
+
+    const folderNameToItemMap = new Map<string, FolderItem>();
+    let currentFolders = [...foldersRef.current];
+
+    for (const folderName of distinctFolderNames) {
+      const cleanName = folderName.trim();
+      const existing = currentFolders.find(
+        (f) => !f.parent_id && f.name.toLowerCase() === cleanName.toLowerCase()
+      );
+      if (existing) {
+        folderNameToItemMap.set(folderName, existing);
+      } else {
+        try {
+          const newFolder = await createFolder(cleanName);
+          currentFolders = [newFolder, ...currentFolders];
+          foldersRef.current = currentFolders;
+          setFolders(currentFolders);
+          folderNameToItemMap.set(folderName, newFolder);
+        } catch (err) {
+          console.error(`Failed to auto-create album for dropped folder "${cleanName}":`, err);
+        }
+      }
+    }
+
+    const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) => {
+      let targetFolderId: number | null = null;
+      let targetFolderName: string | undefined = undefined;
+
+      if (item.rootFolderName && folderNameToItemMap.has(item.rootFolderName)) {
+        const target = folderNameToItemMap.get(item.rootFolderName)!;
+        targetFolderId = target.id;
+        targetFolderName = target.name;
+      }
+
+      return {
+        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+        file: item.file,
+        name: item.file.name,
+        size: item.file.size,
+        type: item.file.type,
+        progress: 0,
+        loadedBytes: 0,
+        status: "pending",
+        folderId: targetFolderId,
+        folderName: targetFolderName,
+      };
+    });
+
+    batchConflictPreferenceRef.current = null;
+    setUploadTasks((prev) => [...newTasks, ...prev]);
+
+    processUploadQueue(newTasks);
+  };
+
+  const handleDroppedItemsRef = useRef(handleDroppedItems);
+  useEffect(() => {
+    handleDroppedItemsRef.current = handleDroppedItems;
+  }, [handleDroppedItems]);
 
   // =========================================================================
   // Folder CRUD Handlers
@@ -1216,39 +1674,82 @@ export const App: React.FC = () => {
   };
 
   // =========================================================================
-  // Drag and Drop (File Upload) Handlers
+  // Global Zero-Flicker Drag and Drop Handlers (Window Level)
   // =========================================================================
 
-  const handleDragOver = (e: React.DragEvent) => {
-    // Only show the upload overlay if the user is dragging real files from their computer OS,
-    // and NOT an internal media card being dragged between folders/albums.
-    const isInternalDrag = e.dataTransfer.types.includes("application/telegallery-media");
-    const isExternalFiles = e.dataTransfer.types.includes("Files");
-
-    if (isExternalFiles && !isInternalDrag) {
+  useEffect(() => {
+    const handleDragEnter = (e: DragEvent) => {
+      // Ignore internal drag-and-drop between folders/dock
+      if (e.dataTransfer?.types.includes("application/telegallery-media")) {
+        return;
+      }
+      if (!e.dataTransfer?.types.includes("Files")) {
+        return;
+      }
       e.preventDefault();
-      setIsDragging(true);
-    }
-  };
+      dragCounterRef.current += 1;
+      if (dragCounterRef.current === 1) {
+        setIsDragging(true);
+      }
+    };
 
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
+    const handleDragLeave = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("application/telegallery-media")) {
+        return;
+      }
+      if (!e.dataTransfer?.types.includes("Files")) {
+        return;
+      }
+      e.preventDefault();
+      dragCounterRef.current -= 1;
+      if (dragCounterRef.current <= 0) {
+        dragCounterRef.current = 0;
+        setIsDragging(false);
+      }
+    };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
+    const handleDragOver = (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("application/telegallery-media")) {
+        return;
+      }
+      if (e.dataTransfer?.types.includes("Files")) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+      }
+    };
 
-    // Completely ignore internal media drags to prevent re-uploading thumbnails
-    if (e.dataTransfer.types.includes("application/telegallery-media")) {
-      return;
-    }
+    const handleDrop = async (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes("application/telegallery-media")) {
+        return;
+      }
+      if (e.dataTransfer?.types.includes("Files")) {
+        e.preventDefault();
+        dragCounterRef.current = 0;
+        setIsDragging(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleUploadFiles(e.dataTransfer.files);
-    }
-  };
+        try {
+          const scannedItems = await extractDroppedMedia(e.dataTransfer);
+          if (scannedItems.length > 0) {
+            handleDroppedItemsRef.current(scannedItems);
+          }
+        } catch (err) {
+          console.error("Failed to process dropped files/folders:", err);
+        }
+      }
+    };
+
+    window.addEventListener("dragenter", handleDragEnter);
+    window.addEventListener("dragleave", handleDragLeave);
+    window.addEventListener("dragover", handleDragOver);
+    window.addEventListener("drop", handleDrop);
+
+    return () => {
+      window.removeEventListener("dragenter", handleDragEnter);
+      window.removeEventListener("dragleave", handleDragLeave);
+      window.removeEventListener("dragover", handleDragOver);
+      window.removeEventListener("drop", handleDrop);
+    };
+  }, []);
 
   // =========================================================================
   // Context Menu Handlers
@@ -1344,12 +1845,17 @@ export const App: React.FC = () => {
     }
   };
 
+  const activeExifFilterCount = [
+    activeExifFilters.camera,
+    activeExifFilters.orientation,
+    activeExifFilters.min_resolution,
+    activeExifFilters.year,
+    activeExifFilters.month,
+  ].filter(Boolean).length;
+
   return (
     <AuroraBackground>
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
         onContextMenu={handleCanvasContextMenu}
         onClick={handleCanvasClick}
         className="min-h-screen text-zinc-100 flex relative"
@@ -1368,14 +1874,11 @@ export const App: React.FC = () => {
         className="hidden"
       />
 
-      {/* Drag & Drop Upload Overlay */}
-      {isDragging && (
-        <div className="fixed inset-0 z-50 bg-sky-950/80 backdrop-blur-md border-4 border-dashed border-sky-400 flex flex-col items-center justify-center pointer-events-none animate-in fade-in duration-200">
-          <UploadCloud className="w-16 h-16 text-sky-400 mb-3 animate-pulse" />
-          <h2 className="text-2xl font-bold text-white">Drop photos and videos here</h2>
-          <p className="text-sm text-sky-200 mt-1">Files will be archived into your Telegram Vault</p>
-        </div>
-      )}
+      {/* Global Silk Cloud Drag & Drop Upload Overlay */}
+      <GlobalDropzone
+        isDragging={isDragging}
+        activeFolderName={activeFolder?.name}
+      />
 
       {/* Persistent Left Sidebar */}
       <Sidebar
@@ -1414,6 +1917,15 @@ export const App: React.FC = () => {
               .filter((g) => g.items.length > 0)
           );
         }}
+        onSelectTrash={() => {
+          setSearchQuery("");
+          setCurrentView("trash");
+          setActiveFolder(null);
+          setSelectedCollection(null);
+          setSelectedIds(new Set());
+          loadTrash();
+        }}
+        trashCount={trashTotal}
         onSelectFolder={(folder) => {
           setSearchQuery("");
           setCurrentView("timeline");
@@ -1430,6 +1942,7 @@ export const App: React.FC = () => {
         onAddMediaToFolder={handleBulkAddToFolder}
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
         onSyncVault={handleSyncVault}
+        onExportFolderZip={handleExportAlbumZip}
         onFolderContextMenu={handleFolderContextMenu}
         isSyncing={isSyncing}
       />
@@ -1452,7 +1965,79 @@ export const App: React.FC = () => {
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          activeExifFilterCount={activeExifFilterCount}
+          onOpenExifFilters={() => setIsExifDrawerOpen(true)}
         />
+
+        {/* Active EXIF & Date Filters Pill Banner */}
+        {activeExifFilterCount > 0 && (
+          <div className="bg-surface-container-low border-b border-outline-variant/15 px-4 lg:px-8 py-2.5 flex items-center justify-between gap-3 animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 flex-wrap text-xs">
+              <span className="text-on-surface-variant font-medium">Active filters:</span>
+              {activeExifFilters.camera && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  Camera: {activeExifFilters.camera}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, camera: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.orientation && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium capitalize">
+                  {activeExifFilters.orientation}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, orientation: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.min_resolution && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  {activeExifFilters.min_resolution === "4k" ? "4K+ UHD" : "Full HD (1080p+)"}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, min_resolution: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.year && !activeExifFilters.month && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  Year: {activeExifFilters.year}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, year: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {activeExifFilters.month && (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary font-medium">
+                  Period: {activeExifFilters.month}
+                  <button
+                    onClick={() => setActiveExifFilters((prev) => ({ ...prev, month: null }))}
+                    className="hover:text-primary-hover cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => setActiveExifFilters({})}
+              className="text-xs text-error hover:underline font-semibold shrink-0 cursor-pointer"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {/* Main Content Viewport */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 pt-6">
@@ -1534,6 +2119,7 @@ export const App: React.FC = () => {
               onMoveFolderToCollection={handleMoveToCollection}
               onAddMediaToFolder={handleBulkAddToFolder}
               onUpdateFolderColor={handleUpdateFolderColor}
+              onExportFolderZip={handleExportAlbumZip}
               onFolderContextMenu={handleFolderContextMenu}
               onCanvasContextMenu={handleCanvasContextMenu}
               loading={loadingFolders}
@@ -1564,6 +2150,16 @@ export const App: React.FC = () => {
               onToggleFavoriteMedia={handleToggleFavoriteMedia}
               onFolderContextMenu={handleFolderContextMenu}
               loading={loading}
+            />
+          ) : currentView === "trash" && !activeFolder ? (
+            <TrashView
+              items={trashItems}
+              isLoading={loadingTrash}
+              onRestoreItem={handleRestoreItem}
+              onBulkRestore={handleBulkRestore}
+              onPermanentDelete={handlePermanentDelete}
+              onEmptyTrash={handleEmptyTrash}
+              onRefresh={loadTrash}
             />
           ) : (
             <TimelineGrid
@@ -1603,6 +2199,7 @@ export const App: React.FC = () => {
               onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
               onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
               onFavoriteSelected={() => handleBulkToggleFavoriteMedia(Array.from(selectedIds), true)}
+              onDownloadSelected={() => handleDownloadBatchSelected()}
               onDeleteSelected={() => handleBulkDeleteSelected()}
               onDeselectAll={handleDeselectAll}
             />
@@ -1625,6 +2222,7 @@ export const App: React.FC = () => {
           onAddToFolder={handleBulkAddToFolder}
           onCreateFolderAndAdd={handleBulkCreateFolderAndAdd}
           onDeleteMedia={handlePromptDeleteMedia}
+          onDownloadBatch={(mediaIds) => handleDownloadBatchSelected(mediaIds)}
           onTriggerUpload={() => hiddenFileInputRef.current?.click()}
           onCreateFolder={handleCreateFolder}
           onSelectFolder={(folder) => {
@@ -1802,6 +2400,16 @@ export const App: React.FC = () => {
         items={mediaToDelete || []}
         onConfirm={handleConfirmMediaDelete}
         onCancel={() => setMediaToDelete(null)}
+      />
+
+      {/* Smart EXIF & Date Filters Popover Drawer */}
+      <ExifFilterDrawer
+        isOpen={isExifDrawerOpen}
+        onClose={() => setIsExifDrawerOpen(false)}
+        metadata={filterMetadata}
+        activeFilters={activeExifFilters}
+        onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
+        onResetFilters={() => setActiveExifFilters({})}
       />
 
       {/* 10-Second Undo Delete Toast */}

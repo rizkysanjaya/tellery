@@ -3,13 +3,13 @@
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
- *          Favorites section, Collections accordion, right-click context menu triggers,
- *          and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, delete).
+ *          Favorites section, Collections accordion, Trash recovery view navigation,
+ *          right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, export ZIP, delete).
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
- * Side Effects: Triggers view changes, album selection, media drop-to-album assignments, right-click context menu,
- *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, and favorite toggling.
+ * Side Effects: Triggers view changes (timeline, albums, favorites, trash), album selection, media drop-to-album assignments, right-click context menu,
+ *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, ZIP export, and favorite toggling.
  * =============================================================================
  */
 
@@ -55,6 +55,8 @@ interface SidebarProps {
   onSelectTimeline: () => void;
   onSelectAlbumsOverview: () => void;
   onSelectFavorites?: () => void;
+  onSelectTrash?: () => void;
+  trashCount?: number;
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
   onDeleteFolder: (folder: FolderItem | number) => void | Promise<void>;
@@ -66,6 +68,7 @@ interface SidebarProps {
   onAddMediaToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onTriggerUpload: () => void;
   onSyncVault?: () => Promise<void>;
+  onExportFolderZip?: (folder: FolderItem) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folder: FolderItem) => void;
   isSyncing?: boolean;
 }
@@ -80,6 +83,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectTimeline,
   onSelectAlbumsOverview,
   onSelectFavorites,
+  onSelectTrash,
+  trashCount = 0,
   onSelectFolder,
   onCreateFolder,
   onDeleteFolder,
@@ -91,6 +96,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onAddMediaToFolder,
   onTriggerUpload,
   onSyncVault,
+  onExportFolderZip,
   onFolderContextMenu,
   isSyncing = false,
 }) => {
@@ -500,6 +506,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   onToggleFavoriteFolder(f.id, !f.is_favorite);
                                 }
                               }}
+                              onExportZip={onExportFolderZip}
                               onDelete={(f) => onDeleteFolder(f)}
                               triggerClassName="opacity-0 group-hover:opacity-100"
                             />
@@ -662,6 +669,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 onToggleFavoriteFolder(f.id, !f.is_favorite);
                               }
                             }}
+                            onExportZip={onExportFolderZip}
                             onDelete={(f) => onDeleteFolder(f)}
                             triggerClassName="opacity-0 group-hover:opacity-100"
                           />
@@ -671,6 +679,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   })
                 )}
               </div>
+            )}
+          </div>
+
+          {/* 4. Trash (Data Recovery Vault) */}
+          <div
+            onClick={() => {
+              if (onSelectTrash) {
+                onSelectTrash();
+                onCloseMobile();
+              }
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+              currentView === "trash" && !activeFolder
+                ? "neo-pressed bg-surface-base text-rose-400 shadow-inner"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+            }`}
+          >
+            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+              <Trash2 className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+              <span className="truncate">Trash</span>
+            </div>
+            {typeof trashCount === "number" && (
+              <span
+                className={`text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base font-mono ${
+                  trashCount > 0 ? "text-rose-400 font-semibold" : "text-on-surface-variant/60"
+                }`}
+              >
+                {trashCount}
+              </span>
             )}
           </div>
         </div>

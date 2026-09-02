@@ -99,21 +99,58 @@ async def stream_media(
         except Exception:
             pass
 
-    # Case 1: No Range header (Full document request)
-    if not range_header:
-        # Fast path: Serve fully cached file directly via kernel-level sendfile (zero memory/CPU copy)
-        if target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size:
-            return FileResponse(
-                path=target_stream_path,
-                media_type=target_mime_type,
-                headers={
-                    "Accept-Ranges": "bytes",
-                    "Content-Disposition": content_disp,
-                },
-            )
+    # 1. Proactively check TDLib local download cache if file is not in data/cache
+    if not (target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size):
+        try:
+            from src.storage.tdlib_client import get_tdlib_client
+            td_client = get_tdlib_client()
+            if td_client.auth_state == "authorizationStateReady" and message_id and channel_id:
+                cid_raw = str(channel_id).lstrip("-").lstrip("100")
+                chat_id = int(f"-100{cid_raw}")
+                td_msg_id = message_id * (1 << 20)
+                msg = await td_client.send_request({
+                    "@type": "getMessage",
+                    "chat_id": chat_id,
+                    "message_id": td_msg_id,
+                })
+                content = msg.get("content", {})
+                file_info = (
+                    content.get("document", {}).get("document")
+                    or content.get("video", {}).get("video")
+                    or content.get("animation", {}).get("animation")
+                )
+                if file_info and file_info.get("id"):
+                    f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_info["id"]})
+                    local = f_stat.get("local", {})
+                    local_path = local.get("path")
+                    if local_path and Path(local_path).exists():
+                        lp = Path(local_path)
+                        if lp.stat().st_size == stream_file_size:
+                            import shutil
+                            try:
+                                shutil.copyfile(lp, target_stream_path)
+                                cache_manager.touch_cache(target_stream_path)
+                                cache_manager.prune_lru_cache()
+                            except Exception:
+                                target_stream_path = lp
+        except Exception:
+            pass
 
-        # Progressive stream: use chunked encoding without strict Content-Length
-        # to prevent Uvicorn RuntimeError if client cancels or disconnects early
+    # 2. Instant SSD Fast Path: When file is fully cached on disk, serve via FileResponse
+    # Starlette's FileResponse natively provides kernel sendfile, precise Content-Length,
+    # and RFC 7233 byte-range seeking for both Range and non-Range requests in 0ms.
+    if target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size:
+        return FileResponse(
+            path=target_stream_path,
+            media_type=target_mime_type,
+            headers={
+                "Accept-Ranges": "bytes",
+                "Content-Disposition": content_disp,
+            },
+        )
+
+    # 3. Dynamic Progressive Streaming for uncached files
+    if not range_header:
         headers = {
             "Accept-Ranges": "bytes",
             "Content-Type": target_mime_type,
@@ -135,7 +172,7 @@ async def stream_media(
             media_type=target_mime_type,
         )
 
-    # Case 2: HTTP Range Request (Partial Content)
+    # HTTP Range Request for uncached file
     match = RANGE_HEADER_REGEX.match(range_header.strip())
     if not match:
         raise HTTPException(
@@ -148,7 +185,6 @@ async def stream_media(
     start = int(raw_start)
     end = int(raw_end) if raw_end else stream_file_size - 1
 
-    # Validate range limits
     if start >= stream_file_size or end >= stream_file_size or start > end:
         raise HTTPException(
             status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
@@ -156,17 +192,13 @@ async def stream_media(
             headers={"Content-Range": f"bytes */{stream_file_size}"},
         )
 
-    # For uncached files, cap open-ended ranges to 2 MB so Chrome starts playback
-    # in <300ms and can seek smoothly without waiting for whole-file downloads
-    is_fully_cached = target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size
-    if not is_fully_cached and not raw_end:
+    # Window open-ended ranges on uncached files to 2 MB
+    if not raw_end:
         max_chunk_window = 2 * 1024 * 1024  # 2 MB
         end = min(start + max_chunk_window - 1, stream_file_size - 1)
 
-    content_length = (end - start) + 1
     headers = {
         "Content-Range": f"bytes {start}-{end}/{stream_file_size}",
-        "Content-Length": str(content_length),
         "Accept-Ranges": "bytes",
         "Content-Type": target_mime_type,
         "Content-Disposition": content_disp,
@@ -181,6 +213,7 @@ async def stream_media(
             expected_total_size=stream_file_size,
             message_id=message_id,
             channel_id=channel_id,
+            is_preview=preview,
         ),
         status_code=status.HTTP_206_PARTIAL_CONTENT,
         headers=headers,

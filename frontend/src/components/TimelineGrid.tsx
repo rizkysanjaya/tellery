@@ -2,11 +2,11 @@
  * =============================================================================
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
- *          contextual empty states (search queries, empty albums, empty vault, empty favorites),
- *          per-section select-all toggles for multi-select mode, and natural aspect
- *          masonry showcase with strict left-to-right chronological sorting.
+ *          contextual empty states, per-section select-all toggles, chronological
+ *          date-jump scrubber bar, and natural aspect masonry showcase.
  * Used by: frontend/src/App.tsx, frontend/src/components/FavoritesView.tsx
- * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx, frontend/src/components/MediaListItem.tsx, lucide-react
+ * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx,
+ *               frontend/src/components/MediaListItem.tsx, frontend/src/components/TimelineDateScrubber.tsx, lucide-react
  * Public Members: TimelineGrid
  * Side Effects: Dispatches media item click, selection toggle, favorite toggle, search clearing, and context menu events.
  * =============================================================================
@@ -27,6 +27,7 @@ import {
 import { DisplayLayout, MediaItem, SortOption, TimelineGroup } from "../types";
 import { MediaCard } from "./MediaCard";
 import { MediaListItem } from "./MediaListItem";
+import { TimelineDateScrubber } from "./TimelineDateScrubber";
 
 function useResponsiveColumns(): number {
   const [columnCount, setColumnCount] = useState<number>(() => {
@@ -191,7 +192,10 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   }
 
   return (
-    <div className="space-y-10 pb-20">
+    <div className="space-y-10 pb-20 relative">
+      {/* Apple/Google Photos-style Chronological Date-Jump Scrubber */}
+      {groups.length > 1 && <TimelineDateScrubber groups={groups} />}
+
       {groups.map((group) => {
         const groupItemIds = group.items.map((i) => i.id);
         const allSelected =
@@ -200,7 +204,11 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
         const someSelected = groupItemIds.some((id) => selectedIds.has(id));
 
         return (
-          <section key={group.period_key} className="space-y-3.5">
+          <section
+            key={group.period_key}
+            id={`timeline-group-${group.period_key}`}
+            className="space-y-3.5 scroll-mt-24"
+          >
             {/* Floating Rounded Month/Year Header Card */}
             <div className="sticky top-[68px] z-30 py-2">
               <div className="flex items-center justify-between w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl px-5 py-3 neo-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] group/header">

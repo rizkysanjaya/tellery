@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/ui/FolderActionMenu.tsx
  * Purpose: 3-dots context menu for albums and collections offering Customize Icon/Color,
- *          Change Cover Thumbnail, Rename, Move to Collection submenu, Favorite, and Delete options.
+ *          Change Cover Thumbnail, Rename, Move to Collection submenu, Favorite, Export as .ZIP, and Delete options.
  *          Uses React Portal (document.body) for fixed positioning to prevent CSS transform displacement.
  * Used by: Sidebar.tsx, FolderGrid.tsx
  * Dependencies: React, react-dom, lucide-react, FolderItem
@@ -24,6 +24,7 @@ import {
   ChevronDown,
   Layers,
   Check,
+  Download,
 } from "lucide-react";
 import { FolderItem } from "../../types";
 
@@ -34,6 +35,7 @@ interface FolderActionMenuProps {
   onSelectCover?: (folder: FolderItem) => void;
   onRename: (folder: FolderItem) => void;
   onToggleFavorite: (folder: FolderItem) => void;
+  onExportZip?: (folder: FolderItem) => void;
   onDelete: (folder: FolderItem) => void;
   onMoveToCollection?: (folder: FolderItem, collectionId: number | null) => void;
   onOpenMoveModal?: (folder: FolderItem) => void;
@@ -50,6 +52,7 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
   onSelectCover,
   onRename,
   onToggleFavorite,
+  onExportZip,
   onDelete,
   onMoveToCollection,
   onOpenMoveModal,
@@ -336,6 +339,23 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
                     )}
                   </>
                 )}
+              </div>
+            )}
+
+            {/* Export Album as .ZIP */}
+            {!isCollection && onExportZip && (
+              <div className="border-t border-outline-variant/15 mt-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onExportZip(folder);
+                  }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sky-400 hover:bg-sky-500/10 transition-colors cursor-pointer text-left"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Export as .ZIP</span>
+                </button>
               </div>
             )}
 

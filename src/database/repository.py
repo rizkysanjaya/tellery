@@ -1,12 +1,12 @@
 """
-=============================================================================
+============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media catalog, folders/albums, favorites, and audit logging.
+Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery, EXIF filtering, timeline scrubber, and audit logging.
 Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media, src.api.routes.folders.
 Dependencies: aiosqlite, src.database.connection
-Public Members: MediaRepository (get_timeline, get_by_id, update_favorite, bulk_update_favorite, etc.)
+Public Members: MediaRepository (get_timeline, get_by_id, get_by_hash, get_by_message_id, insert_media, update_favorite, delete_media, restore_media, restore_batch, get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media, get_all_folder_media, get_filter_metadata)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
-=============================================================================
+============================================================================
 """
 
 from typing import Any, Optional
@@ -38,16 +38,17 @@ class MediaRepository:
                 return dict(row) if row else None
 
     @staticmethod
-    async def get_by_id(media_id: int) -> Optional[dict[str, Any]]:
+    async def get_by_id(media_id: int, include_deleted: bool = False) -> Optional[dict[str, Any]]:
         """Retrieves media item by primary key."""
-        query = """
+        condition = "WHERE id = ?" if include_deleted else "WHERE id = ? AND is_deleted = 0"
+        query = f"""
             SELECT id, file_hash, file_name, file_size, mime_type,
                    telegram_channel_id, telegram_message_id, telegram_file_id,
                    width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at,
+                   date_taken, thumbnail_path, created_at, deleted_at,
                    COALESCE(is_favorite, 0) as is_favorite
             FROM media_items
-            WHERE id = ? AND is_deleted = 0
+            {condition}
             LIMIT 1;
         """
         async with get_db_connection() as conn:
@@ -76,24 +77,83 @@ class MediaRepository:
                 return dict(row) if row else None
 
     @staticmethod
+    async def get_by_message_id(message_id: int) -> Optional[dict[str, Any]]:
+        """
+        Retrieves active media item by Telegram message ID.
+        Cost: O(log N) point lookup via idx_media_channel_msg.
+        """
+        query = """
+            SELECT id, file_hash, file_name, file_size, mime_type,
+                   telegram_channel_id, telegram_message_id, telegram_file_id,
+                   width, height, duration_seconds, camera_make, camera_model,
+                   date_taken, thumbnail_path, created_at
+            FROM media_items
+            WHERE telegram_message_id = ? AND is_deleted = 0
+            LIMIT 1;
+        """
+        async with get_db_connection() as conn:
+            async with conn.execute(query, (message_id,)) as cursor:
+                row = await cursor.fetchone()
+                return dict(row) if row else None
+
+    @staticmethod
     async def insert_media(item: dict[str, Any]) -> int:
         """
         Inserts new media record into the catalog and returns the new item ID.
+        Senior DBA Standard: Idempotent against concurrent uploads/sync by checking existing active telegram_message_id.
+        If a synthetic/live-sync record exists, enriches it with true SHA-256 hash and EXIF metadata without duplicating.
         """
-        query = """
-            INSERT INTO media_items (
-                file_hash, file_name, file_size, mime_type,
-                telegram_channel_id, telegram_message_id, telegram_file_id,
-                width, height, duration_seconds, camera_make, camera_model,
-                date_taken, thumbnail_path
-            ) VALUES (
-                :file_hash, :file_name, :file_size, :mime_type,
-                :telegram_channel_id, :telegram_message_id, :telegram_file_id,
-                :width, :height, :duration_seconds, :camera_make, :camera_model,
-                :date_taken, :thumbnail_path
-            );
-        """
+        msg_id = item.get("telegram_message_id")
+        file_hash = item.get("file_hash", "")
+        is_alias = "#alias" in file_hash
+
         async with get_db_connection() as conn:
+            if msg_id and not is_alias:
+                # Check for existing active row for this Telegram message
+                check_query = """
+                    SELECT id, file_hash FROM media_items
+                    WHERE telegram_message_id = ? AND is_deleted = 0 AND file_hash NOT LIKE '%#alias%'
+                    LIMIT 1;
+                """
+                async with conn.execute(check_query, (msg_id,)) as cursor:
+                    existing = await cursor.fetchone()
+                    if existing:
+                        existing_id, existing_hash = existing[0], existing[1]
+                        # If existing record has synthetic hash or empty metadata, enrich it with true hash & EXIF
+                        enrich_query = """
+                            UPDATE media_items SET
+                                file_hash = CASE WHEN file_hash LIKE 'doc_%' OR file_hash LIKE 'photo_%' THEN :file_hash ELSE file_hash END,
+                                file_name = COALESCE(:file_name, file_name),
+                                file_size = CASE WHEN :file_size > 0 THEN :file_size ELSE file_size END,
+                                mime_type = COALESCE(:mime_type, mime_type),
+                                telegram_file_id = COALESCE(:telegram_file_id, telegram_file_id),
+                                width = COALESCE(:width, width),
+                                height = COALESCE(:height, height),
+                                duration_seconds = COALESCE(:duration_seconds, duration_seconds),
+                                camera_make = COALESCE(:camera_make, camera_make),
+                                camera_model = COALESCE(:camera_model, camera_model),
+                                date_taken = COALESCE(:date_taken, date_taken),
+                                thumbnail_path = COALESCE(:thumbnail_path, thumbnail_path)
+                            WHERE id = :id;
+                        """
+                        params = {**item, "id": existing_id}
+                        await conn.execute(enrich_query, params)
+                        await conn.commit()
+                        return existing_id
+
+            query = """
+                INSERT INTO media_items (
+                    file_hash, file_name, file_size, mime_type,
+                    telegram_channel_id, telegram_message_id, telegram_file_id,
+                    width, height, duration_seconds, camera_make, camera_model,
+                    date_taken, thumbnail_path
+                ) VALUES (
+                    :file_hash, :file_name, :file_size, :mime_type,
+                    :telegram_channel_id, :telegram_message_id, :telegram_file_id,
+                    :width, :height, :duration_seconds, :camera_make, :camera_model,
+                    :date_taken, :thumbnail_path
+                );
+            """
             cursor = await conn.execute(query, item)
             await conn.commit()
             return cursor.lastrowid or 0
@@ -107,10 +167,16 @@ class MediaRepository:
         folder_id: Optional[int] = None,
         sort_by: str = "date_desc",
         only_favorites: bool = False,
+        camera: Optional[str] = None,
+        orientation: Optional[str] = None,
+        min_resolution: Optional[str] = None,
+        year: Optional[int] = None,
+        month: Optional[str] = None,
     ) -> tuple[int, list[dict[str, Any]]]:
         """
         Retrieves paginated media items with flexible sorting and filtering.
-        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites.
+        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites,
+        camera/device model, orientation (landscape/portrait/square), min_resolution (4k/fhd), year, month.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
@@ -131,6 +197,30 @@ class MediaRepository:
             where_clauses.append("(m.file_name LIKE ? OR m.camera_make LIKE ? OR m.camera_model LIKE ?)")
             pattern = f"%{search_query}%"
             params.extend([pattern, pattern, pattern])
+
+        if camera:
+            where_clauses.append("(m.camera_make LIKE ? OR m.camera_model LIKE ? OR (m.camera_make || ' ' || m.camera_model) LIKE ?)")
+            cam_pat = f"%{camera}%"
+            params.extend([cam_pat, cam_pat, cam_pat])
+
+        if orientation == "landscape":
+            where_clauses.append("(m.width IS NOT NULL AND m.height IS NOT NULL AND m.width > m.height)")
+        elif orientation == "portrait":
+            where_clauses.append("(m.width IS NOT NULL AND m.height IS NOT NULL AND m.height > m.width)")
+        elif orientation == "square":
+            where_clauses.append("(m.width IS NOT NULL AND m.height IS NOT NULL AND m.width = m.height)")
+
+        if min_resolution == "4k":
+            where_clauses.append("(m.width >= 3840 OR m.height >= 2160)")
+        elif min_resolution == "fhd":
+            where_clauses.append("(m.width >= 1920 OR m.height >= 1080)")
+
+        if month:
+            where_clauses.append("strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) = ?")
+            params.append(month)
+        elif year:
+            where_clauses.append("CAST(strftime('%Y', COALESCE(m.date_taken, m.created_at)) AS INTEGER) = ?")
+            params.append(year)
 
         where_sql = " AND ".join(where_clauses)
 
@@ -209,14 +299,106 @@ class MediaRepository:
 
     @staticmethod
     async def delete_media(media_id: int) -> bool:
-        """Soft deletes media item from SQLite catalog and removes folder associations."""
-        query_soft_delete = "UPDATE media_items SET is_deleted = 1 WHERE id = ?;"
-        query_clean_folders = "DELETE FROM media_folders WHERE media_id = ?;"
+        """
+        Soft deletes media item from SQLite catalog by setting is_deleted=1 and deleted_at timestamp.
+        Album associations in media_folders are preserved so restoring reinstates album memberships.
+        Cost: O(1) point update on primary key id.
+        """
+        query = "UPDATE media_items SET is_deleted = 1, deleted_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') WHERE id = ?;"
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query_soft_delete, (media_id,))
-            await conn.execute(query_clean_folders, (media_id,))
+            cursor = await conn.execute(query, (media_id,))
             await conn.commit()
             return cursor.rowcount > 0
+
+    @staticmethod
+    async def restore_media(media_id: int) -> bool:
+        """
+        Restores a soft-deleted media item back to active timeline and original albums.
+        Cost: O(1) point update on primary key id.
+        """
+        query = "UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id = ?;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (media_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def restore_batch(media_ids: list[int]) -> int:
+        """
+        Restores multiple soft-deleted media items in a single atomic statement.
+        Cost: O(M) where M is batch size.
+        """
+        if not media_ids:
+            return 0
+        placeholders = ",".join("?" for _ in media_ids)
+        query = f"UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id IN ({placeholders});"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, media_ids)
+            await conn.commit()
+            return cursor.rowcount
+
+    @staticmethod
+    async def get_trash_items(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+        """
+        Retrieves paginated list of soft-deleted media items in Trash.
+        Cost: O(log K + limit) where K is number of trashed items via partial index idx_media_trash.
+        """
+        query = """
+            SELECT 
+                id, file_hash, file_name, file_size, mime_type,
+                telegram_channel_id, telegram_message_id, telegram_file_id,
+                width, height, duration_seconds, camera_make, camera_model,
+                date_taken, thumbnail_path, is_favorite, created_at, deleted_at
+            FROM media_items
+            WHERE is_deleted = 1
+            ORDER BY deleted_at DESC
+            LIMIT ? OFFSET ?;
+        """
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (limit, offset))
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    @staticmethod
+    async def get_trash_count() -> int:
+        """
+        Returns the total number of items currently in Trash.
+        Cost: O(log K) via partial index idx_media_trash.
+        """
+        query = "SELECT COUNT(*) FROM media_items WHERE is_deleted = 1;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query)
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+    @staticmethod
+    async def purge_media_permanently(media_id: int) -> bool:
+        """
+        Permanently removes a media record from SQLite catalog and cleans up folder links.
+        Cost: Atomic transaction with FK cleanup.
+        """
+        async with get_db_connection() as conn:
+            await conn.execute("DELETE FROM media_folders WHERE media_id = ?;", (media_id,))
+            cursor = await conn.execute("DELETE FROM media_items WHERE id = ?;", (media_id,))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def get_all_trash_media() -> list[dict[str, Any]]:
+        """
+        Returns all soft-deleted items for bulk Telegram purging.
+        """
+        query = """
+            SELECT 
+                id, file_hash, file_name, file_size, mime_type,
+                telegram_channel_id, telegram_message_id, thumbnail_path
+            FROM media_items
+            WHERE is_deleted = 1;
+        """
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query)
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
 
     @staticmethod
     async def update_media_metadata(
@@ -412,6 +594,130 @@ class MediaRepository:
             async with conn.execute(query, (folder_id, folder_id, limit)) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(r) for r in rows]
+
+    @staticmethod
+    async def get_all_folder_media(folder_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieves all active media items belonging to a folder or collection (for ZIP export).
+        Cost: Single indexed JOIN on media_folders(folder_id).
+        """
+        query = """
+            SELECT m.id, m.file_name, m.file_hash, m.file_size, m.mime_type,
+                   m.telegram_message_id, m.telegram_channel_id
+            FROM media_items m
+            JOIN media_folders mf ON mf.media_id = m.id
+            WHERE (mf.folder_id = ? OR mf.folder_id IN (SELECT id FROM folders WHERE parent_id = ?))
+              AND m.is_deleted = 0
+            ORDER BY mf.added_at ASC;
+        """
+        async with get_db_connection() as conn:
+            async with conn.execute(query, (folder_id, folder_id)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(r) for r in rows]
+
+    get_folder_media = get_all_folder_media
+
+    @staticmethod
+    async def get_filter_metadata() -> dict[str, Any]:
+        """
+        Extracts aggregate metadata for smart EXIF filtering and timeline date-jump scrubber.
+        Cost: Highly selective indexed aggregate queries. Minimum disk I/O, zero table scan overhead.
+        """
+        import calendar
+        async with get_db_connection() as conn:
+            # 1. Detected Cameras / Devices
+            cam_query = """
+                SELECT camera_make, camera_model, COUNT(*) as item_count
+                FROM media_items
+                WHERE is_deleted = 0 AND (camera_make IS NOT NULL OR camera_model IS NOT NULL)
+                GROUP BY camera_make, camera_model
+                ORDER BY item_count DESC;
+            """
+            cursor = await conn.execute(cam_query)
+            cam_rows = await cursor.fetchall()
+            cameras = []
+            for r in cam_rows:
+                make = (r["camera_make"] or "").strip()
+                model = (r["camera_model"] or "").strip()
+                if make and model:
+                    label = model if make.lower() in model.lower() else f"{make} {model}"
+                else:
+                    label = make or model or "Unknown Device"
+                cameras.append({
+                    "make": make,
+                    "model": model,
+                    "label": label,
+                    "count": r["item_count"]
+                })
+
+            # 2. Chronological Periods (Years and Months for Date-Jump Scrubber)
+            periods_query = """
+                SELECT strftime('%Y-%m', COALESCE(date_taken, created_at)) as period_key,
+                       COUNT(*) as item_count,
+                       MIN(id) as first_media_id
+                FROM media_items
+                WHERE is_deleted = 0
+                GROUP BY period_key
+                ORDER BY period_key DESC;
+            """
+            cursor = await conn.execute(periods_query)
+            period_rows = await cursor.fetchall()
+
+            periods = []
+            years_dict: dict[int, int] = {}
+
+            for r in period_rows:
+                pkey = r["period_key"]
+                if not pkey:
+                    continue
+                try:
+                    y_str, m_str = pkey.split("-")
+                    year = int(y_str)
+                    month_num = int(m_str)
+                    month_name = calendar.month_name[month_num]
+                    label = f"{month_name} {year}"
+                    years_dict[year] = years_dict.get(year, 0) + r["item_count"]
+                except Exception:
+                    label = pkey
+                    year = 0
+
+                periods.append({
+                    "period_key": pkey,
+                    "label": label,
+                    "year": year,
+                    "count": r["item_count"],
+                    "first_media_id": r["first_media_id"],
+                })
+
+            years = [{"year": y, "count": count} for y, count in sorted(years_dict.items(), reverse=True)]
+
+            # 3. Media Orientations & Resolutions
+            orientations_query = """
+                SELECT 
+                    SUM(CASE WHEN width > height THEN 1 ELSE 0 END) as landscape_count,
+                    SUM(CASE WHEN height > width THEN 1 ELSE 0 END) as portrait_count,
+                    SUM(CASE WHEN width = height THEN 1 ELSE 0 END) as square_count,
+                    SUM(CASE WHEN width >= 3840 OR height >= 2160 THEN 1 ELSE 0 END) as uhd_4k_count,
+                    SUM(CASE WHEN (width >= 1920 OR height >= 1080) AND (width < 3840 AND height < 2160) THEN 1 ELSE 0 END) as fhd_count
+                FROM media_items
+                WHERE is_deleted = 0 AND width IS NOT NULL AND height IS NOT NULL;
+            """
+            cursor = await conn.execute(orientations_query)
+            counts_row = await cursor.fetchone()
+            orientations = {
+                "landscape": counts_row["landscape_count"] or 0 if counts_row else 0,
+                "portrait": counts_row["portrait_count"] or 0 if counts_row else 0,
+                "square": counts_row["square_count"] or 0 if counts_row else 0,
+                "uhd_4k": counts_row["uhd_4k_count"] or 0 if counts_row else 0,
+                "fhd": counts_row["fhd_count"] or 0 if counts_row else 0,
+            }
+
+            return {
+                "cameras": cameras,
+                "periods": periods,
+                "years": years,
+                "orientations": orientations,
+            }
 
     @staticmethod
     async def delete_folder(folder_id: int) -> bool:

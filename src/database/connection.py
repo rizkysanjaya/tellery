@@ -1,11 +1,11 @@
 """
 =============================================================================
 Module: src.database.connection
-Purpose: Async SQLite connection lifecycle manager with WAL and PRAGMA tuning.
+Purpose: Async SQLite connection lifecycle manager with WAL, PRAGMA tuning, and lightweight schema migrations.
 Used by: src.database.repository, src.services, CLI scripts.
 Dependencies: aiosqlite, src.config
 Public Members: get_db_connection(), init_db()
-Side Effects: Creates SQLite database file on disk, executes schema DDL.
+Side Effects: Creates SQLite database file on disk, executes schema DDL, runs non-blocking column migrations.
 =============================================================================
 """
 
@@ -67,5 +67,19 @@ async def init_db() -> None:
         if "is_favorite" not in media_cols:
             await conn.execute("ALTER TABLE media_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
             await conn.execute("CREATE INDEX IF NOT EXISTS idx_media_favorite ON media_items(is_favorite) WHERE is_deleted = 0 AND is_favorite = 1;")
+        if "deleted_at" not in media_cols:
+            await conn.execute("ALTER TABLE media_items ADD COLUMN deleted_at TEXT;")
+            await conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_media_trash ON media_items(deleted_at DESC) WHERE is_deleted = 1;"
+            )
+
+        # Enforce unique index on active telegram messages to prevent duplicate insertions
+        await conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_media_channel_msg_active 
+            ON media_items(telegram_channel_id, telegram_message_id) 
+            WHERE is_deleted = 0 AND file_hash NOT LIKE '%#alias%';
+            """
+        )
         await conn.commit()
 

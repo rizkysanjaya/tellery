@@ -66,10 +66,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
     print("\n[*] TeleGallery Archive Engine shutting down...")
-    await td_client.stop()
-    print("[*] TDLib C++ Client disconnected.")
-    await telegram_client.stop()
-    print("[*] Telegram MTProto Client disconnected.")
+    try:
+        await td_client.close()
+        print("[*] TDLib C++ Client disconnected.")
+    except Exception as e:
+        print(f"[!] Warning during TDLib shutdown: {e}")
+    try:
+        await telegram_client.stop()
+        print("[*] Telegram MTProto Client disconnected.")
+    except Exception as e:
+        print(f"[!] Warning during MTProto shutdown: {e}")
 
 
 def create_app() -> FastAPI:
