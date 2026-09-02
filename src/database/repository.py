@@ -1,10 +1,10 @@
 """
 =============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media catalog, folders/albums, and audit logging.
+Purpose: Data access layer for media catalog, folders/albums, favorites, and audit logging.
 Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media, src.api.routes.folders.
 Dependencies: aiosqlite, src.database.connection
-Public Members: MediaRepository
+Public Members: MediaRepository (get_timeline, get_by_id, update_favorite, bulk_update_favorite, etc.)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
 =============================================================================
 """
@@ -44,7 +44,8 @@ class MediaRepository:
             SELECT id, file_hash, file_name, file_size, mime_type,
                    telegram_channel_id, telegram_message_id, telegram_file_id,
                    width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at
+                   date_taken, thumbnail_path, created_at,
+                   COALESCE(is_favorite, 0) as is_favorite
             FROM media_items
             WHERE id = ? AND is_deleted = 0
             LIMIT 1;
@@ -105,13 +106,17 @@ class MediaRepository:
         search_query: Optional[str] = None,
         folder_id: Optional[int] = None,
         sort_by: str = "date_desc",
+        only_favorites: bool = False,
     ) -> tuple[int, list[dict[str, Any]]]:
         """
         Retrieves paginated media items with flexible sorting and filtering.
-        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc.
+        Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
+
+        if only_favorites:
+            where_clauses.append("m.is_favorite = 1")
 
         if folder_id is not None:
             where_clauses.append("mf.folder_id = ?")
@@ -151,6 +156,7 @@ class MediaRepository:
                    m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
                    m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
                    m.date_taken, m.thumbnail_path, m.created_at,
+                   COALESCE(m.is_favorite, 0) as is_favorite,
                    strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
                    mf.folder_id as folder_id,
                    f.name as folder_name
@@ -235,6 +241,34 @@ class MediaRepository:
             cursor = await conn.execute(query, (duration_seconds, width, height, media_id))
             await conn.commit()
             return cursor.rowcount > 0
+
+    @staticmethod
+    async def update_favorite(media_id: int, is_favorite: bool) -> bool:
+        """
+        Updates favorite status for a single media item.
+        Cost: O(1) point update on primary key id.
+        """
+        query = "UPDATE media_items SET is_favorite = ? WHERE id = ? AND is_deleted = 0;"
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, (1 if is_favorite else 0, media_id))
+            await conn.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    async def bulk_update_favorite(media_ids: list[int], is_favorite: bool) -> int:
+        """
+        Batch updates favorite status for multiple media items.
+        Cost: O(K) where K = len(media_ids) via indexed primary key scan.
+        """
+        if not media_ids:
+            return 0
+        placeholders = ",".join("?" for _ in media_ids)
+        query = f"UPDATE media_items SET is_favorite = ? WHERE id IN ({placeholders}) AND is_deleted = 0;"
+        params = [1 if is_favorite else 0] + media_ids
+        async with get_db_connection() as conn:
+            cursor = await conn.execute(query, params)
+            await conn.commit()
+            return cursor.rowcount
 
     # =========================================================================
     # Folder & Album Repository Methods

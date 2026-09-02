@@ -1,11 +1,11 @@
 """
 =============================================================================
 Module: src.api.routes.media
-Purpose: REST endpoints for media catalog timeline feeds, item details, and archive stats.
+Purpose: REST endpoints for media catalog timeline feeds, item details, favorites, and archive stats.
 Used by: Web Gallery UI, Frontend clients.
 Dependencies: fastapi, datetime, src.database.repository, src.api.schemas
 Public Members: router
-Side Effects: Reads SQLite catalog records.
+Side Effects: Reads and updates SQLite catalog records.
 =============================================================================
 """
 
@@ -20,6 +20,8 @@ from src.api.schemas import (
     StatsResponse,
     TimelineGroup,
     TimelineResponse,
+    FavoriteMediaRequest,
+    BulkFavoriteMediaRequest,
 )
 from src.database.repository import MediaRepository
 from src.services.archive_service import ArchiveService
@@ -97,6 +99,7 @@ def _to_media_response(item: dict) -> MediaItemResponse:
         created_at=item["created_at"],
         folder_id=item.get("folder_id"),
         folder_name=item.get("folder_name"),
+        is_favorite=bool(item.get("is_favorite", 0)),
     )
 
 
@@ -108,10 +111,11 @@ async def get_timeline(
     q: Optional[str] = Query(None, description="Search query by filename or camera model"),
     folder_id: Optional[int] = Query(None, description="Filter by virtual folder ID"),
     sort_by: str = Query("date_desc", pattern="^(date_desc|date_asc|name_asc|name_desc|size_desc|size_asc)$"),
+    only_favorites: bool = Query(False, description="Filter to only favorited media items"),
 ):
     """
     Retrieves chronological or attribute-sorted timeline feed.
-    Supports filtering by media type, search keyword, virtual folder, and custom sorting.
+    Supports filtering by media type, search keyword, virtual folder, custom sorting, and favorites.
     """
     filter_type = type if type in ("photo", "video") else None
     total_count, raw_items = await MediaRepository.get_timeline(
@@ -121,6 +125,7 @@ async def get_timeline(
         search_query=q,
         folder_id=folder_id,
         sort_by=sort_by,
+        only_favorites=only_favorites,
     )
 
     # Group items preserving active sort order
@@ -448,4 +453,32 @@ async def update_media_metadata(media_id: int, payload: dict):
     )
 
     return {"status": "updated", "media_id": media_id}
+
+
+@router.patch("/{media_id:int}/favorite")
+async def toggle_favorite(media_id: int, payload: FavoriteMediaRequest):
+    """
+    Toggles favorite status for a single media item.
+    Cost: O(1) indexed point update.
+    """
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    success = await MediaRepository.update_favorite(media_id, payload.is_favorite)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to update favorite status")
+
+    return {"status": "ok", "media_id": media_id, "is_favorite": payload.is_favorite}
+
+
+@router.post("/favorite/bulk")
+async def bulk_toggle_favorite(payload: BulkFavoriteMediaRequest):
+    """
+    Batch updates favorite status for multiple media items.
+    Cost: O(K) where K = len(media_ids).
+    """
+    updated_count = await MediaRepository.bulk_update_favorite(payload.media_ids, payload.is_favorite)
+    return {"status": "ok", "updated_count": updated_count, "is_favorite": payload.is_favorite}
+
 

@@ -255,7 +255,10 @@ class TelegramStorageClient:
         if not message or not message.media:
             raise ValueError(f"No media found for message {message_id}")
 
-        align = 4096
+        # MTProto requires offset to be an exact multiple of the request chunk_size.
+        # Aligning to chunk_size guarantees offset % request_size == 0, preventing
+        # Telegram's LimitInvalidError: 'An invalid limit was provided (caused by GetFileRequest)'
+        align = chunk_size
         aligned_offset = (offset // align) * align
         skip_initial_bytes = offset - aligned_offset
 

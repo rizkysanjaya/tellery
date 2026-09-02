@@ -16,7 +16,7 @@ Side Effects: Streams byte chunks across HTTP response, caches hot stream files 
 import re
 import urllib.parse
 from typing import Optional
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, StreamingResponse
 from src.database.repository import MediaRepository
 from src.services.stream_cache import get_stream_cache
@@ -47,6 +47,7 @@ async def stream_media(
     media_id: int,
     request: Request,
     range_header: Optional[str] = Header(None, alias="Range"),
+    preview: bool = Query(False, description="Lightweight on-demand stream for gallery hover previews"),
 ):
     """
     Streams media content with lightning-fast HTTP 206 Partial Content Range seeking.
@@ -86,6 +87,18 @@ async def stream_media(
             target_mime_type = "video/mp4"
             target_file_hash = f"{file_hash}_web"
 
+    # Defensive MIME correction: Verify container magic bytes if cached file exists
+    if target_stream_path.exists() and target_stream_path.stat().st_size >= 12:
+        try:
+            with open(target_stream_path, "rb") as f_head:
+                head_bytes = f_head.read(12)
+                if len(head_bytes) >= 8 and head_bytes[4:8] == b"ftyp":
+                    target_mime_type = "video/mp4"
+                elif head_bytes.startswith(b"GIF87a") or head_bytes.startswith(b"GIF89a"):
+                    target_mime_type = "image/gif"
+        except Exception:
+            pass
+
     # Case 1: No Range header (Full document request)
     if not range_header:
         # Fast path: Serve fully cached file directly via kernel-level sendfile (zero memory/CPU copy)
@@ -115,6 +128,7 @@ async def stream_media(
                 expected_total_size=stream_file_size,
                 message_id=message_id,
                 channel_id=channel_id,
+                is_preview=preview,
             ),
             status_code=status.HTTP_200_OK,
             headers=headers,
@@ -142,11 +156,18 @@ async def stream_media(
             headers={"Content-Range": f"bytes */{stream_file_size}"},
         )
 
+    # For uncached files, cap open-ended ranges to 2 MB so Chrome starts playback
+    # in <300ms and can seek smoothly without waiting for whole-file downloads
+    is_fully_cached = target_stream_path.exists() and target_stream_path.stat().st_size == stream_file_size
+    if not is_fully_cached and not raw_end:
+        max_chunk_window = 2 * 1024 * 1024  # 2 MB
+        end = min(start + max_chunk_window - 1, stream_file_size - 1)
+
     content_length = (end - start) + 1
     headers = {
         "Content-Range": f"bytes {start}-{end}/{stream_file_size}",
-        "Accept-Ranges": "bytes",
         "Content-Length": str(content_length),
+        "Accept-Ranges": "bytes",
         "Content-Type": target_mime_type,
         "Content-Disposition": content_disp,
     }

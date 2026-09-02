@@ -2,17 +2,18 @@
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
  * Purpose: High-performance gallery grid tile with instant WebP thumbnail,
- *          constantly looping animated GIFs, on-hover animated video preview,
- *          selection checkbox, context menu forwarding, and HTML5 drag-and-drop support.
+ *          constantly looping animated GIFs, clean un-cluttered top-right favorite star toggle,
+ *          hover-revealed top-left selection checkbox without glass UI, context menu forwarding,
+ *          and HTML5 drag-and-drop support.
  * Used by: frontend/src/components/TimelineGrid.tsx
- * Dependencies: lucide-react, frontend/src/types.ts
+ * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/utils/fileTypes.ts
  * Public Members: MediaCard
- * Side Effects: Triggers lightbox click, selection toggle, drag start, and context menu events.
+ * Side Effects: Triggers lightbox click, selection toggle, favorite toggle, drag start, and context menu events.
  * =============================================================================
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import { Play, Image as ImageIcon, Camera, Check } from "lucide-react";
+import { Play, Image as ImageIcon, Camera, Check, Star } from "lucide-react";
 import { MediaItem } from "../types";
 import { getFileTypeBadge } from "../utils/fileTypes";
 import { emptyDragImage } from "./ui/DragStackedPreview";
@@ -25,6 +26,7 @@ interface MediaCardProps {
   aspectMode?: "square" | "natural";
   onClick: () => void;
   onToggleSelect: (id: number, e?: React.MouseEvent) => void;
+  onToggleFavorite?: (id: number, isFavorite: boolean) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
 }
 
@@ -36,14 +38,14 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   aspectMode = "square",
   onClick,
   onToggleSelect,
+  onToggleFavorite,
   onContextMenu,
 }) => {
   const [loaded, setLoaded] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   const isVideo = item.mime_type.startsWith("video/");
   const isGif = item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif");
-  const isAnimatedVideo = isVideo && item.file_name.toLowerCase().endsWith(".gif.mp4");
+  const isAnimatedVideo = isVideo && (item.file_name.toLowerCase().includes(".gif.mp4") || (Boolean(item.duration_seconds && item.duration_seconds <= 15) && item.file_name.toLowerCase().includes("gif")));
 
   useEffect(() => {
     return () => {
@@ -52,14 +54,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
       }
     };
   }, []);
-
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-  };
 
   // Long-press detection refs
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -171,8 +165,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
   return (
     <div
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       className={`relative group transition-transform duration-150 ease-out hover:scale-[1.015] ${
         aspectMode === "natural" ? "w-full min-h-[120px]" : "aspect-square"
       }`}
@@ -192,18 +184,23 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         }`}
       >
         <div className="relative w-full h-full overflow-hidden bg-surface-container">
-          {/* Selection Checkbox (top-left) */}
+          {/* Top-Left: Selection Checkbox (Clean Neomorphic, Hover-revealed like Favorite, Solid Accent Active) */}
           <div
             onClick={handleCheckboxClick}
-            className={`absolute top-2.5 left-2.5 z-[2] w-6 h-6 rounded-full flex items-center justify-center transition-all duration-200 cursor-pointer ${
+            className={`absolute top-2.5 left-2.5 z-[3] w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm ${
               isSelected
-                ? "bg-primary-container text-on-surface scale-105"
+                ? "bg-primary text-on-primary border border-primary scale-105 opacity-100 shadow-md shadow-primary/30"
                 : isSelectionMode
-                  ? "neo-button hover:text-on-surface"
-                  : "neo-button opacity-0 group-hover:opacity-100 hover:text-on-surface"
+                  ? "bg-surface-base/90 border border-outline-variant/60 hover:border-primary hover:scale-110 opacity-70 group-hover:opacity-100 text-transparent hover:text-primary/40"
+                  : "bg-surface-base/90 border border-outline-variant/50 hover:border-primary hover:scale-110 opacity-0 group-hover:opacity-100 text-transparent hover:text-primary/40"
             }`}
+            title={isSelected ? "Deselect item" : "Select item"}
           >
-            {isSelected && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+            {isSelected ? (
+              <Check className="w-3.5 h-3.5 text-on-primary" strokeWidth={3} />
+            ) : (
+              <Check className="w-3.5 h-3.5 transition-colors" strokeWidth={2.5} />
+            )}
           </div>
 
           {/* Selected Dimming Overlay */}
@@ -211,10 +208,10 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             <div className="absolute inset-0 bg-primary/10 z-[1] pointer-events-none" />
           )}
 
-          {/* Animated Video Clip (.gif.mp4) on Hover */}
-          {isAnimatedVideo && isHovered ? (
+          {/* Constantly Playing Animated Loop: GIF or Telegram .gif.mp4 Animation */}
+          {isAnimatedVideo ? (
             <video
-              src={item.stream_url}
+              src={`${item.stream_url}?preview=1`}
               autoPlay
               loop
               muted
@@ -222,7 +219,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               className="w-full h-full object-cover pointer-events-none select-none"
             />
           ) : isGif ? (
-            /* Constantly Playing Animated GIF */
             <img
               src={item.stream_url}
               alt={item.file_name}
@@ -231,16 +227,8 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               onLoad={() => setLoaded(true)}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none"
             />
-          ) : isVideo && isHovered ? (
-            /* Ultra-Lightweight Video Hover Preview (~100KB Animated WebP) */
-            <img
-              src={`/api/media/${item.id}/preview`}
-              alt={item.file_name}
-              draggable={false}
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none"
-            />
           ) : item.thumbnail_url ? (
-            /* Instant Local WebP Thumbnail (0ms) */
+            /* Instant Local WebP Thumbnail (0ms) - Always present */
             <img
               src={item.thumbnail_url}
               alt={item.file_name}
@@ -260,15 +248,38 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             </div>
           )}
 
-          {/* Color-Coded File Format Badge (top-right) */}
-          <div className="absolute top-2.5 right-2.5 z-[2] pointer-events-none">
-            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center backdrop-blur-md shadow-sm ${fileBadge.badgeClass}`}>
+          {/* Top-Right: Star Favorite Button & File Format Badge Header */}
+          <div className="absolute top-2.5 right-2.5 z-[3] flex items-center gap-1.5 pointer-events-none">
+            {/* Interactive Star Favorite Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onToggleFavorite) {
+                  onToggleFavorite(item.id, !item.is_favorite);
+                }
+              }}
+              title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
+              className={`p-1.5 rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer ${
+                item.is_favorite
+                  ? "bg-amber-500/25 text-amber-400 border border-amber-500/40 opacity-100 scale-100"
+                  : "bg-surface-base/90 text-on-surface-variant hover:text-amber-400 opacity-0 group-hover:opacity-100 border border-outline-variant/30 hover:scale-110"
+              }`}
+            >
+              <Star
+                className={`w-3.5 h-3.5 ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`}
+                strokeWidth={2}
+              />
+            </button>
+
+            {/* Color-Coded File Format Badge */}
+            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center shadow-sm ${fileBadge.badgeClass}`}>
               <span>{fileBadge.extension}</span>
             </div>
           </div>
 
-          {/* Video Duration Pill Badge (bottom-left corner) */}
-          {isVideo && (
+          {/* Video Duration Pill Badge (bottom-left corner, only for regular videos) */}
+          {isVideo && !isAnimatedVideo && (
             <div className="absolute bottom-2.5 left-2.5 z-[2] pointer-events-none group-hover:opacity-0 transition-opacity duration-150">
               <div className="bg-surface-base/85 backdrop-blur-xs text-on-surface text-label-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
                 <Play className="w-2.5 h-2.5 fill-current shrink-0 text-primary" />

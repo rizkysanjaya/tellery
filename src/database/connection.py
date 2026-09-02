@@ -60,4 +60,12 @@ async def init_db() -> None:
             await conn.execute("ALTER TABLE folders ADD COLUMN is_collection INTEGER NOT NULL DEFAULT 0;")
         if "cover_media_id" not in cols:
             await conn.execute("ALTER TABLE folders ADD COLUMN cover_media_id INTEGER REFERENCES media_items(id) ON DELETE SET NULL;")
+        
+        # media_items table migrations
+        cursor = await conn.execute("PRAGMA table_info(media_items);")
+        media_cols = [row[1] for row in await cursor.fetchall()]
+        if "is_favorite" not in media_cols:
+            await conn.execute("ALTER TABLE media_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
+            await conn.execute("CREATE INDEX IF NOT EXISTS idx_media_favorite ON media_items(is_favorite) WHERE is_deleted = 0 AND is_favorite = 1;")
         await conn.commit()
+

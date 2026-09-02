@@ -43,8 +43,6 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   onToggleSelect,
   onContextMenu,
 }) => {
-  const isVideo = item.mime_type.startsWith("video/");
-
   const formatFileSize = (bytes: number) => {
     if (!bytes) return "0 B";
     const k = 1024;
@@ -73,11 +71,18 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
     }
   };
 
-  const [isHovered, setIsHovered] = useState(false);
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const hoverPreviewTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isVideo = item.mime_type.startsWith("video/");
   const isGif = item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif");
+  const isAnimatedVideo = isVideo && (item.file_name.toLowerCase().includes(".gif.mp4") || (Boolean(item.duration_seconds && item.duration_seconds <= 15) && item.file_name.toLowerCase().includes("gif")));
 
   useEffect(() => {
     return () => {
+      if (hoverPreviewTimerRef.current) {
+        clearTimeout(hoverPreviewTimerRef.current);
+      }
       if (longPressTimerRef.current) {
         clearTimeout(longPressTimerRef.current);
       }
@@ -85,11 +90,20 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   }, []);
 
   const handleMouseEnter = () => {
-    setIsHovered(true);
+    if (isVideo && !isAnimatedVideo) {
+      if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
+      hoverPreviewTimerRef.current = setTimeout(() => {
+        setIsPlayingPreview(true);
+      }, 300);
+    }
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
+    if (hoverPreviewTimerRef.current) {
+      clearTimeout(hoverPreviewTimerRef.current);
+      hoverPreviewTimerRef.current = null;
+    }
+    setIsPlayingPreview(false);
   };
 
   // Long-press detection refs
@@ -210,21 +224,36 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
           )}
         </div>
 
-        {/* Crisp Rounded Thumbnail / Constantly Playing GIF / Video Hover Preview */}
+        {/* Crisp Rounded Thumbnail / Constantly Playing GIF / Smooth Video Hover Preview */}
         <div className="relative w-14 h-14 rounded-neo-lg overflow-hidden bg-surface-container shrink-0 neo-image-wrapper border border-outline-variant/20 shadow-sm">
-          <img
-            src={
-              isGif
-                ? item.stream_url
-                : isVideo && isHovered
-                  ? `/api/media/${item.id}/preview`
-                  : item.thumbnail_url || item.stream_url
-            }
-            alt={item.file_name}
-            className="w-full h-full object-cover pointer-events-none select-none"
-            loading="lazy"
-          />
-          {isVideo && !isHovered && (
+          {isAnimatedVideo ? (
+            <video
+              src={item.stream_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="w-full h-full object-cover pointer-events-none select-none"
+            />
+          ) : (
+            <img
+              src={isGif ? item.stream_url : (item.thumbnail_url || item.stream_url)}
+              alt={item.file_name}
+              className="w-full h-full object-cover pointer-events-none select-none"
+              loading="lazy"
+            />
+          )}
+          {isVideo && !isAnimatedVideo && isPlayingPreview && (
+            <video
+              src={item.stream_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none z-[1] animate-in fade-in duration-200"
+            />
+          )}
+          {isVideo && !isAnimatedVideo && !isPlayingPreview && (
             <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
               <Play className="w-4 h-4 text-white fill-white" />
             </div>

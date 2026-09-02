@@ -3,7 +3,8 @@
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
- *          multi-select system, virtual folders & icon/color customization, album favorites & rename,
+ *          multi-select system, virtual folders & icon/color customization, dedicated dual-section
+ *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
  *          search, filtering, lightbox, drag-and-drop, context-aware right-click menus,
  *          floating back-to-top button on noticeable scroll, media delete confirmation modals
  *          with 10-second undo countdown, Telegram vault uploads, and Telegram channel sync.
@@ -24,6 +25,8 @@ import {
   createMediaAlias,
   deleteFolder,
   deleteMediaItem,
+  toggleFavoriteMedia,
+  bulkToggleFavoriteMedia,
   fetchFolders,
   fetchStats,
   fetchTimeline,
@@ -37,6 +40,7 @@ import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
 import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
 import { FolderGrid } from "./components/FolderGrid";
+import { FavoritesView } from "./components/FavoritesView";
 import { Header } from "./components/Header";
 import { MediaLightbox } from "./components/MediaLightbox";
 import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
@@ -116,6 +120,7 @@ export const App: React.FC = () => {
   const debouncedSearchQueryRef = useRef<string>("");
   const sortByRef = useRef<SortOption>("date_desc");
   const groupsRef = useRef<TimelineGroup[]>([]);
+  const currentViewRef = useRef<MainView>("timeline");
 
   useEffect(() => {
     activeFolderRef.current = activeFolder;
@@ -132,6 +137,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     groupsRef.current = groups;
   }, [groups]);
+
+  useEffect(() => {
+    currentViewRef.current = currentView;
+  }, [currentView]);
 
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
@@ -243,7 +252,8 @@ export const App: React.FC = () => {
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy)
+    const isFavoritesView = currentView === "favorites" && !activeFolder;
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView)
       .then((res) => {
         if (isMounted) {
           setGroups(res.groups);
@@ -260,7 +270,7 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView]);
 
   const loadData = useCallback(() => {
     fetchStats().then(setStats).catch(console.error);
@@ -268,7 +278,8 @@ export const App: React.FC = () => {
     setLoading(true);
 
     const folderId = activeFolder ? activeFolder.id : null;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy)
+    const isFavoritesView = currentView === "favorites" && !activeFolder;
+    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView)
       .then((res) => {
         setGroups(res.groups);
         setLoading(false);
@@ -277,7 +288,7 @@ export const App: React.FC = () => {
         console.error(err);
         setLoading(false);
       });
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, loadFolders]);
+  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadFolders]);
 
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -622,15 +633,17 @@ export const App: React.FC = () => {
       });
     }
 
-    // 2. Synchronize current view (Timeline or Active Album) in background so no page refresh is ever needed
+    // 2. Synchronize current view (Timeline, Favorites, or Active Album) in background so no page refresh is ever needed
     const currentFolderId = activeFolderRef.current ? activeFolderRef.current.id : null;
+    const isFavoritesView = currentViewRef.current === "favorites" && !activeFolderRef.current;
     fetchTimeline(
       0,
       100,
       activeFilterRef.current,
       debouncedSearchQueryRef.current,
       currentFolderId,
-      sortByRef.current
+      sortByRef.current,
+      isFavoritesView
     )
       .then((res) => {
         setGroups(res.groups);
@@ -1097,6 +1110,74 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleToggleFavoriteMedia = async (mediaId: number, isFavorite: boolean) => {
+    // Optimistic UI state update
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        items: g.items.map((item) =>
+          item.id === mediaId ? { ...item, is_favorite: isFavorite } : item
+        ),
+      }))
+    );
+    if (selectedMedia && selectedMedia.id === mediaId) {
+      setSelectedMedia((prev) => (prev ? { ...prev, is_favorite: isFavorite } : null));
+    }
+
+    try {
+      await toggleFavoriteMedia(mediaId, isFavorite);
+      showToast(
+        isFavorite ? "Added to Favorites" : "Removed from Favorites",
+        "info"
+      );
+      if (currentView === "favorites") {
+        loadData();
+      }
+    } catch (err: any) {
+      // Rollback
+      setGroups((prev) =>
+        prev.map((g) => ({
+          ...g,
+          items: g.items.map((item) =>
+            item.id === mediaId ? { ...item, is_favorite: !isFavorite } : item
+          ),
+        }))
+      );
+      showToast(err.message || "Failed to update favorite status.", "error");
+    }
+  };
+
+  const handleBulkToggleFavoriteMedia = async (mediaIds: number[], isFavorite: boolean) => {
+    if (mediaIds.length === 0) return;
+    const targetSet = new Set(mediaIds);
+
+    // Optimistic UI state update
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        items: g.items.map((item) =>
+          targetSet.has(item.id) ? { ...item, is_favorite: isFavorite } : item
+        ),
+      }))
+    );
+
+    try {
+      await bulkToggleFavoriteMedia(mediaIds, isFavorite);
+      showToast(
+        isFavorite
+          ? `Added ${mediaIds.length} ${mediaIds.length === 1 ? "item" : "items"} to Favorites`
+          : `Removed ${mediaIds.length} ${mediaIds.length === 1 ? "item" : "items"} from Favorites`,
+        "success"
+      );
+      if (currentView === "favorites") {
+        loadData();
+      }
+    } catch (err: any) {
+      loadData();
+      showToast(err.message || "Failed to update bulk favorite status.", "error");
+    }
+  };
+
   const handleSetFolderCover = async (folderId: number, mediaId: number | null) => {
     const target = folders.find((f) => f.id === folderId);
     const entityType = target?.is_collection ? "Collection" : "Album";
@@ -1305,18 +1386,36 @@ export const App: React.FC = () => {
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onSelectTimeline={() => {
+          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(null);
           setSelectedCollection(null);
           setSelectedIds(new Set());
         }}
         onSelectAlbumsOverview={() => {
+          setSearchQuery("");
           setCurrentView("albums");
           setActiveFolder(null);
           setSelectedCollection(null);
           setSelectedIds(new Set());
         }}
+        onSelectFavorites={() => {
+          setSearchQuery("");
+          setCurrentView("favorites");
+          setActiveFolder(null);
+          setSelectedCollection(null);
+          setSelectedIds(new Set());
+          setGroups((prev) =>
+            prev
+              .map((g) => ({
+                ...g,
+                items: g.items.filter((i) => Boolean(i.is_favorite)),
+              }))
+              .filter((g) => g.items.length > 0)
+          );
+        }}
         onSelectFolder={(folder) => {
+          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(folder);
           setSelectedIds(new Set());
@@ -1414,7 +1513,7 @@ export const App: React.FC = () => {
             );
           })()}
 
-          {/* View Switcher: Albums Grid vs Timeline Grid */}
+          {/* View Switcher: Albums Grid vs Favorites View vs Timeline Grid */}
           {currentView === "albums" && !activeFolder ? (
             <FolderGrid
               folders={folders}
@@ -1439,6 +1538,33 @@ export const App: React.FC = () => {
               onCanvasContextMenu={handleCanvasContextMenu}
               loading={loadingFolders}
             />
+          ) : currentView === "favorites" && !activeFolder ? (
+            <FavoritesView
+              favoriteFolders={folders.filter((f) => f.is_favorite)}
+              mediaGroups={groups}
+              selectedIds={selectedIds}
+              activeFilter={activeFilter}
+              onFilterChange={setActiveFilter}
+              displayLayout={displayLayout}
+              onLayoutChange={handleDisplayLayoutChange}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
+              searchQuery={searchQuery}
+              onClearSearch={() => setSearchQuery("")}
+              onSelectMedia={setSelectedMedia}
+              onToggleSelect={handleToggleSelect}
+              onSelectAllInGroup={handleSelectAllInGroup}
+              onDeselectAllInGroup={handleDeselectAllInGroup}
+              onMediaContextMenu={handleCardContextMenu}
+              onSelectFolder={(folder) => {
+                setActiveFolder(folder);
+                setCurrentView("timeline");
+              }}
+              onToggleFavoriteFolder={handleToggleFavoriteFolder}
+              onToggleFavoriteMedia={handleToggleFavoriteMedia}
+              onFolderContextMenu={handleFolderContextMenu}
+              loading={loading}
+            />
           ) : (
             <TimelineGrid
               groups={groups}
@@ -1454,6 +1580,7 @@ export const App: React.FC = () => {
               onSelectAllInGroup={handleSelectAllInGroup}
               onDeselectAllInGroup={handleDeselectAllInGroup}
               onContextMenu={handleCardContextMenu}
+              onToggleFavorite={handleToggleFavoriteMedia}
               loading={loading}
             />
           )}
@@ -1475,6 +1602,7 @@ export const App: React.FC = () => {
               folders={folders}
               onAddToFolder={(folderId) => handleBulkAddToFolder(folderId)}
               onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
+              onFavoriteSelected={() => handleBulkToggleFavoriteMedia(Array.from(selectedIds), true)}
               onDeleteSelected={() => handleBulkDeleteSelected()}
               onDeselectAll={handleDeselectAll}
             />
@@ -1508,6 +1636,7 @@ export const App: React.FC = () => {
           onSetFolderCover={(folder) => setFolderToCover(folder)}
           onOpenMoveModal={(folder) => setFolderToMove(folder)}
           onToggleFavoriteFolder={handleToggleFavoriteFolder}
+          onToggleFavoriteMedia={handleToggleFavoriteMedia}
           onDeleteFolder={handlePromptDeleteFolder}
           onBackToOverview={() => {
             setActiveFolder(null);
@@ -1582,6 +1711,7 @@ export const App: React.FC = () => {
           onNext={handleNext}
           hasPrev={currentIndex > 0}
           hasNext={currentIndex >= 0 && currentIndex < flatItems.length - 1}
+          onToggleFavorite={handleToggleFavoriteMedia}
           onDelete={handleDeleteMedia}
         />
       )}
@@ -1627,16 +1757,33 @@ export const App: React.FC = () => {
         displayLayout={displayLayout}
         sortBy={sortBy}
         onSelectTimeline={() => {
+          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(null);
           setSelectedIds(new Set());
         }}
         onSelectAlbumsOverview={() => {
+          setSearchQuery("");
           setCurrentView("albums");
           setActiveFolder(null);
           setSelectedIds(new Set());
         }}
+        onSelectFavorites={() => {
+          setSearchQuery("");
+          setCurrentView("favorites");
+          setActiveFolder(null);
+          setSelectedIds(new Set());
+          setGroups((prev) =>
+            prev
+              .map((g) => ({
+                ...g,
+                items: g.items.filter((i) => Boolean(i.is_favorite)),
+              }))
+              .filter((g) => g.items.length > 0)
+          );
+        }}
         onSelectFolder={(folder) => {
+          setSearchQuery("");
           setCurrentView("timeline");
           setActiveFolder(folder);
           setSelectedIds(new Set());
@@ -1691,13 +1838,7 @@ export const App: React.FC = () => {
           handleBulkAddToFolder(folderId, ids);
         }}
         onDropFavorite={async (ids) => {
-          const favFolder = folders.find((f) => f.name.toLowerCase() === "favorites" || f.is_favorite);
-          if (favFolder) {
-            await handleBulkAddToFolder(favFolder.id, ids);
-            showToast(`Added ${ids.length} ${ids.length === 1 ? "item" : "items"} to Favorites`, "success");
-          } else {
-            showToast(`No Favorites album found to store favorited items`, "info");
-          }
+          await handleBulkToggleFavoriteMedia(ids, true);
         }}
         onDropDeselect={() => {
           setSelectedIds(new Set());

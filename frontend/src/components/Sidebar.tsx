@@ -54,6 +54,7 @@ interface SidebarProps {
   onCloseMobile: () => void;
   onSelectTimeline: () => void;
   onSelectAlbumsOverview: () => void;
+  onSelectFavorites?: () => void;
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
   onDeleteFolder: (folder: FolderItem | number) => void | Promise<void>;
@@ -78,6 +79,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onCloseMobile,
   onSelectTimeline,
   onSelectAlbumsOverview,
+  onSelectFavorites,
   onSelectFolder,
   onCreateFolder,
   onDeleteFolder,
@@ -399,9 +401,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div>
             <div
               onClick={() => {
-                setIsFavoritesExpanded((p) => !p);
+                if (onSelectFavorites) {
+                  onSelectFavorites();
+                  onCloseMobile();
+                } else {
+                  setIsFavoritesExpanded((p) => !p);
+                }
               }}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+                currentView === "favorites" && !activeFolder
+                  ? "neo-pressed bg-surface-base text-primary shadow-inner"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+              }`}
             >
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <button
@@ -410,7 +421,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     e.stopPropagation();
                     setIsFavoritesExpanded((p) => !p);
                   }}
-                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
+                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors cursor-pointer"
                 >
                   {isFavoritesExpanded ? (
                     <ChevronDown className="w-3.5 h-3.5" />

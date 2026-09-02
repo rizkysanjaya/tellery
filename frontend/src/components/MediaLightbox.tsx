@@ -2,12 +2,12 @@
  * =============================================================================
  * Module: frontend/src/components/MediaLightbox.tsx
  * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
- *          zoomable viewport, album/folder assignment manager, and permanent deletion controls.
+ *          zoomable viewport, album/folder assignment manager, 1-click favorite toggle, and permanent deletion controls.
  *          Updated to match Silk Cloud dark neomorphic design system.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/api.ts, frontend/src/components/VideoPlayer.tsx
  * Public Members: MediaLightbox
- * Side Effects: Listens for window keydown events, executes deletion over HTTP.
+ * Side Effects: Listens for window keydown events, executes deletion and favorite toggle callbacks.
  * =============================================================================
  */
 
@@ -24,6 +24,7 @@ import {
   Check,
   ArrowLeft,
   Share2,
+  Star,
 } from "lucide-react";
 import { MediaItem } from "../types";
 import { VideoPlayer } from "./VideoPlayer";
@@ -38,6 +39,7 @@ interface MediaLightboxProps {
   onNext: () => void;
   hasPrev: boolean;
   hasNext: boolean;
+  onToggleFavorite?: (id: number, isFavorite: boolean) => void;
   onDelete: (id: number) => Promise<void>;
 }
 
@@ -50,6 +52,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   onNext,
   hasPrev,
   hasNext,
+  onToggleFavorite,
   onDelete,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -339,29 +342,46 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             <p className="text-sm text-on-surface-variant">{formatDate(item.date_taken)} • {formatBytes(item.file_size)}</p>
           </div>
 
-          {/* Action Grid (Download, Copy Link, Delete) */}
-          <div className="grid grid-cols-3 gap-3 mt-2">
+          {/* Action Grid (Download, Share, Favorite, Delete) */}
+          <div className="grid grid-cols-4 gap-2 mt-2">
             <a
               href={item.stream_url}
               download={item.file_name}
-              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+              title="Download"
             >
               <Download className="w-4 h-4" />
-              <span className="text-xs font-semibold">Download</span>
+              <span className="text-[11px] font-semibold">Save</span>
             </a>
             <button
               onClick={handleCopyLink}
-              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+              title="Share Link"
             >
               {copied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
-              <span className="text-xs font-semibold">{copied ? "Copied!" : "Share"}</span>
+              <span className="text-[11px] font-semibold">{copied ? "Copied!" : "Share"}</span>
+            </button>
+            <button
+              onClick={() => {
+                if (onToggleFavorite) {
+                  onToggleFavorite(item.id, !item.is_favorite);
+                }
+              }}
+              className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button transition-all text-center cursor-pointer ${
+                item.is_favorite ? "text-amber-400" : "text-on-surface hover:text-amber-400"
+              }`}
+              title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
+            >
+              <Star className={`w-4 h-4 ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`} />
+              <span className="text-[11px] font-semibold">{item.is_favorite ? "Starred" : "Star"}</span>
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="flex flex-col md:flex-row items-center justify-center gap-2 p-3 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
+              title="Delete"
             >
               <Trash2 className="w-4 h-4" />
-              <span className="text-xs font-semibold">Delete</span>
+              <span className="text-[11px] font-semibold">Delete</span>
             </button>
           </div>
 

@@ -2,11 +2,12 @@
  * =============================================================================
  * Module: frontend/src/api.ts
  * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions,
- *          albums/folders, and Telegram Channel sync operations.
+ *          albums/folders, favorites, and Telegram Channel sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchStats, fetchMediaItem, uploadMediaFile,
- *                deleteMediaItem, fetchFolders, createFolder, deleteFolder,
+ *                deleteMediaItem, toggleFavoriteMedia, bulkToggleFavoriteMedia,
+ *                fetchFolders, createFolder, deleteFolder,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
  *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, fetchSyncStatus
  * Side Effects: Executes HTTP requests to backend REST API.
@@ -23,7 +24,8 @@ export async function fetchTimeline(
   filterType: FilterType = "all",
   searchQuery: string = "",
   folderId?: number | null,
-  sortBy: string = "date_desc"
+  sortBy: string = "date_desc",
+  onlyFavorites: boolean = false
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
@@ -41,6 +43,10 @@ export async function fetchTimeline(
 
   if (folderId !== undefined && folderId !== null) {
     params.append("folder_id", folderId.toString());
+  }
+
+  if (onlyFavorites) {
+    params.append("only_favorites", "true");
   }
 
   const response = await fetch(`${API_BASE}/api/media?${params.toString()}`);
@@ -177,6 +183,32 @@ export async function deleteMediaItem(id: number): Promise<any> {
 
   if (!response.ok) {
     throw new Error(`Delete failed: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function toggleFavoriteMedia(mediaId: number, isFavorite: boolean): Promise<boolean> {
+  const response = await fetch(`${API_BASE}/api/media/${mediaId}/favorite`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ is_favorite: isFavorite }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update favorite status: ${response.statusText}`);
+  }
+  return true;
+}
+
+export async function bulkToggleFavoriteMedia(mediaIds: number[], isFavorite: boolean): Promise<{ updated_count: number }> {
+  const response = await fetch(`${API_BASE}/api/media/favorite/bulk`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ media_ids: mediaIds, is_favorite: isFavorite }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to update bulk favorite status: ${response.statusText}`);
   }
   return response.json();
 }
