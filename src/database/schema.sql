@@ -31,7 +31,8 @@ CREATE TABLE IF NOT EXISTS media_items (
     thumbnail_path TEXT,                      -- Relative path to cached WebP preview
     is_favorite INTEGER NOT NULL DEFAULT 0,   -- 1 if marked favorite, 0 otherwise
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    is_deleted INTEGER NOT NULL DEFAULT 0     -- Soft delete flag
+    is_deleted INTEGER NOT NULL DEFAULT 0,    -- Soft delete flag (0 = active, 1 = in trash)
+    deleted_at TEXT                           -- Timestamp when moved to trash
 );
 
 -- Indices for high-selectivity queries and $O(\log N)$ deduplication
@@ -46,6 +47,10 @@ CREATE INDEX IF NOT EXISTS idx_media_favorite
     ON media_items(is_favorite) 
     WHERE is_deleted = 0 AND is_favorite = 1;
 
+CREATE INDEX IF NOT EXISTS idx_media_trash
+    ON media_items(deleted_at DESC)
+    WHERE is_deleted = 1;
+
 CREATE INDEX IF NOT EXISTS idx_media_filename 
     ON media_items(file_name COLLATE NOCASE) 
     WHERE is_deleted = 0;
@@ -54,8 +59,9 @@ CREATE INDEX IF NOT EXISTS idx_media_filesize
     ON media_items(file_size DESC) 
     WHERE is_deleted = 0;
 
-CREATE INDEX IF NOT EXISTS idx_media_channel_msg 
-    ON media_items(telegram_channel_id, telegram_message_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_media_channel_msg_active 
+    ON media_items(telegram_channel_id, telegram_message_id) 
+    WHERE is_deleted = 0 AND file_hash NOT LIKE '%#alias%';
 
 -- 2. Virtual Folders & Albums Table
 CREATE TABLE IF NOT EXISTS folders (

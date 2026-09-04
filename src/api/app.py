@@ -1,7 +1,7 @@
 """
 =============================================================================
 Module: src.api.app
-Purpose: FastAPI application factory, lifespan startup/shutdown, and middleware configuration.
+Purpose: FastAPI application factory, lifespan startup/shutdown, and secure CORS middleware configuration.
 Used by: src.main, Uvicorn ASGI server.
 Dependencies: fastapi, src.database.connection, src.storage.telegram_client,
               src.storage.tdlib_client, src.services.sync_service, src.api.routes
@@ -87,10 +87,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Enable CORS for local React / Vite frontend development
+    # Enable secure CORS for React / Vite frontend development and production hosting
+    allowed_origins = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

@@ -1,10 +1,15 @@
 """
 ============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery, EXIF filtering, timeline scrubber, and audit logging.
+Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery,
+         smart EXIF filtering, timeline scrubber, and audit logging with senior DBA
+         minimum-cost query plans and strict cursor lifecycle management.
 Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media, src.api.routes.folders.
 Dependencies: aiosqlite, src.database.connection
-Public Members: MediaRepository (get_timeline, get_by_id, get_by_hash, get_by_message_id, insert_media, update_favorite, delete_media, restore_media, restore_batch, get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media, get_all_folder_media, get_filter_metadata)
+Public Members: MediaRepository (get_timeline, get_by_id, get_by_hash, get_by_message_id,
+                insert_media, update_favorite, delete_media, restore_media, restore_batch,
+                get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media,
+                get_all_folder_media, get_filter_metadata)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
 ============================================================================
 """
@@ -235,28 +240,52 @@ class MediaRepository:
         }
         order_by_clause = sort_map.get(sort_by, "COALESCE(m.date_taken, m.created_at) DESC")
 
-        count_query = f"""
-            SELECT COUNT(*) 
-            FROM media_items m
-            LEFT JOIN media_folders mf ON mf.media_id = m.id
-            WHERE {where_sql};
-        """
-        fetch_query = f"""
-            SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
-                   m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
-                   m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
-                   m.date_taken, m.thumbnail_path, m.created_at,
-                   COALESCE(m.is_favorite, 0) as is_favorite,
-                   strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
-                   mf.folder_id as folder_id,
-                   f.name as folder_name
-            FROM media_items m
-            LEFT JOIN media_folders mf ON mf.media_id = m.id
-            LEFT JOIN folders f ON f.id = mf.folder_id
-            WHERE {where_sql}
-            ORDER BY {order_by_clause}
-            LIMIT ? OFFSET ?;
-        """
+        # Senior DBA query optimization: Avoid expensive joins when folder_id is not filtered
+        if folder_id is not None:
+            count_query = f"""
+                SELECT COUNT(*) 
+                FROM media_items m
+                INNER JOIN media_folders mf ON mf.media_id = m.id
+                WHERE {where_sql};
+            """
+            fetch_query = f"""
+                SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
+                       m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
+                       m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
+                       m.date_taken, m.thumbnail_path, m.created_at,
+                       COALESCE(m.is_favorite, 0) as is_favorite,
+                       strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
+                       mf.folder_id as folder_id,
+                       f.name as folder_name
+                FROM media_items m
+                INNER JOIN media_folders mf ON mf.media_id = m.id
+                LEFT JOIN folders f ON f.id = mf.folder_id
+                WHERE {where_sql}
+                ORDER BY {order_by_clause}
+                LIMIT ? OFFSET ?;
+            """
+        else:
+            count_query = f"""
+                SELECT COUNT(*) 
+                FROM media_items m
+                WHERE {where_sql};
+            """
+            fetch_query = f"""
+                SELECT m.id, m.file_hash, m.file_name, m.file_size, m.mime_type,
+                       m.telegram_channel_id, m.telegram_message_id, m.telegram_file_id,
+                       m.width, m.height, m.duration_seconds, m.camera_make, m.camera_model,
+                       m.date_taken, m.thumbnail_path, m.created_at,
+                       COALESCE(m.is_favorite, 0) as is_favorite,
+                       strftime('%Y-%m', COALESCE(m.date_taken, m.created_at)) as period_key,
+                       mf.folder_id as folder_id,
+                       f.name as folder_name
+                FROM media_items m
+                LEFT JOIN media_folders mf ON mf.media_id = m.id
+                LEFT JOIN folders f ON f.id = mf.folder_id
+                WHERE {where_sql}
+                ORDER BY {order_by_clause}
+                LIMIT ? OFFSET ?;
+            """
 
         async with get_db_connection() as conn:
             # 1. Total count
@@ -355,9 +384,9 @@ class MediaRepository:
             LIMIT ? OFFSET ?;
         """
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query, (limit, offset))
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            async with conn.execute(query, (limit, offset)) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
 
     @staticmethod
     async def get_trash_count() -> int:
@@ -367,9 +396,9 @@ class MediaRepository:
         """
         query = "SELECT COUNT(*) FROM media_items WHERE is_deleted = 1;"
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query)
-            row = await cursor.fetchone()
-            return row[0] if row else 0
+            async with conn.execute(query) as cursor:
+                row = await cursor.fetchone()
+                return row[0] if row else 0
 
     @staticmethod
     async def purge_media_permanently(media_id: int) -> bool:
@@ -379,9 +408,10 @@ class MediaRepository:
         """
         async with get_db_connection() as conn:
             await conn.execute("DELETE FROM media_folders WHERE media_id = ?;", (media_id,))
-            cursor = await conn.execute("DELETE FROM media_items WHERE id = ?;", (media_id,))
+            async with conn.execute("DELETE FROM media_items WHERE id = ?;", (media_id,)) as cursor:
+                affected = cursor.rowcount > 0
             await conn.commit()
-            return cursor.rowcount > 0
+            return affected
 
     @staticmethod
     async def get_all_trash_media() -> list[dict[str, Any]]:
@@ -396,9 +426,9 @@ class MediaRepository:
             WHERE is_deleted = 1;
         """
         async with get_db_connection() as conn:
-            cursor = await conn.execute(query)
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
+            async with conn.execute(query) as cursor:
+                rows = await cursor.fetchall()
+                return [dict(row) for row in rows]
 
     @staticmethod
     async def update_media_metadata(
@@ -633,8 +663,8 @@ class MediaRepository:
                 GROUP BY camera_make, camera_model
                 ORDER BY item_count DESC;
             """
-            cursor = await conn.execute(cam_query)
-            cam_rows = await cursor.fetchall()
+            async with conn.execute(cam_query) as cursor:
+                cam_rows = await cursor.fetchall()
             cameras = []
             for r in cam_rows:
                 make = (r["camera_make"] or "").strip()
@@ -660,8 +690,8 @@ class MediaRepository:
                 GROUP BY period_key
                 ORDER BY period_key DESC;
             """
-            cursor = await conn.execute(periods_query)
-            period_rows = await cursor.fetchall()
+            async with conn.execute(periods_query) as cursor:
+                period_rows = await cursor.fetchall()
 
             periods = []
             years_dict: dict[int, int] = {}
@@ -702,8 +732,8 @@ class MediaRepository:
                 FROM media_items
                 WHERE is_deleted = 0 AND width IS NOT NULL AND height IS NOT NULL;
             """
-            cursor = await conn.execute(orientations_query)
-            counts_row = await cursor.fetchone()
+            async with conn.execute(orientations_query) as cursor:
+                counts_row = await cursor.fetchone()
             orientations = {
                 "landscape": counts_row["landscape_count"] or 0 if counts_row else 0,
                 "portrait": counts_row["portrait_count"] or 0 if counts_row else 0,
@@ -727,9 +757,10 @@ class MediaRepository:
         """
         async with get_db_connection() as conn:
             await conn.execute("UPDATE folders SET parent_id = NULL WHERE parent_id = ?;", (folder_id,))
-            cursor = await conn.execute("DELETE FROM folders WHERE id = ?;", (folder_id,))
+            async with conn.execute("DELETE FROM folders WHERE id = ?;", (folder_id,)) as cursor:
+                affected = cursor.rowcount > 0
             await conn.commit()
-            return cursor.rowcount > 0
+            return affected
 
     @staticmethod
     async def update_folder(

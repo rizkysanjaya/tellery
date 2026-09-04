@@ -2,18 +2,21 @@
 =============================================================================
 Module: src.api.routes.media
 Purpose: REST endpoints for media catalog timeline feeds, smart EXIF & date filtering,
-         filter metadata aggregation, direct uploads with album routing and isolated temp spooling,
+         filter metadata aggregation, direct uploads with hardened path traversal & size defenses,
          item details, favorites, trash/recovery system, batch ZIP download, and archive stats.
 Used by: Web Gallery UI, Frontend clients.
-Dependencies: fastapi, datetime, uuid, src.database.repository, src.api.schemas, src.services.archive_service, src.services.zip_export_service
+Dependencies: fastapi, datetime, uuid, re, src.database.repository, src.api.schemas,
+              src.services.archive_service, src.services.zip_export_service
 Public Members: router
-Side Effects: Reads and updates SQLite catalog records, manages Telegram vault messages/thumbnails, spools isolated temporary upload buffers and ZIP archives.
+Side Effects: Reads and updates SQLite catalog records, manages Telegram vault messages/thumbnails,
+              spools isolated temporary upload buffers and ZIP archives with strict sanitization.
 =============================================================================
 """
 
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+import re
 from typing import Optional
 import uuid
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
@@ -329,23 +332,49 @@ async def upload_media(
     tracker = get_upload_tracker()
     temp_dir = Path("data/upload_temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    # Isolate upload into a unique directory per upload to prevent parallel filename collisions
-    unique_prefix = upload_id if upload_id else uuid.uuid4().hex
+
+    # 1. Strictly sanitize upload_id against path traversal attacks (CWE-22)
+    if upload_id and re.match(r"^[a-zA-Z0-9_\-]+$", upload_id):
+        unique_prefix = upload_id
+    else:
+        unique_prefix = uuid.uuid4().hex
+
     temp_file_dir = temp_dir / unique_prefix
     temp_file_dir.mkdir(parents=True, exist_ok=True)
-    temp_path = temp_file_dir / file.filename
+
+    # 2. Strictly sanitize uploaded filename against path traversal & control characters
+    raw_filename = file.filename or "upload.bin"
+    clean_filename = Path(raw_filename).name.strip()
+    clean_filename = "".join(c for c in clean_filename if c.isprintable() and c not in '<>:"/\\|?*\0')
+    if not clean_filename or clean_filename in (".", ".."):
+        clean_filename = f"upload_{uuid.uuid4().hex[:8]}.bin"
+
+    temp_path = temp_file_dir / clean_filename
+
+    # Maximum allowed payload: 2 GB (standard Telegram MTProto max document size)
+    max_upload_bytes = 2 * 1024 * 1024 * 1024
 
     try:
-        # 1. Stream incoming browser bytes to disk buffer (O(1) memory footprint)
+        # 3. Stream incoming browser bytes to disk buffer with strict size ceiling
+        bytes_spooled = 0
         with open(temp_path, "wb") as f:
             while chunk := await file.read(1024 * 1024):
+                bytes_spooled += len(chunk)
+                if bytes_spooled > max_upload_bytes:
+                    f.close()
+                    if temp_path.exists():
+                        temp_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Uploaded file exceeds maximum allowed limit of {max_upload_bytes // (1024 * 1024)} MB.",
+                    )
                 f.write(chunk)
 
         total_bytes = temp_path.stat().st_size
         if upload_id:
-            tracker.start_tracking(upload_id, total_bytes, file.filename)
+            tracker.start_tracking(upload_id, total_bytes, clean_filename)
 
-        # 2. Progress callback forwarding live Telegram MTProto transfer bytes to UI tracker
+        # 4. Progress callback forwarding live Telegram MTProto transfer bytes to UI tracker
         def on_telegram_progress(curr: int, tot: int):
             if upload_id:
                 tracker.update_progress(upload_id, curr, tot)

@@ -2,7 +2,7 @@
 =============================================================================
 Module: src.services.zip_export_service
 Purpose: High-performance, streaming-safe ZIP archive generation for batch media downloads
-         and full album exports using ZIP_STORED to eliminate multimedia re-compression CPU waste.
+         and full album exports using ZIP_STORED, with Zip Slip path sanitization.
 Used by: src.api.routes.media, src.api.routes.folders
 Dependencies: zipfile, asyncio, pathlib, uuid, src.database.repository, src.storage.telegram_client, src.services.stream_cache
 Public Members: ZipExportService, get_zip_export_service()
@@ -160,7 +160,11 @@ class ZipExportService:
             if not file_path or not file_path.exists():
                 continue
 
-            base_name = item.get("file_name") or f"media_{item['id']}.bin"
+            raw_base = item.get("file_name") or f"media_{item['id']}.bin"
+            base_name = Path(raw_base).name.strip()
+            base_name = "".join(c for c in base_name if c.isprintable() and c not in '<>:"/\\|?*\0')
+            if not base_name or base_name in (".", ".."):
+                base_name = f"media_{item['id']}.bin"
             target_name = base_name
             counter = 1
             name_stem = Path(base_name).stem
