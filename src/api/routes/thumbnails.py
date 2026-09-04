@@ -2,9 +2,9 @@
 =============================================================================
 Module: src.api.routes.thumbnails
 Purpose: High-performance WebP thumbnail & animated WebP video preview delivery
-         endpoints with ultra-lightweight on-demand extraction preventing full-file download locks.
+         endpoints with ultra-lightweight on-demand extraction and structured logging.
 Used by: Gallery UI Grid, Lightbox previews, Folder Cover Cards, Video Hover Previews.
-Dependencies: fastapi, pathlib, tempfile, src.database.repository, src.config,
+Dependencies: fastapi, pathlib, tempfile, logging, src.database.repository, src.config,
               src.services.thumbnail_service, src.storage.telegram_client
 Public Members: router, get_media_thumbnail(), get_media_preview()
 Side Effects: Serves cached WebP files from disk; writes extracted WebP to disk
@@ -12,6 +12,7 @@ Side Effects: Serves cached WebP files from disk; writes extracted WebP to disk
 =============================================================================
 """
 
+import logging
 import tempfile
 from pathlib import Path
 from fastapi import APIRouter, HTTPException
@@ -20,6 +21,8 @@ from src.config import get_settings
 from src.database.repository import MediaRepository
 from src.services.thumbnail_service import generate_thumbnail
 from src.storage.telegram_client import get_telegram_client
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/media", tags=["Thumbnails"])
 
@@ -96,7 +99,7 @@ async def get_media_thumbnail(media_id: int):
                             },
                         )
             except Exception as e:
-                print(f"[Thumbnail] Native thumb extraction failed for media {media_id}: {e}")
+                logger.warning(f"[Thumbnail] Native thumb extraction failed for media {media_id}: {e}")
 
         # 3b. For video items, stream only the first 3MB header to extract frame 0 (never download full 800MB video)
         if mime_type.startswith("video/"):
@@ -166,7 +169,7 @@ async def get_media_thumbnail(media_id: int):
                     tmp_path.unlink()
 
     except Exception as e:
-        print(f"[Thumbnail] On-demand thumbnail generation failed for media {media_id}: {e}")
+        logger.error(f"[Thumbnail] On-demand thumbnail generation failed for media {media_id}: {e}")
 
     raise HTTPException(status_code=404, detail="Thumbnail not available for this item")
 

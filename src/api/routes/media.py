@@ -15,10 +15,13 @@ Side Effects: Reads and updates SQLite catalog records, manages Telegram vault m
 
 from collections import defaultdict
 from datetime import datetime
+import logging
 from pathlib import Path
 import re
 from typing import Optional
 import uuid
+
+logger = logging.getLogger(__name__)
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from src.api.schemas import (
@@ -235,7 +238,7 @@ async def get_telegram_profile_info() -> dict[str, Optional[str]]:
                 except Exception:
                     pass
     except Exception as e:
-        print(f"[Telegram Profile] Warning: Failed to fetch profile info: {e}")
+        logger.warning(f"[Telegram Profile] Failed to fetch profile info: {e}")
 
     return _cached_tele_profile
 
@@ -397,7 +400,7 @@ async def upload_media(
                     result["status"] = "completed"
                     result["message"] = "Media already archived in vault; linked to album."
             except Exception as folder_err:
-                print(f"[!] Warning: Failed to assign media {media_item_id} to folder {folder_id}: {folder_err}")
+                logger.warning(f"Failed to assign media {media_item_id} to folder {folder_id}: {folder_err}")
 
         if upload_id:
             tracker.set_status(upload_id, "completed")

@@ -5,6 +5,7 @@
  *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
  *          hash-based URL routing & state persistence (#/timeline, #/albums, #/albums/:id, #/favorites, #/trash),
  *          browser Back/Forward history navigation, deep linking across page refreshes (F5),
+ *          dynamic code-splitting with React.lazy (<500 kB initial bundle size optimization),
  *          multi-select system, virtual folders & icon/color customization, dedicated dual-section
  *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
  *          Trash & Data Recovery system (safe soft-delete, 1-click restore, permanent delete, empty trash),
@@ -15,7 +16,7 @@
  *          search, lightbox, context-aware right-click menus, floating back-to-top button on noticeable scroll,
  *          media delete confirmation modals with 10-second undo countdown, Telegram vault uploads, and vault sync.
  * Used by: frontend/src/main.tsx
- * Dependencies: React, framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
+ * Dependencies: React (Suspense, lazy), framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
  *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts
  * Public Members: App
  * Side Effects: Fetches timeline/folders/stats/trash/filter-meta over HTTP, executes uploads, soft deletions,
@@ -25,7 +26,7 @@
  * =============================================================================
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import {
@@ -55,24 +56,27 @@ import {
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
-import { DuplicateConflictModal } from "./components/DuplicateConflictModal";
-import { FolderGrid } from "./components/FolderGrid";
-import { FavoritesView } from "./components/FavoritesView";
-import { TrashView } from "./components/TrashView";
+import type { MoveConflictItem } from "./components/MoveConfirmationModal";
 import { Header } from "./components/Header";
-import { MediaLightbox } from "./components/MediaLightbox";
-import { MoveConfirmationModal, MoveConflictItem } from "./components/MoveConfirmationModal";
 import { SelectionToolbar } from "./components/SelectionToolbar";
 import { Sidebar } from "./components/Sidebar";
 import { TimelineGrid } from "./components/TimelineGrid";
 import { UploadManager } from "./components/UploadManager";
 import { GlobalDropzone } from "./components/GlobalDropzone";
 import { extractDroppedMedia, ScannedMediaItem } from "./utils/fileSystemScanner";
-import { ExifFilterDrawer } from "./components/ExifFilterDrawer";
 import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
 import { AppToast, ToastNotification, ToastType } from "./components/ui/AppToast";
+
+// Dynamic code-splitting via React.lazy to reduce entry bundle size (<500 kB target)
+const FolderGrid = React.lazy(() => import("./components/FolderGrid").then((m) => ({ default: m.FolderGrid })));
+const FavoritesView = React.lazy(() => import("./components/FavoritesView").then((m) => ({ default: m.FavoritesView })));
+const TrashView = React.lazy(() => import("./components/TrashView").then((m) => ({ default: m.TrashView })));
+const MediaLightbox = React.lazy(() => import("./components/MediaLightbox").then((m) => ({ default: m.MediaLightbox })));
+const ExifFilterDrawer = React.lazy(() => import("./components/ExifFilterDrawer").then((m) => ({ default: m.ExifFilterDrawer })));
+const DuplicateConflictModal = React.lazy(() => import("./components/DuplicateConflictModal").then((m) => ({ default: m.DuplicateConflictModal })));
+const MoveConfirmationModal = React.lazy(() => import("./components/MoveConfirmationModal").then((m) => ({ default: m.MoveConfirmationModal })));
 import { FolderCustomizeModal } from "./components/ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./components/ui/FolderRenameModal";
 import { FolderCoverModal } from "./components/ui/FolderCoverModal";
@@ -2100,67 +2104,73 @@ export const App: React.FC = () => {
 
           {/* View Switcher: Albums Grid vs Favorites View vs Timeline Grid */}
           {currentView === "albums" && !activeFolder ? (
-            <FolderGrid
-              folders={folders}
-              selectedCollection={selectedCollection}
-              onSelectCollection={setSelectedCollection}
-              searchQuery={searchQuery}
-              onClearSearch={() => setSearchQuery("")}
-              onSelectFolder={(folder) => {
-                setActiveFolder(folder);
-                setCurrentView("timeline");
-              }}
-              onCreateFolder={handleCreateFolder}
-              onDeleteFolder={handlePromptDeleteFolder}
-              onRenameFolder={handleRenameFolder}
-              onCustomizeFolder={handleCustomizeFolder}
-              onSetFolderCover={handleSetFolderCover}
-              onToggleFavoriteFolder={handleToggleFavoriteFolder}
-              onMoveFolderToCollection={handleMoveToCollection}
-              onAddMediaToFolder={handleBulkAddToFolder}
-              onUpdateFolderColor={handleUpdateFolderColor}
-              onExportFolderZip={handleExportAlbumZip}
-              onFolderContextMenu={handleFolderContextMenu}
-              onCanvasContextMenu={handleCanvasContextMenu}
-              loading={loadingFolders}
-            />
+            <Suspense fallback={null}>
+              <FolderGrid
+                folders={folders}
+                selectedCollection={selectedCollection}
+                onSelectCollection={setSelectedCollection}
+                searchQuery={searchQuery}
+                onClearSearch={() => setSearchQuery("")}
+                onSelectFolder={(folder) => {
+                  setActiveFolder(folder);
+                  setCurrentView("timeline");
+                }}
+                onCreateFolder={handleCreateFolder}
+                onDeleteFolder={handlePromptDeleteFolder}
+                onRenameFolder={handleRenameFolder}
+                onCustomizeFolder={handleCustomizeFolder}
+                onSetFolderCover={handleSetFolderCover}
+                onToggleFavoriteFolder={handleToggleFavoriteFolder}
+                onMoveFolderToCollection={handleMoveToCollection}
+                onAddMediaToFolder={handleBulkAddToFolder}
+                onUpdateFolderColor={handleUpdateFolderColor}
+                onExportFolderZip={handleExportAlbumZip}
+                onFolderContextMenu={handleFolderContextMenu}
+                onCanvasContextMenu={handleCanvasContextMenu}
+                loading={loadingFolders}
+              />
+            </Suspense>
           ) : currentView === "favorites" && !activeFolder ? (
-            <FavoritesView
-              favoriteFolders={folders.filter((f) => f.is_favorite)}
-              mediaGroups={groups}
-              selectedIds={selectedIds}
-              activeFilter={activeFilter}
-              onFilterChange={setActiveFilter}
-              displayLayout={displayLayout}
-              onLayoutChange={handleDisplayLayoutChange}
-              sortBy={sortBy}
-              onSortChange={handleSortChange}
-              searchQuery={searchQuery}
-              onClearSearch={() => setSearchQuery("")}
-              onSelectMedia={setSelectedMedia}
-              onToggleSelect={handleToggleSelect}
-              onSelectAllInGroup={handleSelectAllInGroup}
-              onDeselectAllInGroup={handleDeselectAllInGroup}
-              onMediaContextMenu={handleCardContextMenu}
-              onSelectFolder={(folder) => {
-                setActiveFolder(folder);
-                setCurrentView("timeline");
-              }}
-              onToggleFavoriteFolder={handleToggleFavoriteFolder}
-              onToggleFavoriteMedia={handleToggleFavoriteMedia}
-              onFolderContextMenu={handleFolderContextMenu}
-              loading={loading}
-            />
+            <Suspense fallback={null}>
+              <FavoritesView
+                favoriteFolders={folders.filter((f) => f.is_favorite)}
+                mediaGroups={groups}
+                selectedIds={selectedIds}
+                activeFilter={activeFilter}
+                onFilterChange={setActiveFilter}
+                displayLayout={displayLayout}
+                onLayoutChange={handleDisplayLayoutChange}
+                sortBy={sortBy}
+                onSortChange={handleSortChange}
+                searchQuery={searchQuery}
+                onClearSearch={() => setSearchQuery("")}
+                onSelectMedia={setSelectedMedia}
+                onToggleSelect={handleToggleSelect}
+                onSelectAllInGroup={handleSelectAllInGroup}
+                onDeselectAllInGroup={handleDeselectAllInGroup}
+                onMediaContextMenu={handleCardContextMenu}
+                onSelectFolder={(folder) => {
+                  setActiveFolder(folder);
+                  setCurrentView("timeline");
+                }}
+                onToggleFavoriteFolder={handleToggleFavoriteFolder}
+                onToggleFavoriteMedia={handleToggleFavoriteMedia}
+                onFolderContextMenu={handleFolderContextMenu}
+                loading={loading}
+              />
+            </Suspense>
           ) : currentView === "trash" && !activeFolder ? (
-            <TrashView
-              items={trashItems}
-              isLoading={loadingTrash}
-              onRestoreItem={handleRestoreItem}
-              onBulkRestore={handleBulkRestore}
-              onPermanentDelete={handlePermanentDelete}
-              onEmptyTrash={handleEmptyTrash}
-              onRefresh={loadTrash}
-            />
+            <Suspense fallback={null}>
+              <TrashView
+                items={trashItems}
+                isLoading={loadingTrash}
+                onRestoreItem={handleRestoreItem}
+                onBulkRestore={handleBulkRestore}
+                onPermanentDelete={handlePermanentDelete}
+                onEmptyTrash={handleEmptyTrash}
+                onRefresh={loadTrash}
+              />
+            </Suspense>
           ) : (
             <TimelineGrid
               groups={groups}
@@ -2300,49 +2310,55 @@ export const App: React.FC = () => {
 
       {/* Fullscreen Lightbox Modal */}
       {selectedMedia && (
-        <MediaLightbox
-          item={selectedMedia}
-          prevItem={currentIndex > 0 ? flatItems[currentIndex - 1] : undefined}
-          nextItem={currentIndex >= 0 && currentIndex < flatItems.length - 1 ? flatItems[currentIndex + 1] : undefined}
-          onClose={() => setSelectedMedia(null)}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          hasPrev={currentIndex > 0}
-          hasNext={currentIndex >= 0 && currentIndex < flatItems.length - 1}
-          onToggleFavorite={handleToggleFavoriteMedia}
-          onDelete={handleDeleteMedia}
-        />
+        <Suspense fallback={null}>
+          <MediaLightbox
+            item={selectedMedia}
+            prevItem={currentIndex > 0 ? flatItems[currentIndex - 1] : undefined}
+            nextItem={currentIndex >= 0 && currentIndex < flatItems.length - 1 ? flatItems[currentIndex + 1] : undefined}
+            onClose={() => setSelectedMedia(null)}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            hasPrev={currentIndex > 0}
+            hasNext={currentIndex >= 0 && currentIndex < flatItems.length - 1}
+            onToggleFavorite={handleToggleFavoriteMedia}
+            onDelete={handleDeleteMedia}
+          />
+        </Suspense>
       )}
 
       {/* Interactive Duplicate Conflict Resolution Modal */}
       {activeConflict && (
-        <DuplicateConflictModal
-          conflict={activeConflict}
-          onResolve={(action, customName, applyToAll) => {
-            if (conflictResolverRef.current) {
-              conflictResolverRef.current(action, customName, applyToAll);
-            }
-            setActiveConflict(null);
-          }}
-          onCancel={() => {
-            if (conflictResolverRef.current) {
-              conflictResolverRef.current("skip");
-            }
-            setActiveConflict(null);
-          }}
-        />
+        <Suspense fallback={null}>
+          <DuplicateConflictModal
+            conflict={activeConflict}
+            onResolve={(action, customName, applyToAll) => {
+              if (conflictResolverRef.current) {
+                conflictResolverRef.current(action, customName, applyToAll);
+              }
+              setActiveConflict(null);
+            }}
+            onCancel={() => {
+              if (conflictResolverRef.current) {
+                conflictResolverRef.current("skip");
+              }
+              setActiveConflict(null);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Folder Move Relocation Confirmation Modal */}
       {pendingMove && (
-        <MoveConfirmationModal
-          targetFolderId={pendingMove.targetFolderId}
-          targetFolderName={pendingMove.targetFolderName}
-          conflictedItems={pendingMove.conflictedItems}
-          totalSelectedCount={pendingMove.mediaIds.length}
-          onConfirm={handleConfirmPendingMove}
-          onCancel={() => setPendingMove(null)}
-        />
+        <Suspense fallback={null}>
+          <MoveConfirmationModal
+            targetFolderId={pendingMove.targetFolderId}
+            targetFolderName={pendingMove.targetFolderName}
+            conflictedItems={pendingMove.conflictedItems}
+            totalSelectedCount={pendingMove.mediaIds.length}
+            onConfirm={handleConfirmPendingMove}
+            onCancel={() => setPendingMove(null)}
+          />
+        </Suspense>
       )}
 
       {/* 21st.dev Raycast / Spotlight Command Palette Modal */}
@@ -2403,14 +2419,16 @@ export const App: React.FC = () => {
       />
 
       {/* Smart EXIF & Date Filters Popover Drawer */}
-      <ExifFilterDrawer
-        isOpen={isExifDrawerOpen}
-        onClose={() => setIsExifDrawerOpen(false)}
-        metadata={filterMetadata}
-        activeFilters={activeExifFilters}
-        onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
-        onResetFilters={() => setActiveExifFilters({})}
-      />
+      <Suspense fallback={null}>
+        <ExifFilterDrawer
+          isOpen={isExifDrawerOpen}
+          onClose={() => setIsExifDrawerOpen(false)}
+          metadata={filterMetadata}
+          activeFilters={activeExifFilters}
+          onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
+          onResetFilters={() => setActiveExifFilters({})}
+        />
+      </Suspense>
 
       {/* 10-Second Undo Delete Toast */}
       <UndoToast
