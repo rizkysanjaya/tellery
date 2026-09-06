@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/api.ts
  * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions,
- *          albums/folders, favorites, Telegram Multi-Vault channel switching, and sync operations.
+ *          albums/folders, favorites, Telegram Multi-Vault channel switching, authentication & onboarding, and sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
@@ -12,12 +12,13 @@
  *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, triggerChannelSync, fetchSyncStatus,
  *                fetchTrashMedia, restoreMediaItem, bulkRestoreMedia, permanentDeleteMediaItem, emptyTrash,
  *                downloadBatchMediaZip, getAlbumZipExportUrl, exportAlbumZip,
- *                fetchVaults, fetchActiveVault, setActiveVault
+ *                fetchVaults, fetchActiveVault, setActiveVault,
+ *                fetchAuthStatus, submitCredentials, sendAuthCode, verifyAuthCode, verifyAuthPassword, createStorageVault, logoutAccount
  * Side Effects: Executes HTTP requests to backend REST API, triggers file downloads.
  * =============================================================================
  */
 
-import { ActiveExifFilters, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse, VaultItem } from "./types";
+import { ActiveExifFilters, AuthStatusResponse, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse, VaultItem } from "./types";
 
 const API_BASE = "";
 
@@ -672,4 +673,106 @@ export async function exportAlbumZip(folderId: number): Promise<void> {
   document.body.removeChild(link);
   window.URL.revokeObjectURL(blobUrl);
 }
+
+// =============================================================================
+// Authentication & Onboarding API
+// =============================================================================
+
+export async function fetchAuthStatus(): Promise<AuthStatusResponse> {
+  const response = await fetch(`${API_BASE}/api/auth/status`);
+  if (!response.ok) {
+    throw new Error(`Failed to check auth status: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function submitCredentials(
+  apiId: number,
+  apiHash: string
+): Promise<{ status: string; step: string; message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/credentials`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ api_id: apiId, api_hash: apiHash }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to save Telegram credentials");
+  }
+  return response.json();
+}
+
+export async function sendAuthCode(
+  phone: string
+): Promise<{ status: string; step: string; phone: string; phone_code_hash: string; timeout: number; message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/send_code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to send verification code");
+  }
+  return response.json();
+}
+
+export async function verifyAuthCode(
+  code: string,
+  phoneCodeHash?: string
+): Promise<{ status: string; step: string; user?: any; message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/verify_code`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, phone_code_hash: phoneCodeHash }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to verify code");
+  }
+  return response.json();
+}
+
+export async function verifyAuthPassword(
+  password: string
+): Promise<{ status: string; step: string; user?: any; message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/verify_password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to verify 2FA password");
+  }
+  return response.json();
+}
+
+export async function createStorageVault(
+  title: string,
+  about?: string
+): Promise<{ status: string; channel_id: number; title: string; message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/create_vault`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, about }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to create storage vault");
+  }
+  return response.json();
+}
+
+export async function logoutAccount(): Promise<{ status: string; message: string }> {
+  const response = await fetch(`${API_BASE}/api/auth/logout`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.detail || "Failed to log out");
+  }
+  return response.json();
+}
+
 

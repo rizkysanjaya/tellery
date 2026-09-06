@@ -3,6 +3,7 @@
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Multi-Vault Telegram channel switching & dialog discovery,
+ *          zero-config plug-and-play onboarding wizard & in-browser Telegram MTProto auth,
  *          role permission gating (Read/Write for owned vaults vs. Read-Only for joined channels),
  *          partitioned sub-millisecond timeline queries, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
  *          hash-based URL routing & state persistence (#/timeline, #/albums, #/albums/:id, #/favorites, #/trash),
@@ -19,18 +20,18 @@
  *          media delete confirmation modals with 10-second undo countdown, Telegram vault uploads, and vault sync.
  * Used by: frontend/src/main.tsx
  * Dependencies: React (Suspense, lazy), framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
- *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts
+ *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts, OnboardingWizard
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats/trash/vaults/filter-meta over HTTP, executes uploads, soft deletions,
+ * Side Effects: Fetches timeline/folders/stats/trash/vaults/auth/filter-meta over HTTP, executes uploads, soft deletions,
  *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
  *                favorites toggles, folder assignments, vault sync, updates browser window.location.hash history,
- *                and persists theme/layout in localStorage.
+ *                handles MTProto auth session & disconnection, and persists theme/layout in localStorage.
  * =============================================================================
  */
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Cloud, Loader2 } from "lucide-react";
 import {
   addMediaToFolder,
   createFolder,
@@ -58,6 +59,8 @@ import {
   fetchVaults,
   fetchActiveVault,
   setActiveVault,
+  fetchAuthStatus,
+  logoutAccount,
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
@@ -83,6 +86,7 @@ const ExifFilterDrawer = React.lazy(() => import("./components/ExifFilterDrawer"
 const DuplicateConflictModal = React.lazy(() => import("./components/DuplicateConflictModal").then((m) => ({ default: m.DuplicateConflictModal })));
 const MoveConfirmationModal = React.lazy(() => import("./components/MoveConfirmationModal").then((m) => ({ default: m.MoveConfirmationModal })));
 const VaultSwitcherModal = React.lazy(() => import("./components/VaultSwitcherModal").then((m) => ({ default: m.VaultSwitcherModal })));
+const OnboardingWizard = React.lazy(() => import("./components/OnboardingWizard").then((m) => ({ default: m.OnboardingWizard })));
 import { FolderCustomizeModal } from "./components/ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./components/ui/FolderRenameModal";
 import { FolderCoverModal } from "./components/ui/FolderCoverModal";
@@ -94,6 +98,7 @@ import { DragStackedPreview } from "./components/ui/DragStackedPreview";
 import { BackToTopButton } from "./components/ui/BackToTopButton";
 import {
   ActiveExifFilters,
+  AuthStatusResponse,
   ConflictResolutionAction,
   DisplayLayout,
   DuplicateConflict,
@@ -128,6 +133,31 @@ export const App: React.FC = () => {
   useEffect(() => {
     activeVaultRef.current = activeVault;
   }, [activeVault]);
+
+  // Telegram MTProto Authentication & Zero-Config Onboarding State
+  const [authStatus, setAuthStatus] = useState<AuthStatusResponse | null>(null);
+  const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
+
+  useEffect(() => {
+    fetchAuthStatus()
+      .then((status) => {
+        setAuthStatus(status);
+      })
+      .catch((err) => {
+        console.error("Failed to check auth status:", err);
+        setAuthStatus({
+          has_credentials: true,
+          is_authenticated: true,
+          step: "ready",
+          user: null,
+          active_vault: null,
+          phone: null,
+        });
+      })
+      .finally(() => {
+        setCheckingAuth(false);
+      });
+  }, []);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(() => {
@@ -427,6 +457,7 @@ export const App: React.FC = () => {
 
   // Initial load for vaults, stats, folders, filter metadata & trash count
   useEffect(() => {
+    if (authStatus && authStatus.step !== "ready") return;
     loadVaults();
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
@@ -434,10 +465,11 @@ export const App: React.FC = () => {
     fetchTrashMedia(1, 0)
       .then((res) => setTrashTotal(res.total))
       .catch(console.error);
-  }, [loadFolders, loadFilterMetadata, loadVaults]);
+  }, [loadFolders, loadFilterMetadata, loadVaults, authStatus]);
 
   // Instant timeline loading on tab, filter, sort, EXIF filter, folder, or active vault selection (0ms delay)
   useEffect(() => {
+    if (authStatus && authStatus.step !== "ready") return;
     if (currentView === "trash") {
       loadTrash();
       return;
@@ -642,6 +674,34 @@ export const App: React.FC = () => {
       showToast(err.message || "Failed to empty trash", "error");
     }
   }, [showToast]);
+
+  const handleLogout = useCallback(async () => {
+    if (window.confirm("Are you sure you want to disconnect your Telegram session? You will need to log in again.")) {
+      try {
+        await logoutAccount();
+        setAuthStatus({
+          has_credentials: false,
+          is_authenticated: false,
+          step: "need_credentials",
+          user: null,
+          active_vault: null,
+          phone: null,
+        });
+        showToast("Telegram session disconnected successfully.", "info");
+      } catch (err: any) {
+        showToast(err.message || "Failed to disconnect Telegram session", "error");
+      }
+    }
+  }, [showToast]);
+
+  const handleOnboardingComplete = useCallback(
+    (status: AuthStatusResponse) => {
+      setAuthStatus(status);
+      loadVaults(true);
+      loadData();
+    },
+    [loadVaults, loadData]
+  );
 
   const [draggedMediaState, setDraggedMediaState] = useState<{
     isDragging: boolean;
@@ -1973,6 +2033,37 @@ export const App: React.FC = () => {
     activeExifFilters.month,
   ].filter(Boolean).length;
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center text-on-surface">
+        <div className="w-16 h-16 rounded-neo-xl neo-pressed flex items-center justify-center text-primary mb-4 animate-pulse">
+          <Cloud className="w-8 h-8" />
+        </div>
+        <p className="text-sm text-on-surface-variant font-medium tracking-wide">Connecting to Silk Cloud...</p>
+      </div>
+    );
+  }
+
+  if (authStatus && authStatus.step !== "ready") {
+    return (
+      <div className="min-h-screen bg-background text-on-surface relative">
+        <Suspense
+          fallback={
+            <div className="min-h-screen bg-background flex items-center justify-center text-on-surface">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          }
+        >
+          <OnboardingWizard
+            initialStatus={authStatus}
+            onComplete={handleOnboardingComplete}
+          />
+        </Suspense>
+        <AppToast toasts={toasts} onDismiss={dismissToast} />
+      </div>
+    );
+  }
+
   return (
     <AuroraBackground>
       <div
@@ -2075,6 +2166,7 @@ export const App: React.FC = () => {
         onExportFolderZip={handleExportAlbumZip}
         onFolderContextMenu={handleFolderContextMenu}
         isSyncing={isSyncing}
+        onLogout={handleLogout}
       />
 
       {/* Main Workspace Area (Offset by Sidebar on Desktop) */}

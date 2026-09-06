@@ -2,13 +2,14 @@
  * =============================================================================
  * Module: frontend/src/types.ts
  * Purpose: TypeScript type declarations, API contracts, duplicate conflict interfaces,
- *          smart EXIF/timeline filter models, Multi-Vault channel models, and state models for TeleGallery frontend.
+ *          smart EXIF/timeline filter models, Multi-Vault channel models, auth/onboarding models,
+ *          and state models for TeleGallery frontend.
  * Used by: frontend/src/App.tsx, frontend/src/api.ts, components/
  * Dependencies: None
  * Public Members: MediaItem, TimelineGroup, TimelineResponse, StorageStats,
  *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse,
  *                 CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, ActiveExifFilters,
- *                 VaultItem
+ *                 VaultItem, AuthStep, TelegramUser, AuthStatusResponse
  * Side Effects: None (Type declarations only).
  * =============================================================================
  */
@@ -213,3 +214,31 @@ export interface VaultItem {
   media_count: number;
   total_size_bytes: number;
 }
+
+export type AuthStep =
+  | "need_credentials"
+  | "need_phone"
+  | "need_code"
+  | "need_password"
+  | "need_vault"
+  | "ready";
+
+export interface TelegramUser {
+  id: number;
+  first_name: string;
+  last_name?: string | null;
+  username?: string | null;
+  phone?: string | null;
+}
+
+export interface AuthStatusResponse {
+  is_authenticated: boolean;
+  step: AuthStep;
+  has_credentials: boolean;
+  phone?: string | null;
+  phone_code_hash?: string | null;
+  user?: TelegramUser | null;
+  active_vault?: VaultItem | null;
+  message?: string | null;
+}
+

@@ -1,8 +1,8 @@
 """
 =============================================================================
 Module: src.storage.telegram_client
-Purpose: Telegram MTProto Client wrapper for raw document storage & chunked streaming.
-Used by: src.services.archive_service, src.services.sync_service, src.cli.verify_pipeline
+Purpose: Telegram MTProto Client wrapper for raw document storage, non-blocking onboarding auth, & chunked streaming.
+Used by: src.services.archive_service, src.services.sync_service, src.services.auth_service, src.api.app
 Dependencies: telethon, src.config
 Public Members: TelegramStorageClient, get_telegram_client()
 Side Effects: Network MTProto calls to Telegram servers, reads/writes session file.
@@ -11,19 +11,23 @@ Side Effects: Network MTProto calls to Telegram servers, reads/writes session fi
 
 import asyncio
 import io
+import logging
 from pathlib import Path
-from typing import AsyncIterator, Callable, Optional, Union
+from typing import Any, AsyncIterator, Callable, Optional, Union
 from telethon import TelegramClient
 from telethon.tl.custom.message import Message
 from telethon.tl.types import Document, MessageMediaDocument
 from src.config import get_settings
 from src.storage.fast_upload import fast_upload_file
 
+logger = logging.getLogger(__name__)
+
 
 class TelegramStorageClient:
     """
     Manages Telegram MTProto connection and handles raw document upload/download.
     Forces document transfer mode to eliminate any lossy server-side compression.
+    Supports non-blocking connection checks for seamless web onboarding.
     """
 
     def __init__(
@@ -36,35 +40,53 @@ class TelegramStorageClient:
         self.api_id = api_id or settings.tg_api_id
         self.api_hash = api_hash or settings.tg_api_hash
         self.session_name = session_name or settings.tg_session_name
-
-        if not self.api_id or not self.api_hash:
-            raise ValueError(
-                "Telegram API_ID and API_HASH are required. "
-                "Please configure them in your .env file or environment."
-            )
+        self._is_started = False
+        self._entity_cache: dict[Any, Any] = {}
+        self._client: Optional[TelegramClient] = None
 
         # Store session in data directory
         session_path = Path("data") / self.session_name
         session_path.parent.mkdir(parents=True, exist_ok=True)
 
+        if self.api_id and self.api_hash:
+            self._client = TelegramClient(str(session_path), self.api_id, self.api_hash)
+
+    def reinitialize(self, api_id: int, api_hash: str) -> None:
+        """Re-initializes Telethon client instance with new API credentials."""
+        self.api_id = api_id
+        self.api_hash = api_hash
+        session_path = Path("data") / self.session_name
+        session_path.parent.mkdir(parents=True, exist_ok=True)
         self._client = TelegramClient(str(session_path), self.api_id, self.api_hash)
         self._is_started = False
-        self._entity_cache: dict[Any, Any] = {}
+        self._entity_cache.clear()
 
     @property
-    def raw_client(self) -> TelegramClient:
+    def raw_client(self) -> Optional[TelegramClient]:
         """Returns the underlying Telethon client instance for advanced operations and event subscriptions."""
         return self._client
 
+    async def is_authorized(self) -> bool:
+        """Checks if the client has an active authorized Telegram session."""
+        if not self._client:
+            return False
+        try:
+            if not self._client.is_connected():
+                await self._client.connect()
+            return await self._client.is_user_authorized()
+        except Exception as e:
+            logger.warning(f"Error checking Telegram auth status: {e}")
+            return False
+
     async def start(self) -> None:
-        """Starts client session, prompting for phone/code if not yet authorized."""
-        if not self._is_started:
-            await self._client.start()
+        """Starts client session non-blockingly without terminal input prompt."""
+        if self._client and not self._is_started:
+            await self._client.connect()
             self._is_started = True
 
     async def stop(self) -> None:
         """Disconnects client session cleanly."""
-        if self._is_started and self._client.is_connected():
+        if self._client and self._is_started and self._client.is_connected():
             await self._client.disconnect()
             self._is_started = False
 
@@ -82,6 +104,9 @@ class TelegramStorageClient:
         """
         if channel_id in self._entity_cache:
             return self._entity_cache[channel_id]
+
+        if not self._client:
+            raise RuntimeError("Telegram client is not configured yet. Please complete onboarding.")
 
         await self.start()
 

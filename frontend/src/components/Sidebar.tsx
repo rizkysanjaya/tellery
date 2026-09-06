@@ -5,12 +5,12 @@
  *          Multi-Vault Telegram channel switcher trigger, permission gating (upload/delete),
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
  *          Favorites section, Collections accordion, Trash recovery view navigation,
- *          right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, export ZIP, delete).
+ *          session logout trigger, right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, export ZIP, delete).
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
  * Side Effects: Triggers view changes (timeline, albums, favorites, trash), vault switcher modal, album selection, media drop-to-album assignments, right-click context menu,
- *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, ZIP export, and favorite toggling.
+ *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, ZIP export, favorite toggling, and session logout.
  * =============================================================================
  */
 
@@ -36,6 +36,7 @@ import {
   EyeOff,
   Settings,
   Star,
+  LogOut,
 } from "lucide-react";
 import { CacheStats, FolderItem, MainView, StatsResponse, VaultItem } from "../types";
 import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
@@ -62,6 +63,7 @@ interface SidebarProps {
   onSelectFavorites?: () => void;
   onSelectTrash?: () => void;
   trashCount?: number;
+  onLogout?: () => void;
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
   onDeleteFolder: (folder: FolderItem | number) => void | Promise<void>;
@@ -93,6 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectFavorites,
   onSelectTrash,
   trashCount = 0,
+  onLogout,
   onSelectFolder,
   onCreateFolder,
   onDeleteFolder,
@@ -895,6 +898,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  className="w-7 h-7 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-error transition-all cursor-pointer"
+                  title="Disconnect Telegram Session / Log Out"
+                  aria-label="Log Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={toggleVaultCollapse}
                 className="w-7 h-7 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer"

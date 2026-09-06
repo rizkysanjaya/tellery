@@ -1,7 +1,8 @@
 """
 =============================================================================
 Module: src.api.app
-Purpose: FastAPI application factory, lifespan startup/shutdown, and secure CORS middleware configuration.
+Purpose: FastAPI application factory, non-blocking lifespan startup/shutdown,
+         and secure CORS middleware configuration for gallery & onboarding.
 Used by: src.main, Uvicorn ASGI server.
 Dependencies: fastapi, src.database.connection, src.storage.telegram_client,
               src.storage.tdlib_client, src.services.sync_service, src.api.routes
@@ -15,6 +16,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.api.routes import (
+    auth_router,
     folders_router,
     media_router,
     stream_router,
@@ -32,46 +34,59 @@ from src.storage.telegram_client import get_telegram_client
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Application lifespan manager:
-    - Startup: Initializes SQLite WAL database, connects Telegram MTProto client,
-      starts high-speed C++ TDLib 16-stream hardware engine, and registers live channel listener.
+    - Startup: Initializes SQLite WAL database, checks Telegram MTProto authorization,
+      starts high-speed C++ TDLib 16-stream hardware engine (if authorized), and registers live channel listener.
+      If unauthorized, starts non-blockingly to serve in-browser onboarding wizard.
     - Shutdown: Disconnects MTProto and TDLib clients cleanly.
     """
     print("\n[*] TeleGallery Archive Engine starting up...")
     await init_db()
-    telegram_client = get_telegram_client()
-    await telegram_client.start()
-    print("[*] Telegram MTProto Client connected.")
     print("[*] SQLite WAL Catalog initialized.")
 
-    # Initialize high-speed C++ TDLib Client
-    from src.storage.tdlib_client import get_tdlib_client
-    td_client = get_tdlib_client()
-    try:
-        await td_client.start()
-        import asyncio
-        for _ in range(60):
-            if td_client.auth_state == "authorizationStateReady":
-                print("[*] TDLib C++ 16-Stream Hardware Engine connected and ready.")
-                break
-            await asyncio.sleep(0.05)
-    except Exception as e:
-        print(f"[!] Warning: Could not initialize TDLib client: {e}")
+    telegram_client = get_telegram_client()
+    td_client = None
 
-    # Initialize Real-time Channel Listener
-    sync_service = get_sync_service()
+    is_auth = False
     try:
-        await sync_service.setup_channel_live_listener()
+        await telegram_client.start()
+        is_auth = await telegram_client.is_authorized()
     except Exception as e:
-        print(f"[!] Warning: Could not initialize live Telegram channel listener: {e}")
+        print(f"[*] Telegram client awaiting setup: {e}")
+
+    if is_auth:
+        print("[*] Telegram MTProto Client connected and authorized.")
+        # Initialize high-speed C++ TDLib Client
+        from src.storage.tdlib_client import get_tdlib_client
+        td_client = get_tdlib_client()
+        try:
+            await td_client.start()
+            import asyncio
+            for _ in range(60):
+                if td_client.auth_state == "authorizationStateReady":
+                    print("[*] TDLib C++ 16-Stream Hardware Engine connected and ready.")
+                    break
+                await asyncio.sleep(0.05)
+        except Exception as e:
+            print(f"[!] Warning: Could not initialize TDLib client: {e}")
+
+        # Initialize Real-time Channel Listener
+        sync_service = get_sync_service()
+        try:
+            await sync_service.setup_channel_live_listener()
+        except Exception as e:
+            print(f"[!] Warning: Could not initialize live Telegram channel listener: {e}")
+    else:
+        print("[*] Telegram Client is NOT authorized yet. Awaiting in-browser onboarding.")
 
     yield
 
     print("\n[*] TeleGallery Archive Engine shutting down...")
-    try:
-        await td_client.close()
-        print("[*] TDLib C++ Client disconnected.")
-    except Exception as e:
-        print(f"[!] Warning during TDLib shutdown: {e}")
+    if td_client:
+        try:
+            await td_client.close()
+            print("[*] TDLib C++ Client disconnected.")
+        except Exception as e:
+            print(f"[!] Warning during TDLib shutdown: {e}")
     try:
         await telegram_client.stop()
         print("[*] Telegram MTProto Client disconnected.")
@@ -80,11 +95,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    """Factory creating configured FastAPI application instance."""
+    """
+    Creates and configures the FastAPI application instance.
+    Configures CORS, lifespan handlers, and registers modular API routers.
+    """
     app = FastAPI(
-        title="TeleGallery Archive & Streaming API",
-        description="Personal Media Preservation & Seekable Streaming Engine powered by Telegram MTProto.",
-        version="0.1.0",
+        title="TeleGallery Archive API",
+        description="High-performance unlimited photo and video cloud archive using Telegram MTProto and C++ TDLib.",
+        version="0.2.0",
         lifespan=lifespan,
     )
 
@@ -104,6 +122,7 @@ def create_app() -> FastAPI:
     )
 
     # Register API Routers
+    app.include_router(auth_router)
     app.include_router(media_router)
     app.include_router(thumbnail_router)
     app.include_router(stream_router)
