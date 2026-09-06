@@ -28,3 +28,6 @@ __pycache__/
 venv/
 .venv/
 env/
+
+# Scratch test scripts
+scratch/

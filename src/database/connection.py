@@ -81,5 +81,14 @@ async def init_db() -> None:
             WHERE is_deleted = 0 AND file_hash NOT LIKE '%#alias%';
             """
         )
+
+        # Senior DBA: Compound covered index for sub-millisecond timeline queries partitioned by channel
+        await conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_media_channel_timeline 
+            ON media_items(telegram_channel_id, date_taken DESC, id DESC) 
+            WHERE is_deleted = 0;
+            """
+        )
         await conn.commit()
 

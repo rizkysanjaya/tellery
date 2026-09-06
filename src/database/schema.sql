@@ -63,6 +63,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_media_channel_msg_active
     ON media_items(telegram_channel_id, telegram_message_id) 
     WHERE is_deleted = 0 AND file_hash NOT LIKE '%#alias%';
 
+CREATE INDEX IF NOT EXISTS idx_media_channel_timeline 
+    ON media_items(telegram_channel_id, date_taken DESC, id DESC) 
+    WHERE is_deleted = 0;
+
 -- 2. Virtual Folders & Albums Table
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

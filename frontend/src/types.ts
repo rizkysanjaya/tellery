@@ -2,12 +2,13 @@
  * =============================================================================
  * Module: frontend/src/types.ts
  * Purpose: TypeScript type declarations, API contracts, duplicate conflict interfaces,
- *          smart EXIF/timeline filter models, and state models for TeleGallery frontend.
+ *          smart EXIF/timeline filter models, Multi-Vault channel models, and state models for TeleGallery frontend.
  * Used by: frontend/src/App.tsx, frontend/src/api.ts, components/
  * Dependencies: None
  * Public Members: MediaItem, TimelineGroup, TimelineResponse, StorageStats,
  *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse,
- *                 CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, ActiveExifFilters
+ *                 CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, ActiveExifFilters,
+ *                 VaultItem
  * Side Effects: None (Type declarations only).
  * =============================================================================
  */
@@ -194,4 +195,21 @@ export interface ActiveExifFilters {
   min_resolution?: "4k" | "fhd" | null;
   year?: number | null;
   month?: string | null;
+}
+
+export interface VaultItem {
+  id: number;
+  raw_id: number;
+  title: string;
+  username?: string | null;
+  role: "owner" | "viewer";
+  can_upload: boolean;
+  can_delete: boolean;
+  is_creator: boolean;
+  is_admin: boolean;
+  broadcast?: boolean;
+  megagroup?: boolean;
+  is_active: boolean;
+  media_count: number;
+  total_size_bytes: number;
 }

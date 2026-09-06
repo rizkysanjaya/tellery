@@ -2,13 +2,14 @@
  * =============================================================================
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
+ *          Multi-Vault Telegram channel switcher trigger, permission gating (upload/delete),
  *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
  *          Favorites section, Collections accordion, Trash recovery view navigation,
  *          right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, export ZIP, delete).
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
- * Side Effects: Triggers view changes (timeline, albums, favorites, trash), album selection, media drop-to-album assignments, right-click context menu,
+ * Side Effects: Triggers view changes (timeline, albums, favorites, trash), vault switcher modal, album selection, media drop-to-album assignments, right-click context menu,
  *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, ZIP export, and favorite toggling.
  * =============================================================================
  */
@@ -21,6 +22,7 @@ import {
   Plus,
   ChevronDown,
   ChevronRight,
+  ChevronsUpDown,
   Trash2,
   Images,
   Video,
@@ -35,7 +37,7 @@ import {
   Settings,
   Star,
 } from "lucide-react";
-import { CacheStats, FolderItem, MainView, StatsResponse } from "../types";
+import { CacheStats, FolderItem, MainView, StatsResponse, VaultItem } from "../types";
 import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
 import { FolderIcon } from "./ui/FolderIcon";
 import { FolderActionMenu } from "./ui/FolderActionMenu";
@@ -50,6 +52,9 @@ interface SidebarProps {
   activeFolder: FolderItem | null;
   folders: FolderItem[];
   stats: StatsResponse | null;
+  activeVault?: VaultItem | null;
+  onOpenVaultSwitcher?: () => void;
+  canUpload?: boolean;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   onSelectTimeline: () => void;
@@ -78,6 +83,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeFolder,
   folders,
   stats,
+  activeVault = null,
+  onOpenVaultSwitcher,
+  canUpload = true,
   isOpenMobile,
   onCloseMobile,
   onSelectTimeline,
@@ -311,13 +319,41 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Connected To Vault Card (above Upload Media button) */}
+        {/* Connected To Vault Card (Clickable to switch Telegram Channel Vault) */}
         <div className="px-4 mb-3">
-          <div className="p-3 rounded-neo-xl neo-card bg-surface-container-low/70 border border-outline-variant/20 shadow-xs space-y-2">
-            {/* Status indicator: Connected to */}
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span>Connected to</span>
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={onOpenVaultSwitcher}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpenVaultSwitcher?.();
+              }
+            }}
+            className="p-3 rounded-neo-xl neo-card bg-surface-container-low/70 border border-outline-variant/20 shadow-xs space-y-2 hover:bg-surface-container-high/40 hover:border-primary/30 transition-all cursor-pointer group select-none"
+            title="Click to switch Telegram Storage Vault"
+          >
+            {/* Status indicator & Role Badge & Switcher Chevron */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                <span>Connected to</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {activeVault && (
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      activeVault.role === "owner"
+                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                        : "bg-surface-container text-amber-400 border border-amber-500/30"
+                    }`}
+                  >
+                    {activeVault.role === "owner" ? "Owner" : "Read-Only"}
+                  </span>
+                )}
+                <ChevronsUpDown className="w-3.5 h-3.5 text-on-surface-variant group-hover:text-primary transition-colors" />
+              </div>
             </div>
 
             {/* Channel Profile Photo & Channel Name */}
@@ -325,7 +361,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {stats?.channel_avatar_url ? (
                 <img
                   src={stats.channel_avatar_url}
-                  alt={stats.channel_name || "Vault"}
+                  alt={activeVault?.title || stats.channel_name || "Vault"}
                   className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-primary/30 shadow-sm"
                 />
               ) : (
@@ -334,14 +370,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
               )}
               <span
-                className="text-sm font-bold text-on-surface truncate tracking-tight"
-                title={stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
+                className="text-sm font-bold text-on-surface truncate tracking-tight group-hover:text-primary transition-colors"
+                title={activeVault?.title ? `${activeVault.title} Vault` : stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
               >
-                {stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
+                {activeVault?.title ? `${activeVault.title} Vault` : stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
               </span>
             </div>
 
-            {/* Media Breakdown Counters directly beneath Seulchive Vault */}
+            {/* Media Breakdown Counters directly beneath Vault */}
             {stats && (
               <div className="grid grid-cols-2 gap-2 pt-1 border-t border-outline-variant/10 text-xs">
                 <div
@@ -367,13 +403,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="px-4 mb-4">
           <button
             onClick={() => {
-              onTriggerUpload();
-              onCloseMobile();
+              if (canUpload !== false) {
+                onTriggerUpload();
+                onCloseMobile();
+              }
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 neo-button-primary rounded-neo-lg text-sm font-bold transition-all duration-200 cursor-pointer shadow-sm"
+            disabled={canUpload === false}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-neo-lg text-sm font-bold transition-all duration-200 shadow-sm ${
+              canUpload === false
+                ? "opacity-60 cursor-not-allowed bg-surface-container text-on-surface-variant border border-outline-variant/20"
+                : "neo-button-primary cursor-pointer"
+            }`}
+            title={canUpload === false ? "Active vault is Read-Only. Cannot upload to joined channels." : "Upload media to Telegram vault"}
           >
             <Upload className="w-4 h-4" />
-            <span>Upload Media</span>
+            <span>{canUpload === false ? "Read-Only Vault" : "Upload Media"}</span>
           </button>
         </div>
 

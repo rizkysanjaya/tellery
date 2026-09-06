@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/MediaLightbox.tsx
  * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
- *          zoomable viewport, album/folder assignment manager, 1-click favorite toggle, and permanent deletion controls.
+ *          zoomable viewport, album/folder assignment manager, 1-click favorite toggle, and deletion controls.
+ *          Supports permission gating (hiding Delete action when active vault is read-only).
  *          Updated to match Silk Cloud dark neomorphic design system.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/api.ts, frontend/src/components/VideoPlayer.tsx
@@ -40,7 +41,7 @@ interface MediaLightboxProps {
   hasPrev: boolean;
   hasNext: boolean;
   onToggleFavorite?: (id: number, isFavorite: boolean) => void;
-  onDelete: (id: number) => Promise<void>;
+  onDelete?: (id: number) => Promise<void>;
 }
 
 export const MediaLightbox: React.FC<MediaLightboxProps> = ({
@@ -128,6 +129,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   }, [hasPrev, hasNext, isVideo, onClose, onPrev, onNext, showDeleteConfirm]);
 
   const handleDelete = async () => {
+    if (!onDelete) return;
     setIsDeleting(true);
     try {
       await onDelete(item.id);
@@ -375,14 +377,16 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
               <Star className={`w-4 h-4 ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`} />
               <span className="text-[11px] font-semibold">{item.is_favorite ? "Starred" : "Star"}</span>
             </button>
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
-              title="Delete"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span className="text-[11px] font-semibold">Delete</span>
-            </button>
+            {onDelete && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
+                title="Delete"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="text-[11px] font-semibold">Delete</span>
+              </button>
+            )}
           </div>
 
           {/* Details Section */}

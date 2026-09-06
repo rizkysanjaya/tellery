@@ -2,7 +2,9 @@
  * =============================================================================
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
- *          neomorphic themes, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
+ *          neomorphic themes, Multi-Vault Telegram channel switching & dialog discovery,
+ *          role permission gating (Read/Write for owned vaults vs. Read-Only for joined channels),
+ *          partitioned sub-millisecond timeline queries, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
  *          hash-based URL routing & state persistence (#/timeline, #/albums, #/albums/:id, #/favorites, #/trash),
  *          browser Back/Forward history navigation, deep linking across page refreshes (F5),
  *          dynamic code-splitting with React.lazy (<500 kB initial bundle size optimization),
@@ -19,7 +21,7 @@
  * Dependencies: React (Suspense, lazy), framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
  *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats/trash/filter-meta over HTTP, executes uploads, soft deletions,
+ * Side Effects: Fetches timeline/folders/stats/trash/vaults/filter-meta over HTTP, executes uploads, soft deletions,
  *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
  *                favorites toggles, folder assignments, vault sync, updates browser window.location.hash history,
  *                and persists theme/layout in localStorage.
@@ -53,6 +55,9 @@ import {
   downloadBatchMediaZip,
   exportAlbumZip,
   fetchFilterMetadata,
+  fetchVaults,
+  fetchActiveVault,
+  setActiveVault,
 } from "./api";
 import { FolderIcon } from "./components/ui/FolderIcon";
 import { ContextMenu, ContextMenuPosition } from "./components/ContextMenu";
@@ -77,6 +82,7 @@ const MediaLightbox = React.lazy(() => import("./components/MediaLightbox").then
 const ExifFilterDrawer = React.lazy(() => import("./components/ExifFilterDrawer").then((m) => ({ default: m.ExifFilterDrawer })));
 const DuplicateConflictModal = React.lazy(() => import("./components/DuplicateConflictModal").then((m) => ({ default: m.DuplicateConflictModal })));
 const MoveConfirmationModal = React.lazy(() => import("./components/MoveConfirmationModal").then((m) => ({ default: m.MoveConfirmationModal })));
+const VaultSwitcherModal = React.lazy(() => import("./components/VaultSwitcherModal").then((m) => ({ default: m.VaultSwitcherModal })));
 import { FolderCustomizeModal } from "./components/ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./components/ui/FolderRenameModal";
 import { FolderCoverModal } from "./components/ui/FolderCoverModal";
@@ -100,6 +106,7 @@ import {
   StatsResponse,
   TimelineGroup,
   UploadTask,
+  VaultItem,
 } from "./types";
 import { parseRouteFromHash, syncHashWithState } from "./utils/navigation";
 
@@ -113,6 +120,14 @@ export const App: React.FC = () => {
   const [activeFolder, setActiveFolder] = useState<FolderItem | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<FolderItem | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [vaults, setVaults] = useState<VaultItem[]>([]);
+  const [activeVault, setActiveVaultState] = useState<VaultItem | null>(null);
+  const [isVaultSwitcherOpen, setIsVaultSwitcherOpen] = useState(false);
+  const [isRefreshingVaults, setIsRefreshingVaults] = useState(false);
+  const activeVaultRef = useRef<VaultItem | null>(null);
+  useEffect(() => {
+    activeVaultRef.current = activeVault;
+  }, [activeVault]);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [displayLayout, setDisplayLayout] = useState<DisplayLayout>(() => {
@@ -327,6 +342,76 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+
+  const showToast = useCallback((message: string, type: ToastType = "info") => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  // Multi-Vault Telegram Dialog Discovery & Active Channel Switching
+  const loadVaults = useCallback(async (refresh: boolean = false) => {
+    try {
+      if (refresh) setIsRefreshingVaults(true);
+      const [vList, activeV] = await Promise.all([
+        fetchVaults(refresh),
+        fetchActiveVault().catch(() => null),
+      ]);
+      setVaults(vList);
+      if (activeV) {
+        setActiveVaultState(activeV);
+      } else if (vList.length > 0) {
+        const currentActive = vList.find((v) => v.is_active) || vList[0];
+        setActiveVaultState(currentActive);
+      }
+    } catch (err) {
+      console.error("Failed to load vaults:", err);
+    } finally {
+      if (refresh) setIsRefreshingVaults(false);
+    }
+  }, []);
+
+  const handleSelectVault = useCallback(
+    async (channelId: number) => {
+      try {
+        const res = await setActiveVault(channelId);
+        const matchingVault = vaults.find((v) => v.id === channelId);
+        if (matchingVault) {
+          setActiveVaultState({
+            ...matchingVault,
+            role: res.role || matchingVault.role,
+            can_upload: res.can_upload !== undefined ? res.can_upload : matchingVault.can_upload,
+            can_delete: res.can_delete !== undefined ? res.can_delete : matchingVault.can_delete,
+            is_active: true,
+          });
+        } else {
+          await loadVaults();
+        }
+        // Reset navigation and selections for clean partitioned timeline view
+        setActiveFolder(null);
+        setSelectedMedia(null);
+        setSelectedIds(new Set());
+        // Re-fetch channel-scoped telemetry, metadata, and folders
+        fetchStats(channelId).then(setStats).catch(console.error);
+        fetchFilterMetadata(channelId).then(setFilterMetadata).catch(console.error);
+        loadFolders();
+
+        showToast(
+          `Active vault switched to ${matchingVault?.title || channelId}.`,
+          "success"
+        );
+      } catch (err: any) {
+        console.error("Failed to switch vault:", err);
+        showToast(err.message || "Failed to switch Telegram storage vault.", "error");
+      }
+    },
+    [vaults, loadVaults, loadFolders, showToast]
+  );
+
   // Smart EXIF & Date Filters State
   const [filterMetadata, setFilterMetadata] = useState<FilterMetadataResponse | null>(null);
   const [activeExifFilters, setActiveExifFilters] = useState<ActiveExifFilters>({});
@@ -337,20 +422,21 @@ export const App: React.FC = () => {
   const [isExifDrawerOpen, setIsExifDrawerOpen] = useState(false);
 
   const loadFilterMetadata = useCallback(() => {
-    fetchFilterMetadata().then(setFilterMetadata).catch(console.error);
-  }, []);
+    fetchFilterMetadata(activeVault?.id).then(setFilterMetadata).catch(console.error);
+  }, [activeVault?.id]);
 
-  // Initial load for stats, folders, filter metadata & trash count
+  // Initial load for vaults, stats, folders, filter metadata & trash count
   useEffect(() => {
+    loadVaults();
     fetchStats().then(setStats).catch(console.error);
     loadFolders();
     loadFilterMetadata();
     fetchTrashMedia(1, 0)
       .then((res) => setTrashTotal(res.total))
       .catch(console.error);
-  }, [loadFolders, loadFilterMetadata]);
+  }, [loadFolders, loadFilterMetadata, loadVaults]);
 
-  // Instant timeline loading on tab, filter, sort, EXIF filter, or folder selection (0ms delay)
+  // Instant timeline loading on tab, filter, sort, EXIF filter, folder, or active vault selection (0ms delay)
   useEffect(() => {
     if (currentView === "trash") {
       loadTrash();
@@ -362,7 +448,17 @@ export const App: React.FC = () => {
 
     const folderId = activeFolder ? activeFolder.id : pendingFolderIdRef.current;
     const isFavoritesView = currentView === "favorites" && !activeFolder;
-    fetchTimeline(0, 100, activeFilter, debouncedSearchQuery, folderId, sortBy, isFavoritesView, activeExifFilters)
+    fetchTimeline(
+      0,
+      100,
+      activeFilter,
+      debouncedSearchQuery,
+      folderId,
+      sortBy,
+      isFavoritesView,
+      activeExifFilters,
+      activeVault?.id
+    )
       .then((res) => {
         if (isMounted) {
           setGroups(res.groups);
@@ -379,7 +475,16 @@ export const App: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [activeFilter, debouncedSearchQuery, activeFolder, sortBy, currentView, loadTrash, activeExifFilters]);
+  }, [
+    activeFilter,
+    debouncedSearchQuery,
+    activeFolder,
+    sortBy,
+    currentView,
+    loadTrash,
+    activeExifFilters,
+    activeVault?.id,
+  ]);
 
   // Synchronize browser URL hash when view, activeFolder, or selectedCollection changes in React state
   useEffect(() => {
@@ -456,7 +561,8 @@ export const App: React.FC = () => {
       folderId,
       sortByRef.current,
       isFavoritesView,
-      activeExifFiltersRef.current
+      activeExifFiltersRef.current,
+      activeVaultRef.current?.id
     )
       .then((res) => {
         setGroups(res.groups);
@@ -487,17 +593,6 @@ export const App: React.FC = () => {
       setIsSyncing(false);
     }
   }, [isSyncing, loadData]);
-
-  const [toasts, setToasts] = useState<ToastNotification[]>([]);
-
-  const showToast = useCallback((message: string, type: ToastType = "info") => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-  }, []);
-
-  const dismissToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
 
   const handleRestoreItem = useCallback(async (mediaId: number) => {
     try {
@@ -957,6 +1052,10 @@ export const App: React.FC = () => {
   );
 
   const handlePromptDeleteMedia = async (mediaIds?: number[]) => {
+    if (activeVaultRef.current?.can_delete === false) {
+      showToast("This connected channel is Read-Only. You do not have permission to delete media.", "error");
+      return;
+    }
     const ids = mediaIds || Array.from(selectedIds);
     const idSet = new Set(ids);
     const itemsToDelete = flatItems.filter((i) => idSet.has(i.id));
@@ -973,6 +1072,10 @@ export const App: React.FC = () => {
   };
 
   const handleBulkDeleteSelected = async (mediaIds?: number[]) => {
+    if (activeVaultRef.current?.can_delete === false) {
+      showToast("This connected channel is Read-Only. You do not have permission to delete media.", "error");
+      return;
+    }
     const ids = mediaIds || Array.from(selectedIds);
     const idSet = new Set(ids);
     const itemsToDelete = flatItems.filter((i) => idSet.has(i.id));
@@ -1012,6 +1115,10 @@ export const App: React.FC = () => {
     targetFolderId?: number | null,
     targetFolderName?: string
   ) => {
+    if (activeVaultRef.current?.can_upload === false) {
+      showToast("Active vault is Read-Only. Cannot upload media to connected channels.", "error");
+      return;
+    }
     const fileArray = Array.from(files);
     if (fileArray.length === 0) return;
 
@@ -1230,6 +1337,11 @@ export const App: React.FC = () => {
 
   const handleDroppedItems = async (scannedItems: ScannedMediaItem[]) => {
     if (!scannedItems || scannedItems.length === 0) return;
+
+    if (activeVaultRef.current?.can_upload === false) {
+      showToast("Active vault is Read-Only. Cannot upload media to connected channels.", "error");
+      return;
+    }
 
     // 1. Deduplicate incoming items within the batch by filename, size, and modified timestamp
     const seenInBatch = new Set<string>();
@@ -1815,6 +1927,10 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteMedia = async (id: number) => {
+    if (activeVaultRef.current?.can_delete === false) {
+      showToast("This connected channel is Read-Only. You do not have permission to delete media.", "error");
+      return;
+    }
     const item = flatItems.find((i) => i.id === id) || (selectedMedia?.id === id ? selectedMedia : null);
     if (item) {
       queueDeleteItems([item]);
@@ -1882,6 +1998,7 @@ export const App: React.FC = () => {
       <GlobalDropzone
         isDragging={isDragging}
         activeFolderName={activeFolder?.name}
+        readOnly={activeVault?.can_upload === false}
       />
 
       {/* Persistent Left Sidebar */}
@@ -1890,6 +2007,9 @@ export const App: React.FC = () => {
         activeFolder={activeFolder}
         folders={folders}
         stats={stats}
+        activeVault={activeVault}
+        onOpenVaultSwitcher={() => setIsVaultSwitcherOpen(true)}
+        canUpload={activeVault?.can_upload !== false}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         onSelectTimeline={() => {
@@ -1944,7 +2064,13 @@ export const App: React.FC = () => {
         onToggleFavoriteFolder={handleToggleFavoriteFolder}
         onMoveFolderToCollection={handleMoveToCollection}
         onAddMediaToFolder={handleBulkAddToFolder}
-        onTriggerUpload={() => hiddenFileInputRef.current?.click()}
+        onTriggerUpload={() => {
+          if (activeVault?.can_upload === false) {
+            showToast("Active vault is Read-Only. Cannot upload media to connected channels.", "error");
+            return;
+          }
+          hiddenFileInputRef.current?.click();
+        }}
         onSyncVault={handleSyncVault}
         onExportFolderZip={handleExportAlbumZip}
         onFolderContextMenu={handleFolderContextMenu}
@@ -2210,7 +2336,7 @@ export const App: React.FC = () => {
               onCreateFolderAndAdd={(name) => handleBulkCreateFolderAndAdd(name)}
               onFavoriteSelected={() => handleBulkToggleFavoriteMedia(Array.from(selectedIds), true)}
               onDownloadSelected={() => handleDownloadBatchSelected()}
-              onDeleteSelected={() => handleBulkDeleteSelected()}
+              onDeleteSelected={activeVault?.can_delete !== false ? () => handleBulkDeleteSelected() : undefined}
               onDeselectAll={handleDeselectAll}
             />
           </motion.div>
@@ -2231,9 +2357,15 @@ export const App: React.FC = () => {
           onSelectAll={handleSelectAllGlobal}
           onAddToFolder={handleBulkAddToFolder}
           onCreateFolderAndAdd={handleBulkCreateFolderAndAdd}
-          onDeleteMedia={handlePromptDeleteMedia}
+          onDeleteMedia={activeVault?.can_delete !== false ? handlePromptDeleteMedia : undefined}
           onDownloadBatch={(mediaIds) => handleDownloadBatchSelected(mediaIds)}
-          onTriggerUpload={() => hiddenFileInputRef.current?.click()}
+          onTriggerUpload={() => {
+            if (activeVault?.can_upload === false) {
+              showToast("Active vault is Read-Only. Cannot upload media to connected channels.", "error");
+              return;
+            }
+            hiddenFileInputRef.current?.click();
+          }}
           onCreateFolder={handleCreateFolder}
           onSelectFolder={(folder) => {
             setActiveFolder(folder);
@@ -2321,7 +2453,7 @@ export const App: React.FC = () => {
             hasPrev={currentIndex > 0}
             hasNext={currentIndex >= 0 && currentIndex < flatItems.length - 1}
             onToggleFavorite={handleToggleFavoriteMedia}
-            onDelete={handleDeleteMedia}
+            onDelete={activeVault?.can_delete !== false ? handleDeleteMedia : undefined}
           />
         </Suspense>
       )}
@@ -2454,6 +2586,10 @@ export const App: React.FC = () => {
         folders={folders}
         draggedMediaIds={draggedMediaState.mediaIds}
         onDropTrash={(ids) => {
+          if (activeVault?.can_delete === false) {
+            showToast("This connected channel is Read-Only. You do not have permission to delete media.", "error");
+            return;
+          }
           const allItems = groups.flatMap((g) => g.items);
           const itemsToDelete = allItems.filter((i) => ids.includes(i.id));
           if (itemsToDelete.length > 0) {
@@ -2471,6 +2607,21 @@ export const App: React.FC = () => {
           setLastSelectedId(null);
         }}
       />
+
+      {/* Telegram Multi-Vault Switcher Modal */}
+      <Suspense fallback={null}>
+        {isVaultSwitcherOpen && (
+          <VaultSwitcherModal
+            isOpen={isVaultSwitcherOpen}
+            onClose={() => setIsVaultSwitcherOpen(false)}
+            vaults={vaults}
+            activeVault={activeVault}
+            onSelectVault={handleSelectVault}
+            onRefreshVaults={() => loadVaults(true)}
+            isRefreshing={isRefreshingVaults}
+          />
+        )}
+      </Suspense>
 
       {/* Global In-App Notification Toasts */}
       <AppToast toasts={toasts} onDismiss={dismissToast} />

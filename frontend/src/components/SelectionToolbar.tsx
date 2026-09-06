@@ -3,6 +3,7 @@
  * Module: frontend/src/components/SelectionToolbar.tsx
  * Purpose: 21st.dev Floating Dynamic Island action dock shown when 1+ media items
  *          are selected. Provides bulk operations: Add to Album, Favorite, Download ZIP, Move to Trash, Deselect.
+ *          Supports permission gating (hiding Delete action when active vault is read-only).
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: SelectionToolbar
@@ -31,7 +32,7 @@ interface SelectionToolbarProps {
   onCreateFolderAndAdd: (name: string) => Promise<void>;
   onFavoriteSelected?: () => Promise<void>;
   onDownloadSelected?: () => Promise<void>;
-  onDeleteSelected: () => Promise<void>;
+  onDeleteSelected?: () => Promise<void>;
   onDeselectAll: () => void;
 }
 
@@ -75,6 +76,7 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
   };
 
   const handleDelete = async () => {
+    if (!onDeleteSelected) return;
     setIsProcessing(true);
     try {
       await onDeleteSelected();
@@ -229,57 +231,59 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
             </button>
           )}
 
-          {/* Delete Selected */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setShowDeleteConfirm((p) => !p);
-                setShowFolderPicker(false);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-error hover:bg-error-container/20 rounded-neo text-xs font-medium transition-all cursor-pointer"
-              title="Move Selected to Trash"
-            >
-              <Trash2 className="w-4 h-4 text-error" />
-              <span className="hidden sm:inline">Delete</span>
-            </button>
+          {/* Delete Selected (only if user has delete permissions) */}
+          {onDeleteSelected && (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm((p) => !p);
+                  setShowFolderPicker(false);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-error hover:bg-error-container/20 rounded-neo text-xs font-medium transition-all cursor-pointer"
+                title="Move Selected to Trash"
+              >
+                <Trash2 className="w-4 h-4 text-error" />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
 
-            {/* Delete Confirm Popup */}
-            <AnimatePresence>
-              {showDeleteConfirm && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute bottom-full right-0 mb-3 w-64 neo-card bg-surface-base border border-error/30 rounded-neo-lg p-4 z-50"
-                >
-                  <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
-                    Move <span className="text-on-surface font-bold">{selectedCount}</span> item{selectedCount === 1 ? "" : "s"} to Trash? You can restore them anytime.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="flex-1 px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-neo text-xs font-medium cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleDelete}
-                      disabled={isProcessing}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-error hover:bg-error/80 disabled:opacity-50 text-white rounded-neo text-xs font-medium cursor-pointer"
-                    >
-                      {isProcessing ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-3.5 h-3.5" />
-                      )}
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+              {/* Delete Confirm Popup */}
+              <AnimatePresence>
+                {showDeleteConfirm && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute bottom-full right-0 mb-3 w-64 neo-card bg-surface-base border border-error/30 rounded-neo-lg p-4 z-50"
+                  >
+                    <p className="text-xs text-on-surface-variant mb-3 leading-relaxed">
+                      Move <span className="text-on-surface font-bold">{selectedCount}</span> item{selectedCount === 1 ? "" : "s"} to Trash? You can restore them anytime.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowDeleteConfirm(false)}
+                        className="flex-1 px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-neo text-xs font-medium cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        disabled={isProcessing}
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-error hover:bg-error/80 disabled:opacity-50 text-white rounded-neo text-xs font-medium cursor-pointer"
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-3.5 h-3.5" />
+                        )}
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Separator */}
           <div className="h-5 w-px bg-outline-variant/50" />

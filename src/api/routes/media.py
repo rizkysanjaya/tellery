@@ -1,15 +1,14 @@
 """
 =============================================================================
 Module: src.api.routes.media
-Purpose: REST endpoints for media catalog timeline feeds, smart EXIF & date filtering,
-         filter metadata aggregation, direct uploads with hardened path traversal & size defenses,
-         item details, favorites, trash/recovery system, batch ZIP download, and archive stats.
-Used by: Web Gallery UI, Frontend clients.
-Dependencies: fastapi, datetime, uuid, re, src.database.repository, src.api.schemas,
-              src.services.archive_service, src.services.zip_export_service
-Public Members: router
-Side Effects: Reads and updates SQLite catalog records, manages Telegram vault messages/thumbnails,
-              spools isolated temporary upload buffers and ZIP archives with strict sanitization.
+Purpose: REST API endpoints for media ingestion, timeline queries, EXIF filtering,
+         batch ZIP downloads, soft-delete data recovery, and multi-vault permissions enforcement.
+Used by: src.api.app, frontend/src/api.ts
+Dependencies: fastapi, pydantic, src.database.repository, src.services.archive_service,
+              src.services.vault_service, src.services.upload_tracker, src.services.zip_export_service
+Public Members: router, get_timeline, get_stats, get_filter_metadata, upload_media,
+                delete_media_item, restore_media_item, delete_media_permanently, empty_trash
+Side Effects: Spools uploaded files, updates SQLite rows, executes soft-deletes, triggers ZIP streaming.
 =============================================================================
 """
 
@@ -22,7 +21,8 @@ from typing import Optional
 import uuid
 
 logger = logging.getLogger(__name__)
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile
+
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse
 from src.api.schemas import (
     MediaItemResponse,
@@ -132,13 +132,21 @@ async def get_timeline(
     min_resolution: Optional[str] = Query(None, pattern="^(4k|fhd)$", description="Filter by minimum resolution"),
     year: Optional[int] = Query(None, description="Filter by calendar year"),
     month: Optional[str] = Query(None, description="Filter by ISO month (e.g. 2026-08)"),
+    channel_id: Optional[int] = Query(None, description="Filter timeline by Telegram channel ID"),
 ):
     """
     Retrieves chronological or attribute-sorted timeline feed.
     Supports filtering by media type, search keyword, virtual folder, custom sorting, favorites,
-    smart EXIF camera make/model, orientation, resolution, and calendar periods.
+    smart EXIF camera make/model, orientation, resolution, calendar periods, and multi-vault channel partitioning.
     """
     filter_type = type if type in ("photo", "video") else None
+    
+    # Determine target vault channel
+    target_channel = channel_id
+    if target_channel is None:
+        from src.services.vault_service import get_vault_service
+        target_channel = get_vault_service().get_active_channel_id()
+
     total_count, raw_items = await MediaRepository.get_timeline(
         offset=offset,
         limit=limit,
@@ -152,6 +160,7 @@ async def get_timeline(
         min_resolution=min_resolution,
         year=year,
         month=month,
+        channel_id=target_channel,
     )
 
     # Group items preserving active sort order
@@ -274,12 +283,14 @@ async def get_user_avatar():
 
 
 @router.get("/stats", response_model=StatsResponse)
-async def get_stats():
+async def get_stats(channel_id: Optional[int] = Query(None, description="Filter stats by specific Telegram channel")):
     """
     Retrieves overall archive statistics (photo/video breakdown and total storage used)
     along with Telegram account and vault channel identity.
     """
-    stats = await MediaRepository.get_stats()
+    from src.services.vault_service import get_vault_service
+    active_id = channel_id if channel_id is not None else get_vault_service().get_active_channel_id()
+    stats = await MediaRepository.get_stats(channel_id=active_id)
     profile = await get_telegram_profile_info()
     avatar_dir = Path("data/avatars")
     channel_has_avatar = (avatar_dir / "channel_avatar.jpg").exists()
@@ -300,12 +311,14 @@ async def get_stats():
 
 
 @router.get("/filters/meta", response_model=FilterMetadataResponse)
-async def get_filter_metadata():
+async def get_filter_metadata(channel_id: Optional[int] = Query(None, description="Filter metadata by specific Telegram channel")):
     """
     Retrieves aggregate EXIF and chronological metadata for smart filtering and date scrubber.
     Cost: Indexed aggregate queries.
     """
-    meta = await MediaRepository.get_filter_metadata()
+    from src.services.vault_service import get_vault_service
+    active_id = channel_id if channel_id is not None else get_vault_service().get_active_channel_id()
+    meta = await MediaRepository.get_filter_metadata(channel_id=active_id)
     return FilterMetadataResponse(**meta)
 
 
@@ -326,12 +339,25 @@ async def upload_media(
     file: UploadFile = File(...),
     upload_id: Optional[str] = Form(None),
     folder_id: Optional[int] = Form(None),
+    channel_id: Optional[int] = Form(None),
 ):
     """
     Accepts direct multipart file upload from web UI,
     spools to temporary buffer, archives into Telegram MTProto vault with deduplication,
     optionally associates with a target virtual album/folder, and tracks real-time MTProto transfer.
+    Enforces role permissions (blocks upload to read-only vaults).
     """
+    from src.services.vault_service import get_vault_service
+    vault_service = get_vault_service()
+    target_channel_id = channel_id or vault_service.get_active_channel_id()
+    if target_channel_id is not None:
+        is_writable = await vault_service.is_vault_writable(target_channel_id)
+        if not is_writable:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Read-Only Vault: You do not have permission to upload media to this channel.",
+            )
+
     tracker = get_upload_tracker()
     temp_dir = Path("data/upload_temp")
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -386,6 +412,7 @@ async def upload_media(
         result = await archive_service.archive_file(
             file_path=temp_path,
             mime_type=file.content_type,
+            channel_id=target_channel_id,
             progress_callback=on_telegram_progress,
         )
 
@@ -438,7 +465,20 @@ async def get_media_item(media_id: int):
 async def delete_media_item(media_id: int):
     """
     Soft deletes a media item (moves to Trash) while keeping Telegram message and local thumbnails safe.
+    Enforces role permissions (blocks deletion on read-only vaults).
     """
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    from src.services.vault_service import get_vault_service
+    is_writable = await get_vault_service().is_vault_writable(item["telegram_channel_id"])
+    if not is_writable:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Read-Only Vault: You do not have permission to delete media from this channel.",
+        )
+
     archive_service = ArchiveService()
     try:
         result = await archive_service.delete_media_item(media_id)
@@ -497,7 +537,20 @@ async def restore_trash_batch(body: RestoreMediaBatchRequest):
 async def delete_media_permanently(media_id: int):
     """
     Permanently deletes a media item from the Telegram vault, disk caches, and database.
+    Enforces role permissions (blocks deletion on read-only vaults).
     """
+    item = await MediaRepository.get_by_id(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media item not found")
+
+    from src.services.vault_service import get_vault_service
+    is_writable = await get_vault_service().is_vault_writable(item["telegram_channel_id"])
+    if not is_writable:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Read-Only Vault: You do not have permission to delete media from this channel.",
+        )
+
     archive_service = ArchiveService()
     try:
         result = await archive_service.purge_media_permanently(media_id)

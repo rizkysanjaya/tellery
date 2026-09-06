@@ -2,21 +2,22 @@
  * =============================================================================
  * Module: frontend/src/api.ts
  * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions,
- *          albums/folders, favorites, and Telegram Channel sync operations.
+ *          albums/folders, favorites, Telegram Multi-Vault channel switching, and sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
  *                deleteMediaItem, toggleFavoriteMedia, bulkToggleFavoriteMedia,
  *                fetchFolders, createFolder, deleteFolder,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
- *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, fetchSyncStatus,
+ *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, triggerChannelSync, fetchSyncStatus,
  *                fetchTrashMedia, restoreMediaItem, bulkRestoreMedia, permanentDeleteMediaItem, emptyTrash,
- *                downloadBatchMediaZip, getAlbumZipExportUrl, exportAlbumZip
+ *                downloadBatchMediaZip, getAlbumZipExportUrl, exportAlbumZip,
+ *                fetchVaults, fetchActiveVault, setActiveVault
  * Side Effects: Executes HTTP requests to backend REST API, triggers file downloads.
  * =============================================================================
  */
 
-import { ActiveExifFilters, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse } from "./types";
+import { ActiveExifFilters, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse, VaultItem } from "./types";
 
 const API_BASE = "";
 
@@ -28,7 +29,8 @@ export async function fetchTimeline(
   folderId?: number | null,
   sortBy: string = "date_desc",
   onlyFavorites: boolean = false,
-  exifFilters?: ActiveExifFilters
+  exifFilters?: ActiveExifFilters,
+  channelId?: number | null
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
@@ -50,6 +52,10 @@ export async function fetchTimeline(
 
   if (onlyFavorites) {
     params.append("only_favorites", "true");
+  }
+
+  if (channelId !== undefined && channelId !== null) {
+    params.append("channel_id", channelId.toString());
   }
 
   if (exifFilters) {
@@ -77,18 +83,69 @@ export async function fetchTimeline(
   return response.json();
 }
 
-export async function fetchFilterMetadata(): Promise<FilterMetadataResponse> {
-  const response = await fetch(`${API_BASE}/api/media/filters/meta`);
+export async function fetchFilterMetadata(channelId?: number | null): Promise<FilterMetadataResponse> {
+  const params = new URLSearchParams();
+  if (channelId !== undefined && channelId !== null) {
+    params.append("channel_id", channelId.toString());
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_BASE}/api/media/filters/meta${qs}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch filter metadata: ${response.statusText}`);
   }
   return response.json();
 }
 
-export async function fetchStats(): Promise<StatsResponse> {
-  const response = await fetch(`${API_BASE}/api/media/stats`);
+export async function fetchStats(channelId?: number | null): Promise<StatsResponse> {
+  const params = new URLSearchParams();
+  if (channelId !== undefined && channelId !== null) {
+    params.append("channel_id", channelId.toString());
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_BASE}/api/media/stats${qs}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch stats: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchVaults(refresh: boolean = false): Promise<VaultItem[]> {
+  const url = refresh ? `${API_BASE}/api/vaults?refresh=true` : `${API_BASE}/api/vaults`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch vaults: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return data.vaults || [];
+}
+
+export async function fetchActiveVault(): Promise<VaultItem> {
+  const response = await fetch(`${API_BASE}/api/vaults/active`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch active vault: ${response.statusText}`);
+  }
+  const data = await response.json();
+  return data.vault;
+}
+
+export async function setActiveVault(channelId: number): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/vaults/active`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ channel_id: channelId }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to set active vault: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function triggerChannelSync(channelId: number, limit: number = 200): Promise<any> {
+  const response = await fetch(`${API_BASE}/api/vaults/${channelId}/sync?limit=${limit}`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to synchronize vault channel: ${response.statusText}`);
   }
   return response.json();
 }

@@ -253,8 +253,8 @@ class SyncService:
                     from src.database.connection import get_db_connection
                     async with get_db_connection() as conn:
                         async with conn.execute(
-                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND telegram_message_id BETWEEN ? AND ?",
-                            (min_mid, max_mid),
+                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND (telegram_channel_id = ? OR telegram_channel_id = ?) AND telegram_message_id BETWEEN ? AND ?",
+                            (target_channel, int(str(target_channel).replace("-100", "")), min_mid, max_mid),
                         ) as cursor:
                             db_items = await cursor.fetchall()
 

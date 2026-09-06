@@ -8,6 +8,7 @@
  *          - Timeline empty canvas (select all photos, upload media)
  *          - Albums empty canvas (create new album, create new collection, refresh)
  *          - Active Album/Collection view canvas (upload to this album, select all, rename, back to albums)
+ *          Supports permission gating (conditionally hiding media deletion in read-only vaults).
  *          Includes hover bridge and debounce protection for submenus and dynamic Light/Dark mode tokens.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -59,7 +60,7 @@ interface ContextMenuProps {
   onSelectAll: () => void;
   onAddToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onCreateFolderAndAdd: (name: string, mediaIds: number[]) => Promise<void>;
-  onDeleteMedia: (mediaIds: number[]) => Promise<void>;
+  onDeleteMedia?: (mediaIds: number[]) => Promise<void>;
   onDownloadBatch?: (mediaIds: number[]) => void;
   onTriggerUpload: () => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
@@ -218,7 +219,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   };
 
   const handleDeleteMediaAction = async () => {
-    if (count === 0) return;
+    if (!onDeleteMedia || count === 0) return;
     setIsProcessing(true);
     try {
       await onDeleteMedia(effectiveMediaIds);
@@ -394,16 +395,20 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <span>{count > 1 ? `Download ${count} Items (.ZIP)` : "Download File"}</span>
           </button>
 
-          <div className="h-px bg-outline-variant/20 my-1" />
+          {onDeleteMedia && (
+            <>
+              <div className="h-px bg-outline-variant/20 my-1" />
 
-          <button
-            onClick={handleDeleteMediaAction}
-            disabled={isProcessing}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer disabled:opacity-50"
-          >
-            {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-            <span>{count > 1 ? `Delete ${count} Items` : "Delete"}</span>
-          </button>
+              <button
+                onClick={handleDeleteMediaAction}
+                disabled={isProcessing}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer disabled:opacity-50"
+              >
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>{count > 1 ? `Delete ${count} Items` : "Delete"}</span>
+              </button>
+            </>
+          )}
         </>
       )}
 

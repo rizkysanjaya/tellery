@@ -1,12 +1,13 @@
 """
 ============================================================================
 Module: src.database.repository
-Purpose: Data access layer for media catalog, folders/albums, favorites, trash/recovery,
-         smart EXIF filtering, timeline scrubber, and audit logging with senior DBA
-         minimum-cost query plans and strict cursor lifecycle management.
-Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media, src.api.routes.folders.
+Purpose: Data access layer for media catalog, multi-vault channel partitioning, folders/albums,
+         favorites, trash/recovery, smart EXIF filtering, timeline scrubber, and audit logging
+         with senior DBA minimum-cost query plans and strict cursor lifecycle management.
+Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media,
+         src.api.routes.folders, src.api.routes.vaults.
 Dependencies: aiosqlite, src.database.connection
-Public Members: MediaRepository (get_timeline, get_by_id, get_by_hash, get_by_message_id,
+Public Members: MediaRepository (get_timeline, get_stats, get_by_id, get_by_hash, get_by_message_id,
                 insert_media, update_favorite, delete_media, restore_media, restore_batch,
                 get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media,
                 get_all_folder_media, get_filter_metadata)
@@ -177,14 +178,20 @@ class MediaRepository:
         min_resolution: Optional[str] = None,
         year: Optional[int] = None,
         month: Optional[str] = None,
+        channel_id: Optional[int] = None,
     ) -> tuple[int, list[dict[str, Any]]]:
         """
         Retrieves paginated media items with flexible sorting and filtering.
         Supports: date_desc, date_asc, name_asc, name_desc, size_desc, size_asc, only_favorites,
-        camera/device model, orientation (landscape/portrait/square), min_resolution (4k/fhd), year, month.
+        camera/device model, orientation (landscape/portrait/square), min_resolution (4k/fhd), year, month,
+        and multi-vault channel_id partitioning.
         """
         where_clauses = ["m.is_deleted = 0"]
         params: list[Any] = []
+
+        if channel_id is not None:
+            where_clauses.append("m.telegram_channel_id = ?")
+            params.append(channel_id)
 
         if only_favorites:
             where_clauses.append("m.is_favorite = 1")
@@ -302,22 +309,28 @@ class MediaRepository:
             return total_count, items
 
     @staticmethod
-    async def get_stats() -> dict[str, Any]:
+    async def get_stats(channel_id: Optional[int] = None) -> dict[str, Any]:
         """
-        Retrieves aggregate statistics for the entire archive in a single pass.
+        Retrieves aggregate statistics for the entire archive or a specific channel.
         Counts non-videos, GIFs, and WebP as photos/images.
         """
-        query = """
+        where_clause = "WHERE is_deleted = 0"
+        params: list[Any] = []
+        if channel_id is not None:
+            where_clause += " AND telegram_channel_id = ?"
+            params.append(channel_id)
+
+        query = f"""
             SELECT 
                 COUNT(*) as total_items,
                 SUM(CASE WHEN mime_type NOT LIKE 'video/%' OR file_name LIKE '%.gif' OR file_name LIKE '%.webp' THEN 1 ELSE 0 END) as total_photos,
                 SUM(CASE WHEN mime_type LIKE 'video/%' AND NOT (file_name LIKE '%.gif') AND NOT (file_name LIKE '%.gif.mp4') AND NOT (file_name LIKE '%.webp') THEN 1 ELSE 0 END) as total_videos,
                 COALESCE(SUM(file_size), 0) as total_size_bytes
             FROM media_items
-            WHERE is_deleted = 0;
+            {where_clause};
         """
         async with get_db_connection() as conn:
-            async with conn.execute(query) as cursor:
+            async with conn.execute(query, params) as cursor:
                 row = await cursor.fetchone()
                 return dict(row) if row else {
                     "total_items": 0,
@@ -648,22 +661,26 @@ class MediaRepository:
     get_folder_media = get_all_folder_media
 
     @staticmethod
-    async def get_filter_metadata() -> dict[str, Any]:
+    async def get_filter_metadata(channel_id: Optional[int] = None) -> dict[str, Any]:
         """
         Extracts aggregate metadata for smart EXIF filtering and timeline date-jump scrubber.
+        Supports channel_id partitioning for multi-vault support.
         Cost: Highly selective indexed aggregate queries. Minimum disk I/O, zero table scan overhead.
         """
         import calendar
+        channel_filter = "AND telegram_channel_id = ?" if channel_id is not None else ""
+        channel_params = [channel_id] if channel_id is not None else []
+
         async with get_db_connection() as conn:
             # 1. Detected Cameras / Devices
-            cam_query = """
+            cam_query = f"""
                 SELECT camera_make, camera_model, COUNT(*) as item_count
                 FROM media_items
-                WHERE is_deleted = 0 AND (camera_make IS NOT NULL OR camera_model IS NOT NULL)
+                WHERE is_deleted = 0 {channel_filter} AND (camera_make IS NOT NULL OR camera_model IS NOT NULL)
                 GROUP BY camera_make, camera_model
                 ORDER BY item_count DESC;
             """
-            async with conn.execute(cam_query) as cursor:
+            async with conn.execute(cam_query, channel_params) as cursor:
                 cam_rows = await cursor.fetchall()
             cameras = []
             for r in cam_rows:
@@ -681,16 +698,16 @@ class MediaRepository:
                 })
 
             # 2. Chronological Periods (Years and Months for Date-Jump Scrubber)
-            periods_query = """
+            periods_query = f"""
                 SELECT strftime('%Y-%m', COALESCE(date_taken, created_at)) as period_key,
                        COUNT(*) as item_count,
                        MIN(id) as first_media_id
                 FROM media_items
-                WHERE is_deleted = 0
+                WHERE is_deleted = 0 {channel_filter}
                 GROUP BY period_key
                 ORDER BY period_key DESC;
             """
-            async with conn.execute(periods_query) as cursor:
+            async with conn.execute(periods_query, channel_params) as cursor:
                 period_rows = await cursor.fetchall()
 
             periods = []
@@ -722,7 +739,7 @@ class MediaRepository:
             years = [{"year": y, "count": count} for y, count in sorted(years_dict.items(), reverse=True)]
 
             # 3. Media Orientations & Resolutions
-            orientations_query = """
+            orientations_query = f"""
                 SELECT 
                     SUM(CASE WHEN width > height THEN 1 ELSE 0 END) as landscape_count,
                     SUM(CASE WHEN height > width THEN 1 ELSE 0 END) as portrait_count,
@@ -730,9 +747,9 @@ class MediaRepository:
                     SUM(CASE WHEN width >= 3840 OR height >= 2160 THEN 1 ELSE 0 END) as uhd_4k_count,
                     SUM(CASE WHEN (width >= 1920 OR height >= 1080) AND (width < 3840 AND height < 2160) THEN 1 ELSE 0 END) as fhd_count
                 FROM media_items
-                WHERE is_deleted = 0 AND width IS NOT NULL AND height IS NOT NULL;
+                WHERE is_deleted = 0 {channel_filter} AND width IS NOT NULL AND height IS NOT NULL;
             """
-            async with conn.execute(orientations_query) as cursor:
+            async with conn.execute(orientations_query, channel_params) as cursor:
                 counts_row = await cursor.fetchone()
             orientations = {
                 "landscape": counts_row["landscape_count"] or 0 if counts_row else 0,
