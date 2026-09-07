@@ -136,11 +136,12 @@ class StatsResponse(BaseModel):
 
 
 class FolderResponse(BaseModel):
-    """Folder / Album representation including item count and cover preview."""
+    """Folder / Album representation including item count, channel scope, and cover preview."""
 
     id: int
     name: str
     parent_id: Optional[int] = None
+    telegram_channel_id: Optional[int] = None
     color: Optional[str] = None
     icon: Optional[str] = "Folder"
     is_favorite: bool = False
@@ -168,6 +169,7 @@ class CreateFolderRequest(BaseModel):
 
     name: str = Field(min_length=1, max_length=100, description="Folder display name")
     parent_id: Optional[int] = Field(None, description="Optional parent folder ID")
+    channel_id: Optional[int] = Field(None, description="Optional Telegram channel ID for multi-vault isolation")
     color: Optional[str] = Field(None, description="Optional hex color string")
     icon: Optional[str] = Field("Folder", description="Optional icon identifier")
     is_favorite: Optional[bool] = Field(False, description="Pin to favorites")

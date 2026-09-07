@@ -2,15 +2,17 @@
 =============================================================================
 Module: src.api.routes.folders
 Purpose: REST endpoints for creating, managing, organizing, renaming, customizing folders,
+         scoped strictly to Telegram storage channels for multi-vault isolation,
          and exporting full albums as ZIP archives with zero-copy kernel streaming.
 Used by: Web UI Album views, Lightbox folder assignment drawer, Sidebar, and Action menus.
-Dependencies: fastapi, src.database.repository, src.api.schemas, src.services.zip_export_service
-Public Members: router
+Dependencies: fastapi, typing, src.database.repository, src.api.schemas, src.services.vault_service, src.services.zip_export_service
+Public Members: router, list_folders, create_folder, get_folder, delete_folder
 Side Effects: Inserts, updates, and deletes records in folders and media_folders tables, spools temp album ZIPs.
 =============================================================================
 """
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from src.api.schemas import (
     AddMediaToFolderRequest,
@@ -21,6 +23,7 @@ from src.api.schemas import (
     UpdateFolderRequest,
 )
 from src.database.repository import MediaRepository
+from src.services.vault_service import get_vault_service
 from src.services.zip_export_service import get_zip_export_service
 
 router = APIRouter(prefix="/api/folders", tags=["Folders & Albums"])
@@ -36,6 +39,7 @@ def _to_folder_response(f: dict) -> FolderResponse:
         id=f["id"],
         name=f["name"],
         parent_id=f.get("parent_id"),
+        telegram_channel_id=f.get("telegram_channel_id"),
         color=f.get("color"),
         icon=f.get("icon") or ("Layers" if f.get("is_collection") else "Folder"),
         is_favorite=bool(f.get("is_favorite", 0)),
@@ -49,24 +53,31 @@ def _to_folder_response(f: dict) -> FolderResponse:
 
 
 @router.get("", response_model=list[FolderResponse])
-async def list_folders():
+async def list_folders(channel_id: Optional[int] = Query(None)):
     """
-    Lists all virtual folders / albums with their media count and cover previews.
+    Lists virtual folders / albums with their media count and cover previews,
+    scoped strictly to the specified or active Telegram channel.
     """
-    raw_folders = await MediaRepository.list_folders()
+    active_channel = channel_id or get_vault_service().get_active_channel_id()
+    raw_folders = await MediaRepository.list_folders(channel_id=active_channel)
     return [_to_folder_response(f) for f in raw_folders]
 
 
 @router.post("", response_model=FolderResponse, status_code=status.HTTP_201_CREATED)
 async def create_folder(payload: CreateFolderRequest):
     """
-    Creates a new virtual folder or album. Prevents duplicate folder names.
+    Creates a new virtual folder or album scoped to the active/specified channel.
+    Prevents duplicate folder names within the same channel.
     """
     clean_name = payload.name.strip()
     if not clean_name:
         raise HTTPException(status_code=400, detail="Album name cannot be empty")
 
-    existing = await MediaRepository.get_folder_by_name(clean_name, payload.parent_id)
+    target_channel = payload.channel_id or get_vault_service().get_active_channel_id()
+
+    existing = await MediaRepository.get_folder_by_name(
+        clean_name, payload.parent_id, channel_id=target_channel
+    )
     if existing:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -81,6 +92,7 @@ async def create_folder(payload: CreateFolderRequest):
         is_favorite=1 if payload.is_favorite else 0,
         is_collection=1 if payload.is_collection else 0,
         cover_media_id=payload.cover_media_id,
+        telegram_channel_id=target_channel,
     )
     created = await MediaRepository.get_folder(folder_id)
     if not created:

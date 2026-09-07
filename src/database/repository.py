@@ -380,36 +380,49 @@ class MediaRepository:
             return cursor.rowcount
 
     @staticmethod
-    async def get_trash_items(limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
+    async def get_trash_items(channel_id: Optional[int] = None, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
         """
-        Retrieves paginated list of soft-deleted media items in Trash.
-        Cost: O(log K + limit) where K is number of trashed items via partial index idx_media_trash.
+        Retrieves paginated list of soft-deleted media items in Trash, optionally partitioned by channel.
+        Cost: O(log K + limit) where K is number of trashed items via compound covered index idx_media_trash_channel.
         """
-        query = """
+        where_clauses = ["is_deleted = 1"]
+        params: list[Any] = []
+        if channel_id is not None:
+            where_clauses.append("telegram_channel_id = ?")
+            params.append(channel_id)
+        params.extend([limit, offset])
+        where_str = " AND ".join(where_clauses)
+        query = f"""
             SELECT 
                 id, file_hash, file_name, file_size, mime_type,
                 telegram_channel_id, telegram_message_id, telegram_file_id,
                 width, height, duration_seconds, camera_make, camera_model,
                 date_taken, thumbnail_path, is_favorite, created_at, deleted_at
             FROM media_items
-            WHERE is_deleted = 1
+            WHERE {where_str}
             ORDER BY deleted_at DESC
             LIMIT ? OFFSET ?;
         """
         async with get_db_connection() as conn:
-            async with conn.execute(query, (limit, offset)) as cursor:
+            async with conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 
     @staticmethod
-    async def get_trash_count() -> int:
+    async def get_trash_count(channel_id: Optional[int] = None) -> int:
         """
-        Returns the total number of items currently in Trash.
-        Cost: O(log K) via partial index idx_media_trash.
+        Returns the total number of items currently in Trash, optionally partitioned by channel.
+        Cost: O(log K) via compound covered index idx_media_trash_channel.
         """
-        query = "SELECT COUNT(*) FROM media_items WHERE is_deleted = 1;"
+        where_clauses = ["is_deleted = 1"]
+        params: list[Any] = []
+        if channel_id is not None:
+            where_clauses.append("telegram_channel_id = ?")
+            params.append(channel_id)
+        where_str = " AND ".join(where_clauses)
+        query = f"SELECT COUNT(*) FROM media_items WHERE {where_str};"
         async with get_db_connection() as conn:
-            async with conn.execute(query) as cursor:
+            async with conn.execute(query, params) as cursor:
                 row = await cursor.fetchone()
                 return row[0] if row else 0
 
@@ -427,19 +440,25 @@ class MediaRepository:
             return affected
 
     @staticmethod
-    async def get_all_trash_media() -> list[dict[str, Any]]:
+    async def get_all_trash_media(channel_id: Optional[int] = None) -> list[dict[str, Any]]:
         """
-        Returns all soft-deleted items for bulk Telegram purging.
+        Returns all soft-deleted items for bulk Telegram purging, optionally scoped to a channel.
         """
-        query = """
+        where_clauses = ["is_deleted = 1"]
+        params: list[Any] = []
+        if channel_id is not None:
+            where_clauses.append("telegram_channel_id = ?")
+            params.append(channel_id)
+        where_str = " AND ".join(where_clauses)
+        query = f"""
             SELECT 
                 id, file_hash, file_name, file_size, mime_type,
                 telegram_channel_id, telegram_message_id, thumbnail_path
             FROM media_items
-            WHERE is_deleted = 1;
+            WHERE {where_str};
         """
         async with get_db_connection() as conn:
-            async with conn.execute(query) as cursor:
+            async with conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(row) for row in rows]
 
@@ -500,20 +519,33 @@ class MediaRepository:
     # =========================================================================
 
     @staticmethod
-    async def get_folder_by_name(name: str, parent_id: Optional[int] = None) -> Optional[dict[str, Any]]:
-        """Retrieves folder details by case-insensitive name and optional parent_id."""
-        query = """
-            SELECT id, name, parent_id, color, 
+    async def get_folder_by_name(
+        name: str,
+        parent_id: Optional[int] = None,
+        channel_id: Optional[int] = None,
+    ) -> Optional[dict[str, Any]]:
+        """Retrieves folder details by case-insensitive name, parent_id, and channel scope."""
+        where_clauses = [
+            "LOWER(name) = LOWER(?)",
+            "(parent_id = ? OR (parent_id IS NULL AND ? IS NULL))",
+        ]
+        params: list[Any] = [name.strip(), parent_id, parent_id]
+        if channel_id is not None:
+            where_clauses.append("(telegram_channel_id = ? OR (telegram_channel_id IS NULL AND ? IS NULL))")
+            params.extend([channel_id, channel_id])
+
+        query = f"""
+            SELECT id, name, parent_id, telegram_channel_id, color, 
                    COALESCE(icon, 'Folder') as icon, 
                    COALESCE(is_favorite, 0) as is_favorite,
                    COALESCE(is_collection, 0) as is_collection, 
                    cover_media_id,
                    created_at 
             FROM folders 
-            WHERE LOWER(name) = LOWER(?) AND (parent_id = ? OR (parent_id IS NULL AND ? IS NULL));
+            WHERE {" AND ".join(where_clauses)};
         """
         async with get_db_connection() as conn:
-            async with conn.execute(query, (name.strip(), parent_id, parent_id)) as cursor:
+            async with conn.execute(query, params) as cursor:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
 
@@ -526,15 +558,26 @@ class MediaRepository:
         is_favorite: int = 0,
         is_collection: int = 0,
         cover_media_id: Optional[int] = None,
+        telegram_channel_id: Optional[int] = None,
     ) -> int:
-        """Creates a new folder / album and returns the folder ID."""
+        """Creates a new folder / album partitioned by Telegram channel ID and returns the folder ID."""
         query = """
-            INSERT INTO folders (name, parent_id, color, icon, is_favorite, is_collection, cover_media_id) 
-            VALUES (?, ?, ?, ?, ?, ?, ?);
+            INSERT INTO folders (name, parent_id, color, icon, is_favorite, is_collection, cover_media_id, telegram_channel_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
         """
         async with get_db_connection() as conn:
             cursor = await conn.execute(
-                query, (name.strip(), parent_id, color, icon or "Folder", is_favorite, is_collection, cover_media_id)
+                query,
+                (
+                    name.strip(),
+                    parent_id,
+                    color,
+                    icon or "Folder",
+                    is_favorite,
+                    is_collection,
+                    cover_media_id,
+                    telegram_channel_id,
+                ),
             )
             await conn.commit()
             return cursor.lastrowid or 0
@@ -543,7 +586,7 @@ class MediaRepository:
     async def get_folder(folder_id: int) -> Optional[dict[str, Any]]:
         """Retrieves folder details by ID."""
         query = """
-            SELECT id, name, parent_id, color, 
+            SELECT id, name, parent_id, telegram_channel_id, color, 
                    COALESCE(icon, 'Folder') as icon, 
                    COALESCE(is_favorite, 0) as is_favorite,
                    COALESCE(is_collection, 0) as is_collection, 
@@ -558,16 +601,21 @@ class MediaRepository:
                 return dict(row) if row else None
 
     @staticmethod
-    async def list_folders() -> list[dict[str, Any]]:
+    async def list_folders(channel_id: Optional[int] = None) -> list[dict[str, Any]]:
         """
-        Retrieves all folders along with their item count and resolved cover thumbnail.
+        Retrieves folders partitioned by Telegram channel ID along with their item count and resolved cover thumbnail.
         For collections, item_count aggregates all media in sub-albums, and sub_album_count is calculated.
-        If f.cover_media_id is set and non-deleted, it uses that item.
-        Otherwise falls back to the most recently added item in that folder or its sub-albums.
+        Cost: O(log N) via index idx_folders_channel.
         """
-        query = """
+        where_clause = ""
+        params: list[Any] = []
+        if channel_id is not None:
+            where_clause = "WHERE f.telegram_channel_id = ?"
+            params.append(channel_id)
+
+        query = f"""
             SELECT 
-                f.id, f.name, f.parent_id, f.color, 
+                f.id, f.name, f.parent_id, f.telegram_channel_id, f.color, 
                 COALESCE(f.icon, 'Folder') as icon, 
                 COALESCE(f.is_favorite, 0) as is_favorite,
                 COALESCE(f.is_collection, 0) as is_collection,
@@ -611,11 +659,12 @@ class MediaRepository:
             FROM folders f
             LEFT JOIN media_folders mf ON mf.folder_id = f.id
             LEFT JOIN media_items m ON m.id = mf.media_id AND m.is_deleted = 0
-            GROUP BY f.id, f.name, f.parent_id, f.color, f.icon, f.is_favorite, f.is_collection, f.cover_media_id, f.created_at
+            {where_clause}
+            GROUP BY f.id, f.name, f.parent_id, f.telegram_channel_id, f.color, f.icon, f.is_favorite, f.is_collection, f.cover_media_id, f.created_at
             ORDER BY f.is_collection DESC, f.is_favorite DESC, f.created_at DESC;
         """
         async with get_db_connection() as conn:
-            async with conn.execute(query) as cursor:
+            async with conn.execute(query, params) as cursor:
                 rows = await cursor.fetchall()
                 return [dict(r) for r in rows]
 

@@ -42,53 +42,42 @@ async def init_db() -> None:
     with open(schema_path, "r", encoding="utf-8") as f:
         schema_sql = f.read()
 
+    # ---------- 1. Lightweight migrations for existing databases before index creation ----------
     async with get_db_connection() as conn:
-        await conn.executescript(schema_sql)
+        # folders table migrations
+        cursor = await conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='folders';")
+        if await cursor.fetchone():
+            cursor = await conn.execute("PRAGMA table_info(folders);")
+            cols = [row[1] for row in await cursor.fetchall()]
+            if "color" not in cols:
+                await conn.execute("ALTER TABLE folders ADD COLUMN color TEXT;")
+            if "icon" not in cols:
+                await conn.execute("ALTER TABLE folders ADD COLUMN icon TEXT DEFAULT 'Folder';")
+            if "is_favorite" not in cols:
+                await conn.execute("ALTER TABLE folders ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
+            if "is_collection" not in cols:
+                await conn.execute("ALTER TABLE folders ADD COLUMN is_collection INTEGER NOT NULL DEFAULT 0;")
+            if "cover_media_id" not in cols:
+                await conn.execute("ALTER TABLE folders ADD COLUMN cover_media_id INTEGER REFERENCES media_items(id) ON DELETE SET NULL;")
+            if "telegram_channel_id" not in cols:
+                await conn.execute("ALTER TABLE folders ADD COLUMN telegram_channel_id INTEGER;")
+                default_ch = get_settings().tg_channel_id
+                if default_ch:
+                    await conn.execute("UPDATE folders SET telegram_channel_id = ? WHERE telegram_channel_id IS NULL;", (default_ch,))
+
+        # media_items table migrations
+        cursor = await conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='media_items';")
+        if await cursor.fetchone():
+            cursor = await conn.execute("PRAGMA table_info(media_items);")
+            media_cols = [row[1] for row in await cursor.fetchall()]
+            if "is_favorite" not in media_cols:
+                await conn.execute("ALTER TABLE media_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
+            if "deleted_at" not in media_cols:
+                await conn.execute("ALTER TABLE media_items ADD COLUMN deleted_at TEXT;")
         await conn.commit()
 
-    # ---------- lightweight migrations for existing databases ----------
+    # ---------- 2. Execute schema.sql (tables and covered indexes) ----------
     async with get_db_connection() as conn:
-        cursor = await conn.execute("PRAGMA table_info(folders);")
-        cols = [row[1] for row in await cursor.fetchall()]
-        if "color" not in cols:
-            await conn.execute("ALTER TABLE folders ADD COLUMN color TEXT;")
-        if "icon" not in cols:
-            await conn.execute("ALTER TABLE folders ADD COLUMN icon TEXT DEFAULT 'Folder';")
-        if "is_favorite" not in cols:
-            await conn.execute("ALTER TABLE folders ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
-        if "is_collection" not in cols:
-            await conn.execute("ALTER TABLE folders ADD COLUMN is_collection INTEGER NOT NULL DEFAULT 0;")
-        if "cover_media_id" not in cols:
-            await conn.execute("ALTER TABLE folders ADD COLUMN cover_media_id INTEGER REFERENCES media_items(id) ON DELETE SET NULL;")
-        
-        # media_items table migrations
-        cursor = await conn.execute("PRAGMA table_info(media_items);")
-        media_cols = [row[1] for row in await cursor.fetchall()]
-        if "is_favorite" not in media_cols:
-            await conn.execute("ALTER TABLE media_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
-            await conn.execute("CREATE INDEX IF NOT EXISTS idx_media_favorite ON media_items(is_favorite) WHERE is_deleted = 0 AND is_favorite = 1;")
-        if "deleted_at" not in media_cols:
-            await conn.execute("ALTER TABLE media_items ADD COLUMN deleted_at TEXT;")
-            await conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_media_trash ON media_items(deleted_at DESC) WHERE is_deleted = 1;"
-            )
-
-        # Enforce unique index on active telegram messages to prevent duplicate insertions
-        await conn.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_media_channel_msg_active 
-            ON media_items(telegram_channel_id, telegram_message_id) 
-            WHERE is_deleted = 0 AND file_hash NOT LIKE '%#alias%';
-            """
-        )
-
-        # Senior DBA: Compound covered index for sub-millisecond timeline queries partitioned by channel
-        await conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_media_channel_timeline 
-            ON media_items(telegram_channel_id, date_taken DESC, id DESC) 
-            WHERE is_deleted = 0;
-            """
-        )
+        await conn.executescript(schema_sql)
         await conn.commit()
 

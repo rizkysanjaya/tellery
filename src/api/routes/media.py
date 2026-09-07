@@ -538,12 +538,15 @@ async def delete_media_item(media_id: int):
 async def get_trash_media(
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
+    channel_id: Optional[int] = Query(None, description="Filter trash items by Telegram channel ID"),
 ):
     """
-    Retrieves paginated list of soft-deleted media items in Trash.
+    Retrieves paginated list of soft-deleted media items in Trash, partitioned by active or specified channel ID.
     """
-    items = await MediaRepository.get_trash_items(limit=limit, offset=offset)
-    total = await MediaRepository.get_trash_count()
+    from src.services.vault_service import get_vault_service
+    active_id = channel_id if channel_id is not None else get_vault_service().get_active_channel_id()
+    items = await MediaRepository.get_trash_items(channel_id=active_id, limit=limit, offset=offset)
+    total = await MediaRepository.get_trash_count(channel_id=active_id)
     return TrashResponse(
         total=total,
         items=[_to_media_response(i) for i in items],
@@ -607,13 +610,15 @@ async def delete_media_permanently(media_id: int):
 
 
 @router.post("/trash/empty")
-async def empty_trash():
+async def empty_trash(channel_id: Optional[int] = Query(None, description="Scope empty trash to specific Telegram channel ID")):
     """
-    Permanently purges all items currently in Trash from Telegram storage and database.
+    Permanently purges all items currently in Trash from Telegram storage and database for the active or specified channel.
     """
+    from src.services.vault_service import get_vault_service
+    active_id = channel_id if channel_id is not None else get_vault_service().get_active_channel_id()
     archive_service = ArchiveService()
     try:
-        result = await archive_service.empty_trash()
+        result = await archive_service.empty_trash(channel_id=active_id)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to empty Trash: {e}")

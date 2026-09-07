@@ -323,9 +323,10 @@ export const App: React.FC = () => {
     debouncedSearchQueryRef.current = debouncedSearchQuery;
   }, [debouncedSearchQuery]);
 
-  const loadFolders = useCallback(() => {
+  const loadFolders = useCallback((channelIdOverride?: number) => {
     setLoadingFolders(true);
-    fetchFolders()
+    const targetChannel = channelIdOverride ?? activeVaultRef.current?.id;
+    fetchFolders(targetChannel)
       .then((res) => {
         setFolders(res);
         setLoadingFolders(false);
@@ -359,10 +360,11 @@ export const App: React.FC = () => {
       });
   }, []);
 
-  const loadTrash = useCallback(async () => {
+  const loadTrash = useCallback(async (channelIdOverride?: number) => {
     setLoadingTrash(true);
     try {
-      const res = await fetchTrashMedia();
+      const targetChannel = channelIdOverride ?? activeVaultRef.current?.id;
+      const res = await fetchTrashMedia(100, 0, targetChannel);
       setTrashItems(res.items);
       setTrashTotal(res.total);
     } catch (err) {
@@ -407,12 +409,15 @@ export const App: React.FC = () => {
 
   const handleSelectVault = useCallback(
     async (channelId: number) => {
-      // 1. Immediately clear timeline and display loading state to ensure old channel items NEVER linger
+      // 1. Immediately clear timeline, folders, and trash to ensure old channel items NEVER linger
       setGroups([]);
       setLoading(true);
       setActiveFolder(null);
       setSelectedMedia(null);
       setSelectedIds(new Set());
+      setFolders([]);
+      setTrashItems([]);
+      setTrashTotal(0);
 
       // 2. Immediately update vaults array state so switcher modal & badges mark this channel as active
       setVaults((prev) =>
@@ -466,10 +471,11 @@ export const App: React.FC = () => {
           await loadVaults();
         }
 
-        // Re-fetch channel-scoped telemetry, metadata, and folders
+        // Re-fetch channel-scoped telemetry, metadata, folders, and trash
         fetchStats(channelId).then(setStats).catch(console.error);
         fetchFilterMetadata(channelId).then(setFilterMetadata).catch(console.error);
-        loadFolders();
+        loadFolders(channelId);
+        loadTrash(channelId);
 
         showToast(
           `Active vault switched to ${matchingVault?.title || channelId}.`,
@@ -527,13 +533,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (authStatus && authStatus.step !== "ready") return;
     loadVaults();
-    fetchStats().then(setStats).catch(console.error);
-    loadFolders();
+    fetchStats(activeVault?.id).then(setStats).catch(console.error);
+    loadFolders(activeVault?.id);
     loadFilterMetadata();
-    fetchTrashMedia(1, 0)
+    fetchTrashMedia(1, 0, activeVault?.id)
       .then((res) => setTrashTotal(res.total))
       .catch(console.error);
-  }, [loadFolders, loadFilterMetadata, loadVaults, authStatus]);
+  }, [loadFolders, loadFilterMetadata, loadVaults, authStatus, activeVault?.id]);
 
   // Instant timeline loading on tab, filter, sort, EXIF filter, folder, or active vault selection (0ms delay)
   useEffect(() => {
@@ -733,7 +739,7 @@ export const App: React.FC = () => {
       setTrashItems((prev) => prev.filter((i) => i.id !== mediaId));
       setTrashTotal((prev) => Math.max(0, prev - 1));
       showToast("Media permanently deleted from Telegram", "success");
-      fetchStats().then(setStats).catch(console.error);
+      fetchStats(activeVaultRef.current?.id).then(setStats).catch(console.error);
     } catch (err: any) {
       showToast(err.message || "Failed to permanently delete media", "error");
     }
@@ -741,11 +747,11 @@ export const App: React.FC = () => {
 
   const handleEmptyTrash = useCallback(async () => {
     try {
-      const res = await emptyTrash();
+      const res = await emptyTrash(activeVaultRef.current?.id);
       setTrashItems([]);
       setTrashTotal(0);
       showToast(res.message || "Trash emptied successfully", "success");
-      fetchStats().then(setStats).catch(console.error);
+      fetchStats(activeVaultRef.current?.id).then(setStats).catch(console.error);
     } catch (err: any) {
       showToast(err.message || "Failed to empty trash", "error");
     }
@@ -985,7 +991,7 @@ export const App: React.FC = () => {
   };
 
   const handleBulkCreateFolderAndAdd = async (name: string, mediaIds?: number[]) => {
-    const created = await createFolder(name);
+    const created = await createFolder(name, null, false, activeVaultRef.current?.id);
     const ids = mediaIds || Array.from(selectedIds);
     if (ids.length > 0) {
       // Use handleBulkAddToFolder to check for any existing folder conflicts
@@ -1036,12 +1042,13 @@ export const App: React.FC = () => {
       }
     }
     // Refresh stats, folders, & trash total
-    fetchStats().then(setStats).catch(console.error);
-    fetchFolders().then(setFolders).catch(console.error);
-    fetchTrashMedia(1, 0)
+    const currentChannel = activeVaultRef.current?.id;
+    fetchStats(currentChannel).then(setStats).catch(console.error);
+    loadFolders(currentChannel);
+    fetchTrashMedia(1, 0, currentChannel)
       .then((res) => setTrashTotal(res.total))
       .catch(console.error);
-  }, []);
+  }, [loadFolders]);
 
   const handleUndoDelete = useCallback(() => {
     if (pendingDeletionTimeoutRef.current) {
@@ -1117,9 +1124,10 @@ export const App: React.FC = () => {
       .catch(console.error);
 
     // 3. Refresh album counts and storage stats
-    fetchFolders().then(setFolders).catch(console.error);
-    fetchStats().then(setStats).catch(console.error);
-  }, []);
+    const currentChannel = activeVaultRef.current?.id;
+    loadFolders(currentChannel);
+    fetchStats(currentChannel).then(setStats).catch(console.error);
+  }, [loadFolders]);
 
   const queueDeleteItems = useCallback(
     (itemsToDelete: MediaItem[]) => {
@@ -1531,7 +1539,7 @@ export const App: React.FC = () => {
             folderNameToItemMap.set(folderName, existing);
           } else {
             try {
-              const newFolder = await createFolder(cleanName, currentActiveFolder.id);
+              const newFolder = await createFolder(cleanName, currentActiveFolder.id, false, activeVaultRef.current?.id);
               currentFolders = [newFolder, ...currentFolders];
               foldersRef.current = currentFolders;
               setFolders(currentFolders);
@@ -1615,7 +1623,7 @@ export const App: React.FC = () => {
         folderNameToItemMap.set(folderName, existing);
       } else {
         try {
-          const newFolder = await createFolder(cleanName);
+          const newFolder = await createFolder(cleanName, null, false, activeVaultRef.current?.id);
           currentFolders = [newFolder, ...currentFolders];
           foldersRef.current = currentFolders;
           setFolders(currentFolders);
@@ -1678,7 +1686,7 @@ export const App: React.FC = () => {
     }
 
     try {
-      await createFolder(cleanName, null, isCollection);
+      await createFolder(cleanName, null, isCollection, activeVaultRef.current?.id);
       loadFolders();
       showToast(`${isCollection ? "Collection" : "Album"} "${cleanName}" created!`, "success");
     } catch (err: any) {

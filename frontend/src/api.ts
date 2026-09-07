@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/api.ts
  * Purpose: Frontend HTTP API client for TeleGallery REST endpoints, uploads, deletions,
- *          albums/folders, favorites, Telegram Multi-Vault channel switching, authentication & onboarding, and sync operations.
+ *          channel-isolated albums/folders & trash, favorites, Telegram Multi-Vault channel switching,
+ *          authentication & onboarding, and sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
@@ -304,8 +305,9 @@ export async function bulkToggleFavoriteMedia(mediaIds: number[], isFavorite: bo
   return response.json();
 }
 
-export async function fetchFolders(): Promise<FolderItem[]> {
-  const response = await fetch(`${API_BASE}/api/folders`);
+export async function fetchFolders(channelId?: number | null): Promise<FolderItem[]> {
+  const url = channelId ? `${API_BASE}/api/folders?channel_id=${channelId}` : `${API_BASE}/api/folders`;
+  const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Failed to fetch folders: ${response.statusText}`);
   }
@@ -315,7 +317,8 @@ export async function fetchFolders(): Promise<FolderItem[]> {
 export async function createFolder(
   name: string,
   parentId?: number | null,
-  isCollection: boolean = false
+  isCollection: boolean = false,
+  channelId?: number | null
 ): Promise<FolderItem> {
   const response = await fetch(`${API_BASE}/api/folders`, {
     method: "POST",
@@ -325,6 +328,7 @@ export async function createFolder(
       parent_id: parentId || null,
       is_collection: isCollection,
       icon: isCollection ? "Layers" : "Folder",
+      channel_id: channelId ?? undefined,
     }),
   });
 
@@ -557,11 +561,18 @@ export async function fetchSystemStats(): Promise<SystemStats> {
   return response.json();
 }
 
-export async function fetchTrashMedia(limit: number = 100, offset: number = 0): Promise<TrashResponse> {
+export async function fetchTrashMedia(
+  limit: number = 100,
+  offset: number = 0,
+  channelId?: number | null
+): Promise<TrashResponse> {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
   });
+  if (channelId !== undefined && channelId !== null) {
+    params.append("channel_id", channelId.toString());
+  }
   const response = await fetch(`${API_BASE}/api/media/trash?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch trash items: ${response.statusText}`);
@@ -601,8 +612,9 @@ export async function permanentDeleteMediaItem(mediaId: number): Promise<{ statu
   return response.json();
 }
 
-export async function emptyTrash(): Promise<{ status: string; purged_count: number; message: string }> {
-  const response = await fetch(`${API_BASE}/api/media/trash/empty`, {
+export async function emptyTrash(channelId?: number | null): Promise<{ status: string; purged_count: number; message: string }> {
+  const url = channelId ? `${API_BASE}/api/media/trash/empty?channel_id=${channelId}` : `${API_BASE}/api/media/trash/empty`;
+  const response = await fetch(url, {
     method: "POST",
   });
   if (!response.ok) {

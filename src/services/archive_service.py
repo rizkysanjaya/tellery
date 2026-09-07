@@ -385,11 +385,12 @@ class ArchiveService:
             "message": "Media permanently deleted from Telegram vault and database.",
         }
 
-    async def empty_trash(self) -> dict[str, Any]:
+    async def empty_trash(self, channel_id: Optional[int] = None) -> dict[str, Any]:
         """
-        Permanently purges all items currently in Trash from Telegram storage and database.
+        Permanently purges all items currently in Trash from Telegram storage and database,
+        optionally scoped to a specific channel.
         """
-        items = await self.repository.get_all_trash_media()
+        items = await self.repository.get_all_trash_media(channel_id=channel_id)
         purged_count = 0
 
         for media in items:

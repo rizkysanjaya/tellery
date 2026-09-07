@@ -67,11 +67,20 @@ CREATE INDEX IF NOT EXISTS idx_media_channel_timeline
     ON media_items(telegram_channel_id, date_taken DESC, id DESC) 
     WHERE is_deleted = 0;
 
+CREATE INDEX IF NOT EXISTS idx_media_trash_channel 
+    ON media_items(telegram_channel_id, deleted_at DESC) 
+    WHERE is_deleted = 1;
+
+CREATE INDEX IF NOT EXISTS idx_media_channel_favorites 
+    ON media_items(telegram_channel_id, date_taken DESC, id DESC) 
+    WHERE is_deleted = 0 AND is_favorite = 1;
+
 -- 2. Virtual Folders & Albums Table
 CREATE TABLE IF NOT EXISTS folders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,                       -- Folder / Album display name
     parent_id INTEGER,                        -- Nullable parent folder for nested hierarchies / collections
+    telegram_channel_id INTEGER,              -- Scoped Telegram storage channel ID (-100...)
     color TEXT,                               -- Optional hex color for folder icon (e.g. '#6366f1')
     icon TEXT DEFAULT 'Folder',               -- Optional icon identifier (e.g. 'Folder', 'Heart', 'Star')
     is_favorite INTEGER NOT NULL DEFAULT 0,   -- 1 if pinned to favorites, 0 otherwise
@@ -83,6 +92,7 @@ CREATE TABLE IF NOT EXISTS folders (
 );
 
 CREATE INDEX IF NOT EXISTS idx_folders_parent ON folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_folders_channel ON folders(telegram_channel_id, parent_id, id);
 
 -- 3. Media <-> Folder Table (1-to-1: A media item belongs to at most 1 folder)
 CREATE TABLE IF NOT EXISTS media_folders (
