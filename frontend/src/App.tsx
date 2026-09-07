@@ -94,6 +94,7 @@ import { FolderCoverModal } from "./components/ui/FolderCoverModal";
 import { FolderMoveModal } from "./components/ui/FolderMoveModal";
 import { FolderDeleteConfirmModal } from "./components/ui/FolderDeleteConfirmModal";
 import { MediaDeleteConfirmModal } from "./components/ui/MediaDeleteConfirmModal";
+import { LogoutConfirmModal } from "./components/ui/LogoutConfirmModal";
 import { DragDropDock } from "./components/ui/DragDropDock";
 import { DragStackedPreview } from "./components/ui/DragStackedPreview";
 import { BackToTopButton } from "./components/ui/BackToTopButton";
@@ -277,6 +278,10 @@ export const App: React.FC = () => {
   const [folderToRename, setFolderToRename] = useState<FolderItem | null>(null);
   const [folderToCover, setFolderToCover] = useState<FolderItem | null>(null);
   const [folderToMove, setFolderToMove] = useState<FolderItem | null>(null);
+
+  // Logout Confirmation Modal State
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Upload Tasks Queue State & Hidden File Input Ref
   const [uploadTasks, setUploadTasks] = useState<UploadTask[]>([]);
@@ -758,22 +763,28 @@ export const App: React.FC = () => {
     }
   }, [showToast]);
 
-  const handleLogout = useCallback(async () => {
-    if (window.confirm("Are you sure you want to disconnect your Telegram session? You will need to log in again.")) {
-      try {
-        await logoutAccount();
-        setAuthStatus({
-          has_credentials: false,
-          is_authenticated: false,
-          step: "need_credentials",
-          user: null,
-          active_vault: null,
-          phone: null,
-        });
-        showToast("Telegram session disconnected successfully.", "info");
-      } catch (err: any) {
-        showToast(err.message || "Failed to disconnect Telegram session", "error");
-      }
+  const handleLogout = useCallback(() => {
+    setIsLogoutModalOpen(true);
+  }, []);
+
+  const handleConfirmLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await logoutAccount();
+      setAuthStatus({
+        has_credentials: false,
+        is_authenticated: false,
+        step: "need_credentials",
+        user: null,
+        active_vault: null,
+        phone: null,
+      });
+      setIsLogoutModalOpen(false);
+      showToast("Telegram session disconnected successfully.", "info");
+    } catch (err: any) {
+      showToast(err.message || "Failed to disconnect Telegram session", "error");
+    } finally {
+      setIsLoggingOut(false);
     }
   }, [showToast]);
 
@@ -2625,6 +2636,16 @@ export const App: React.FC = () => {
         onConfirm={handleConfirmDeleteFolder}
         onCancel={() => setFoldersToDelete([])}
         isDeleting={isDeletingFolder}
+      />
+
+      {/* Telegram Session Disconnect / Logout Confirmation Dialog */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onConfirm={handleConfirmLogout}
+        onCancel={() => !isLoggingOut && setIsLogoutModalOpen(false)}
+        isLoggingOut={isLoggingOut}
+        accountName={stats?.account_name || authStatus?.user?.first_name || undefined}
+        vaultTitle={activeVaultRef.current?.title || authStatus?.active_vault?.title}
       />
 
       {/* Google Drive-Style Floating Upload Queue Manager */}
