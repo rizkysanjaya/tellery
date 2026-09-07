@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/FolderDeleteConfirmModal.tsx
- * Purpose: Neomorphic confirmation dialog before deleting an Album or Collection
+ * Purpose: Neomorphic confirmation dialog before deleting an Album, Collection, or multiple selected items
  *          with clear explanations and protection against accidental deletion.
  * Used by: frontend/src/App.tsx, frontend/src/components/FolderGrid.tsx, frontend/src/components/Sidebar.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -16,7 +16,8 @@ import { FolderItem } from "../../types";
 
 interface FolderDeleteConfirmModalProps {
   isOpen: boolean;
-  folder: FolderItem | null;
+  folder?: FolderItem | null;
+  folders?: FolderItem[];
   onConfirm: () => void;
   onCancel: () => void;
   isDeleting?: boolean;
@@ -25,6 +26,7 @@ interface FolderDeleteConfirmModalProps {
 export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> = ({
   isOpen,
   folder,
+  folders,
   onConfirm,
   onCancel,
   isDeleting = false,
@@ -44,10 +46,25 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isDeleting, onCancel, onConfirm]);
 
-  if (!isOpen || !folder) return null;
+  const targetFolders = folders && folders.length > 0 ? folders : (folder ? [folder] : []);
+  if (!isOpen || targetFolders.length === 0) return null;
 
-  const isCollection = folder.is_collection;
-  const entityLabel = isCollection ? "Collection" : "Album";
+  const isMultiple = targetFolders.length > 1;
+  const anyCollection = targetFolders.some((f) => f.is_collection);
+  const anyAlbum = targetFolders.some((f) => !f.is_collection);
+
+  let entityLabel = "Album";
+  if (isMultiple) {
+    if (anyCollection && anyAlbum) {
+      entityLabel = `${targetFolders.length} Items`;
+    } else if (anyCollection) {
+      entityLabel = `${targetFolders.length} Collections`;
+    } else {
+      entityLabel = `${targetFolders.length} Albums`;
+    }
+  } else {
+    entityLabel = targetFolders[0].is_collection ? "Collection" : "Album";
+  }
 
   return (
     <div
@@ -74,28 +91,46 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
         {/* Header Icon + Title */}
         <div className="flex items-center gap-3.5 mb-4">
           <div className="w-11 h-11 rounded-neo bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 neo-pressed">
-            {isCollection ? <Layers className="w-5 h-5 text-red-400" /> : <Trash2 className="w-5 h-5 text-red-400" />}
+            {anyCollection ? <Layers className="w-5 h-5 text-red-400" /> : <Trash2 className="w-5 h-5 text-red-400" />}
           </div>
           <div>
             <h3 className="text-base font-bold text-on-surface">
               Delete {entityLabel}?
             </h3>
             <p className="text-xs text-on-surface-variant">
-              This will remove the {entityLabel.toLowerCase()} organizer.
+              This will remove the {isMultiple ? "selected organizers" : entityLabel.toLowerCase() + " organizer"}.
             </p>
           </div>
         </div>
 
         {/* Content Info */}
         <div className="my-4 p-3.5 rounded-neo-lg bg-surface-container/60 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed space-y-2">
-          <p>
-            Are you sure you want to delete {entityLabel.toLowerCase()}{" "}
-            <span className="text-on-surface font-bold break-all">"{folder.name}"</span>?
-          </p>
+          {isMultiple ? (
+            <div>
+              <p className="mb-1.5">
+                Are you sure you want to delete{" "}
+                <span className="text-on-surface font-bold">{targetFolders.length} selected organizers</span>?
+              </p>
+              <div className="max-h-28 overflow-y-auto space-y-1 pr-1 border border-outline-variant/10 rounded-neo p-2 bg-surface-base/50">
+                {targetFolders.map((f) => (
+                  <div key={f.id} className="flex items-center gap-1.5 text-on-surface font-medium truncate">
+                    <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                    <span className="text-[10px] text-on-surface-variant">({f.is_collection ? "Collection" : `${f.item_count} items`})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p>
+              Are you sure you want to delete {entityLabel.toLowerCase()}{" "}
+              <span className="text-on-surface font-bold break-all">"{targetFolders[0].name}"</span>?
+            </p>
+          )}
           <div className="flex items-start gap-2 pt-1 text-[11px] text-on-surface-variant/80">
             <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
             <span>
-              {isCollection
+              {anyCollection
                 ? "Contained albums will become standalone albums. All photos and videos remain completely safe in your vault."
                 : "Original photos and videos will remain completely safe in your cloud vault timeline."}
             </span>

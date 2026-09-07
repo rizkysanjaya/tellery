@@ -1,7 +1,7 @@
 """
 =============================================================================
 Module: src.main
-Purpose: Main application entry point running Uvicorn ASGI server for TeleGallery.
+Purpose: Main application entry point running Uvicorn ASGI server for Tellery.
 Used by: CLI, systemd / background service launcher.
 Dependencies: uvicorn, argparse, src.api.app
 Public Members: main()
@@ -27,7 +27,7 @@ app = create_app()
 
 def main() -> None:
     """CLI server launcher."""
-    parser = argparse.ArgumentParser(description="TeleGallery FastAPI Server")
+    parser = argparse.ArgumentParser(description="Tellery FastAPI Server")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address to bind (default: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="Port to bind (default: 8000)")
     parser.add_argument("--no-reload", action="store_true", help="Disable auto-reloading")
@@ -36,7 +36,7 @@ def main() -> None:
     should_reload = not args.no_reload
 
     print("\n" + "=" * 70)
-    print("               TeleGallery Archive & Streaming Server")
+    print("                 Tellery Archive & Streaming Server")
     print("=" * 70)
     print(f"[*] Server URL:        http://{args.host}:{args.port}")
     print(f"[*] API Documentation: http://{args.host}:{args.port}/docs")

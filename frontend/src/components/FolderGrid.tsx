@@ -54,7 +54,7 @@ interface FolderGridProps {
   onClearSearch?: () => void;
   onSelectFolder: (folder: FolderItem) => void;
   onCreateFolder: (name: string, isCollection?: boolean) => Promise<void>;
-  onDeleteFolder: (folder: FolderItem | number) => void | Promise<void>;
+  onDeleteFolder: (folder: FolderItem | FolderItem[] | number | number[]) => void | Promise<void>;
   onRenameFolder?: (folderId: number, newName: string) => Promise<void>;
   onCustomizeFolder?: (folderId: number, color: string | null, icon: string) => Promise<void>;
   onSetFolderCover?: (folderId: number, mediaId: number | null) => Promise<void>;
@@ -264,18 +264,11 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (isBulkProcessing) return;
-    const ids = Array.from(selectedFolderIds);
-    if (ids.length === 1) {
-      const target = folders.find((f) => f.id === ids[0]);
-      if (target) onDeleteFolder(target);
-    } else {
-      for (const id of ids) {
-        const target = folders.find((f) => f.id === id);
-        if (target) onDeleteFolder(target);
-      }
-    }
+    const selected = folders.filter((f) => selectedFolderIds.has(f.id));
+    if (selected.length === 0) return;
+    onDeleteFolder(selected);
     setSelectedFolderIds(new Set());
   };
 

@@ -58,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="space-y-2">
               <h2 className="text-xl font-bold text-on-surface tracking-tight">Something Went Wrong</h2>
               <p className="text-sm text-on-surface-variant leading-relaxed">
-                TeleGallery encountered an unexpected display error. Your cloud media and vault files remain safe in Telegram.
+                Tellery encountered an unexpected display error. Your cloud media and vault files remain safe in Telegram.
               </p>
             </div>
 

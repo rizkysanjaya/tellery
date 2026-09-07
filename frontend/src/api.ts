@@ -8,7 +8,7 @@
  * Dependencies: frontend/src/types.ts
  * Public Members: fetchTimeline, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
  *                deleteMediaItem, toggleFavoriteMedia, bulkToggleFavoriteMedia,
- *                fetchFolders, createFolder, deleteFolder,
+ *                fetchFolders, createFolder, deleteFolder, bulkDeleteFolders,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
  *                addMediaToFolder, removeMediaFromFolder, triggerVaultSync, triggerChannelSync, fetchSyncStatus,
  *                fetchTrashMedia, restoreMediaItem, bulkRestoreMedia, permanentDeleteMediaItem, emptyTrash,
@@ -350,6 +350,26 @@ export async function deleteFolder(folderId: number): Promise<any> {
 
   if (!response.ok) {
     throw new Error(`Failed to delete folder: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function bulkDeleteFolders(
+  folderIds: number[]
+): Promise<{ status: string; deleted_count: number; folder_ids: number[] }> {
+  const response = await fetch(`${API_BASE}/api/folders/bulk-delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ folder_ids: folderIds }),
+  });
+
+  if (!response.ok) {
+    let errorDetail = response.statusText;
+    try {
+      const data = await response.json();
+      if (data.detail) errorDetail = data.detail;
+    } catch {}
+    throw new Error(errorDetail || "Failed to delete folders");
   }
   return response.json();
 }

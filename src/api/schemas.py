@@ -8,7 +8,7 @@ Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsRespons
                 FolderResponse, CreateFolderRequest, AddMediaToFolderRequest,
                 UpdateFolderColorRequest, FavoriteMediaRequest, BulkFavoriteMediaRequest,
                 RestoreMediaBatchRequest, BatchDownloadRequest, TrashResponse,
-                CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse
+                CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, BulkDeleteFoldersRequest
 Side Effects: None
 =============================================================================
 """
@@ -212,4 +212,11 @@ class BulkFavoriteMediaRequest(BaseModel):
 
     media_ids: list[int] = Field(min_length=1, description="List of media IDs to update")
     is_favorite: bool = Field(description="True to mark as favorite, False to unfavorite")
+
+
+class BulkDeleteFoldersRequest(BaseModel):
+    """Payload for batch deleting multiple folders or collections."""
+
+    folder_ids: list[int] = Field(min_length=1, description="List of folder IDs to delete")
+
 

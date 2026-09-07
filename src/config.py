@@ -1,9 +1,10 @@
 """
 =============================================================================
 Module: src.config
-Purpose: Configuration and environment variables management for TeleGallery.
-Used by: src.storage.telegram_client, src.database.connection, CLI runners.
-Dependencies: pydantic_settings, dotenv, pathlib
+Purpose: Configuration and environment variables management for Tellery.
+         Gracefully handles empty strings in .env by coercing optional integer IDs to None.
+Used by: src.storage.telegram_client, src.database.connection, src.services.auth_service, CLI runners.
+Dependencies: pydantic, pydantic_settings, dotenv, pathlib
 Public Members: Settings, get_settings()
 Side Effects: Reads environment variables from .env file and process env.
 =============================================================================
@@ -12,6 +13,7 @@ Side Effects: Reads environment variables from .env file and process env.
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,6 +31,13 @@ class Settings(BaseSettings):
     tg_api_hash: Optional[str] = None
     tg_channel_id: Optional[int] = None
     tg_session_name: str = "telegallery_session"
+
+    @field_validator("tg_api_id", "tg_channel_id", mode="before")
+    @classmethod
+    def coerce_empty_to_none(cls, v):
+        if v == "" or v is None:
+            return None
+        return v
 
     # SQLite Database Configuration
     db_path: str = "data/telegallery.db"

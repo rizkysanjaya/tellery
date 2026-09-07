@@ -291,7 +291,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="flex items-center justify-between px-5 py-4 mb-1">
           <div className="min-w-0 flex-1">
-            <h1 className="font-bold text-xl text-primary tracking-tight">TeleGallery</h1>
+            <h1 className="font-bold text-xl text-primary tracking-tight">Tellery</h1>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">

@@ -1,7 +1,7 @@
 <!--
 =============================================================================
 Module: PRODUCT.md
-Purpose: Durable product truth specification and architecture contract for TeleGallery.
+Purpose: Durable product truth specification and architecture contract for Tellery.
 Used by: Impeccable design system, AI agents, UI engineering workflows.
 Dependencies: None.
 Public Members: Product definition, platform, positioning, constraints, principles.
@@ -23,11 +23,11 @@ Personal archive owners, content creators, and privacy-conscious users who want 
 
 ## Product Purpose
 
-TeleGallery delivers a zero-storage-cost personal media preservation and instant streaming gallery. It bridges a private Telegram channel (uncompressed, unlimited $0 cloud warehouse) with a local SQLite metadata catalog and a modern, high-performance web storefront. Success means managing thousands of high-resolution photos and 4K videos with Google Photos/Drive-grade fluidity, instant seekable streaming, and complete data ownership.
+Tellery delivers a zero-storage-cost personal media preservation and instant streaming gallery. It bridges a private Telegram channel (uncompressed, unlimited $0 cloud warehouse) with a local SQLite metadata catalog and a modern, high-performance web storefront. Success means managing thousands of high-resolution photos and 4K videos with Google Photos/Drive-grade fluidity, instant seekable streaming, and complete data ownership.
 
 ## Positioning
 
-Unlike conventional cloud storage (Google Photos/iCloud/Dropbox) that charges recurring monthly storage fees, and unlike basic Telegram file bots that only serve download links or media players, TeleGallery provides a true visual archive experience: automated SHA-256 deduplication, EXIF timeline organization, local WebP thumbnail caching, multi-select bulk workflows, virtual folder/album hierarchies, and HTTP 206 chunk-aligned video seeking.
+Unlike conventional cloud storage (Google Photos/iCloud/Dropbox) that charges recurring monthly storage fees, and unlike basic Telegram file bots that only serve download links or media players, Tellery provides a true visual archive experience: automated SHA-256 deduplication, EXIF timeline organization, local WebP thumbnail caching, multi-select bulk workflows, virtual folder/album hierarchies, and HTTP 206 chunk-aligned video seeking.
 
 ## Operating Context
 

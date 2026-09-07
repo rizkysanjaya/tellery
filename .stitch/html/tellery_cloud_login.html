@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+
+<html class="dark h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tellery — Unlimited Cloud Media Vault</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Plus Jakarta Sans -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Custom Configuration -->
+<script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            midnight: {
+              950: '#070a12',
+              900: '#0c111e',
+              850: '#101729',
+              800: '#141d34',
+              700: '#1c2847',
+            },
+            accent: {
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          },
+          boxShadow: {
+            'glow-accent': '0 0 32px -4px rgba(99, 102, 241, 0.45)',
+            'glow-subtle': '0 0 45px -10px rgba(99, 102, 241, 0.25)',
+            'card-elevated': '0 25px 60px -15px rgba(2, 6, 23, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08) inset',
+            'inner-tactile': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.05)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Glass & Lighting Styles -->
+<style data-purpose="ambient-lighting">
+    body {
+      background-color: #070a13;
+      background-image: 
+        radial-gradient(circle at 50% 45%, rgba(67, 56, 202, 0.18) 0%, rgba(15, 23, 42, 0) 65%),
+        radial-gradient(circle at 80% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 20% 85%, rgba(79, 70, 229, 0.06) 0%, transparent 45%);
+    }
+
+    .glass-card {
+      background: linear-gradient(180deg, rgba(20, 29, 52, 0.72) 0%, rgba(13, 19, 36, 0.88) 100%);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: 
+        0 30px 70px -15px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+        0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
+    }
+
+    .glass-input {
+      background: rgba(9, 13, 24, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+    .glass-input:focus-within {
+      border-color: rgba(99, 102, 241, 0.8);
+      box-shadow: 
+        inset 0 2px 4px rgba(0, 0, 0, 0.4),
+        0 0 0 3px rgba(99, 102, 241, 0.2),
+        0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .brand-glow {
+      filter: drop-shadow(0 0 16px rgba(129, 140, 248, 0.45));
+    }
+  </style>
+<!-- END: Custom Glass & Lighting Styles -->
+</head>
+<body class="h-full flex flex-col justify-between text-slate-200 antialiased font-sans selection:bg-indigo-500 selection:text-white relative overflow-x-hidden min-h-screen">
+<!-- BEGIN: Ambient Background Artifacts -->
+<div aria-hidden="true" class="fixed inset-0 pointer-events-none z-0" data-purpose="background-ambient-effects">
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] bg-indigo-600/10 rounded-full blur-[140px]"></div>
+<div class="absolute -top-32 right-1/4 w-96 h-96 bg-purple-600/10 rounded-full blur-[120px]"></div>
+</div>
+<!-- END: Ambient Background Artifacts -->
+<!-- BEGIN: Top Navigation / Brand Anchor -->
+<header class="w-full relative z-10 pt-6 px-6 sm:px-10 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-purple-600/30 border border-indigo-400/20 flex items-center justify-center">
+<!-- Minimalist Tellery Mark -->
+<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24">
+<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+</svg>
+</div>
+<span class="text-sm font-semibold tracking-wide text-slate-200">Tellery<span class="text-indigo-400 font-bold">.vault</span></span>
+</div>
+<!-- Quick Status Badge -->
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-800/60 border border-slate-700/50 text-slate-300">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+      Telegram MTProto 2.0 Live
+    </div>
+</header>
+<!-- END: Top Navigation / Brand Anchor -->
+<!-- BEGIN: Main Login Content Container -->
+<main class="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12" data-purpose="authentication-screen">
+<!-- BEGIN: Glassmorphic Auth Card -->
+<div class="w-full max-w-[500px] glass-card rounded-3xl p-6 sm:p-9 relative overflow-hidden transition-all duration-300" data-purpose="login-card">
+<!-- Top Decorative Sheen Accent -->
+<div class="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-32 bg-indigo-500/15 blur-2xl rounded-full pointer-events-none"></div>
+<!-- BEGIN: Product Header Section -->
+<section class="text-center flex flex-col items-center mb-6" data-purpose="brand-header">
+<!-- Glowing Cloud Vault Emblem -->
+<div class="w-14 h-14 rounded-2xl bg-gradient-to-b from-slate-800/80 to-slate-900/90 border border-slate-700/80 shadow-inner flex items-center justify-center mb-4 brand-glow group cursor-default">
+<svg class="w-7 h-7 text-indigo-300 group-hover:scale-105 transition-transform duration-300" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24">
+<!-- Sleek Modern Cloud Outline -->
+<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+</svg>
+</div>
+<h1 class="text-2xl sm:text-[28px] font-bold text-white tracking-tight flex items-center gap-2">
+          Tellery
+        </h1>
+<p class="text-xs sm:text-sm font-normal text-slate-400 mt-1 max-w-xs">
+          Unlimited Cloud Media Vault <span class="text-slate-600 font-semibold mx-1">·</span> Zero Subscription Fees
+        </p>
+<!-- Stepper Indicator -->
+<div aria-label="Progress Indicator: Step 1 of 5" class="flex items-center gap-1.5 mt-5" data-purpose="stepper">
+<!-- Active Pill (Step 1) -->
+<div class="w-6 h-1.5 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.6)] transition-all duration-300"></div>
+<!-- Inactive Step Dots -->
+<div class="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+</div>
+</section>
+<!-- END: Product Header Section -->
+<!-- BEGIN: Step Details & Instruction -->
+<div class="space-y-1.5 mb-6 text-left" data-purpose="step-instructions">
+<div class="flex items-center gap-2 text-white font-semibold text-base sm:text-lg tracking-tight">
+<!-- Phone Icon matching reference -->
+<div class="p-1 rounded-md text-indigo-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewbox="0 0 24 24">
+<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+</svg>
+</div>
+<span>Enter Phone Number</span>
+</div>
+<p class="text-xs sm:text-[13px] text-slate-400 pl-6 leading-relaxed">
+          Telegram will deliver an official login code to your active Telegram sessions.
+        </p>
+</div>
+<!-- END: Step Details & Instruction -->
+<!-- BEGIN: Authentication Form -->
+<form class="space-y-5" data-purpose="auth-phone-form" id="phone-auth-form" onsubmit="event.preventDefault();">
+<!-- Phone Input Block -->
+<div class="space-y-2">
+<label class="block text-[11px] font-bold uppercase tracking-wider text-slate-400" for="phone-input">
+            Mobile Number (with Country Code)
+          </label>
+<!-- Tactile Input Container -->
+<div class="glass-input rounded-xl px-3.5 py-3 transition-all duration-200 flex items-center gap-3">
+<!-- Quick Country Tag Selector / Flag -->
+<button class="flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-xs font-semibold text-slate-300 bg-slate-800/70 hover:bg-slate-800 border border-slate-700/60 transition-colors" title="Select Country" type="button">
+<span class="text-sm">🇮🇩</span>
+<span>ID</span>
+<svg class="w-3 h-3 text-slate-400 ml-0.5" fill="currentColor" viewbox="0 0 20 20">
+<path clip-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" fill-rule="evenodd"></path>
+</svg>
+</button>
+<!-- Vertical Separator Divider -->
+<div aria-hidden="true" class="h-5 w-[1px] bg-slate-700/70"></div>
+<!-- Core Phone Input -->
+<input autocomplete="tel" class="w-full bg-transparent border-0 p-0 text-white font-mono text-sm sm:text-base tracking-wide focus:ring-0 placeholder-slate-600 focus:outline-none" id="phone-input" name="phone" placeholder="+62 812 3456 7890" required="" type="tel" value="+62 812 3456 7890"/>
+<!-- Verified Indicator Icon -->
+<div class="text-emerald-400 flex-shrink-0" title="Valid telephone format">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M4.5 12.75l6 6 9-13.5" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<!-- Helper hint -->
+<div class="flex items-center justify-between text-[11px] text-slate-500 pt-0.5 px-0.5">
+<span>Example: <span class="font-mono text-slate-400">+6281234567890</span> or <span class="font-mono text-slate-400">+12025550143</span></span>
+<span class="text-slate-500 hover:text-slate-300 cursor-pointer transition-colors" title="Why is phone required?">Need help?</span>
+</div>
+</div>
+<!-- BEGIN: Action Buttons -->
+<div class="flex items-center gap-3 pt-2" data-purpose="form-actions">
+<!-- Back Button -->
+<button class="px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:text-white bg-slate-800/70 hover:bg-slate-800 border border-slate-700/70 active:scale-[0.98] transition-all duration-150 flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-slate-600" type="button">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24">
+<path d="m15 18-6-6 6-6"></path>
+</svg>
+<span>Back</span>
+</button>
+<!-- Primary Submit Button -->
+<button class="flex-1 py-3 px-5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 active:scale-[0.985] shadow-glow-accent hover:shadow-[0_0_36px_rgba(99,102,241,0.65)] transition-all duration-200 flex items-center justify-center gap-2 group focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900" type="submit">
+<span>Send Login Code</span>
+<svg class="w-4 h-4 text-white group-hover:translate-x-0.5 transition-transform duration-200" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" viewbox="0 0 24 24">
+<path d="M5 12h14"></path>
+<path d="m12 5 7 7-7 7"></path>
+</svg>
+</button>
+</div>
+<!-- END: Action Buttons -->
+</form>
+<!-- END: Authentication Form -->
+<!-- Divider / Or Section -->
+<div aria-hidden="true" class="relative my-6">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-slate-800"></div>
+</div>
+<div class="relative flex justify-center text-[10px] uppercase font-bold tracking-widest">
+<span class="bg-[#101729] px-3 text-slate-500 rounded-full border border-slate-800/80">Alternative</span>
+</div>
+</div>
+<!-- Quick QR Code Option -->
+<button class="w-full py-2.5 px-3 rounded-xl border border-slate-700/50 bg-slate-900/40 hover:bg-slate-800/50 text-slate-300 text-xs font-medium flex items-center justify-center gap-2.5 transition-colors group" type="button">
+<svg class="w-4 h-4 text-indigo-400 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<rect height="5" rx="1" width="5" x="3" y="3"></rect>
+<rect height="5" rx="1" width="5" x="16" y="3"></rect>
+<rect height="5" rx="1" width="5" x="3" y="16"></rect>
+<path d="M21 16h-3a2 2 0 0 0-2 2v3"></path>
+<path d="M21 21v.01"></path>
+<path d="M12 7v3a2 2 0 0 1-2 2H7"></path>
+<path d="M3 12h.01"></path>
+<path d="M12 3h.01"></path>
+<path d="M12 16v.01"></path>
+<path d="M16 12h1"></path>
+<path d="M21 12v.01"></path>
+<path d="M12 21v-1"></path>
+</svg>
+<span>Quick Scan with Telegram Mobile App</span>
+</button>
+<!-- Trust & Encryption Footnote -->
+<div class="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between text-[11px] text-slate-400">
+<div class="flex items-center gap-1.5">
+<svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+</svg>
+<span class="text-slate-400">End-to-End Encrypted</span>
+</div>
+<div class="text-slate-400 hover:text-slate-300 cursor-help" title="No cloud sync data is shared with 3rd parties">
+          Official Client Protocol
+        </div>
+</div>
+</div>
+<!-- END: Glassmorphic Auth Card -->
+</main>
+<!-- END: Main Login Content Container -->
+<!-- BEGIN: Bottom Page Footer -->
+<footer class="relative z-10 w-full py-5 px-6 text-center text-xs text-slate-400 border-t border-slate-800/40" data-purpose="site-footer">
+<div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5">
+<p class="text-slate-400">
+        Secured via <span class="text-slate-300 font-medium">Telegram MTProto 2.0 API</span> · Zero Knowledge Storage Architecture
+      </p>
+<div class="flex items-center gap-4 text-slate-400 text-[11px]">
+<a class="hover:text-slate-300 transition-colors" href="#">Privacy Shield</a>
+<span>•</span>
+<a class="hover:text-slate-300 transition-colors" href="#">Documentation</a>
+<span>•</span>
+<a class="hover:text-slate-300 transition-colors" href="#">Status</a>
+</div>
+</div>
+</footer>
+<!-- END: Bottom Page Footer -->
+<!-- BEGIN: Interactive Formatting Script -->
+<script data-purpose="phone-input-formatter">
+    // Auto-focus the input and highlight cursor position
+    document.addEventListener('DOMContentLoaded', () => {
+      const phoneInput = document.getElementById('phone-input');
+      if (phoneInput) {
+        phoneInput.focus();
+        
+        // Simple formatter helper on keystroke
+        phoneInput.addEventListener('input', (e) => {
+          let value = e.target.value;
+          // Keep leading plus symbol intact
+          if (!value.startsWith('+')) {
+            value = '+' + value.replace(/[^\d]/g, '');
+          }
+        });
+      }
+    });
+  </script>
+<!-- END: Interactive Formatting Script -->
+</body></html>

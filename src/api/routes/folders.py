@@ -6,7 +6,7 @@ Purpose: REST endpoints for creating, managing, organizing, renaming, customizin
          and exporting full albums as ZIP archives with zero-copy kernel streaming.
 Used by: Web UI Album views, Lightbox folder assignment drawer, Sidebar, and Action menus.
 Dependencies: fastapi, typing, src.database.repository, src.api.schemas, src.services.vault_service, src.services.zip_export_service
-Public Members: router, list_folders, create_folder, get_folder, delete_folder
+Public Members: router, list_folders, create_folder, get_folder, delete_folder, bulk_delete_folders
 Side Effects: Inserts, updates, and deletes records in folders and media_folders tables, spools temp album ZIPs.
 =============================================================================
 """
@@ -16,6 +16,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from src.api.schemas import (
     AddMediaToFolderRequest,
+    BulkDeleteFoldersRequest,
     CreateFolderRequest,
     FolderMediaItemResponse,
     FolderResponse,
@@ -145,6 +146,15 @@ async def delete_folder(folder_id: int):
 
     await MediaRepository.delete_folder(folder_id)
     return {"status": "deleted", "folder_id": folder_id}
+
+
+@router.post("/bulk-delete")
+async def bulk_delete_folders(payload: BulkDeleteFoldersRequest):
+    """
+    Deletes multiple folders/collections in a single atomic transaction without deleting underlying media files.
+    """
+    deleted_count = await MediaRepository.bulk_delete_folders(payload.folder_ids)
+    return {"status": "deleted", "deleted_count": deleted_count, "folder_ids": payload.folder_ids}
 
 
 @router.patch("/{folder_id:int}", response_model=FolderResponse)

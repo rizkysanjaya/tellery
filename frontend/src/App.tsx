@@ -9,8 +9,8 @@
  *          hash-based URL routing & state persistence (#/timeline, #/albums, #/albums/:id, #/favorites, #/trash),
  *          browser Back/Forward history navigation, deep linking across page refreshes (F5),
  *          dynamic code-splitting with React.lazy (<500 kB initial bundle size optimization),
- *          multi-select system, virtual folders & icon/color customization, dedicated dual-section
- *          Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
+ *          multi-select system, virtual folders & icon/color customization, single & bulk album/collection deletion,
+ *          dedicated dual-section Favorites view (Favorite Albums + strictly filtered Favorite Media), individual media favoriting,
  *          Trash & Data Recovery system (safe soft-delete, 1-click restore, permanent delete, empty trash),
  *          batch ZIP archive downloads for multi-selected items, album ZIP exports,
  *          smart EXIF & metadata filtering (camera devices, orientation, resolution, calendar periods),
@@ -23,7 +23,7 @@
  *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts, OnboardingWizard
  * Public Members: App
  * Side Effects: Fetches timeline/folders/stats/trash/vaults/auth/filter-meta over HTTP, executes uploads, soft deletions,
- *                restorations, permanent purges, ZIP exports/downloads, folder color & icon updates,
+ *                restorations, permanent purges, single/bulk folder deletions, ZIP exports/downloads, folder color & icon updates,
  *                favorites toggles, folder assignments, vault sync, updates browser window.location.hash history,
  *                handles MTProto auth session & disconnection, and persists theme/layout in localStorage.
  * =============================================================================
@@ -37,6 +37,7 @@ import {
   createFolder,
   createMediaAlias,
   deleteFolder,
+  bulkDeleteFolders,
   deleteMediaItem,
   toggleFavoriteMedia,
   bulkToggleFavoriteMedia,
@@ -1714,34 +1715,51 @@ export const App: React.FC = () => {
     }
   };
 
-  const [folderToDelete, setFolderToDelete] = useState<FolderItem | null>(null);
+  const [foldersToDelete, setFoldersToDelete] = useState<FolderItem[]>([]);
   const [isDeletingFolder, setIsDeletingFolder] = useState(false);
 
-  const handlePromptDeleteFolder = (folder: FolderItem | number) => {
-    if (typeof folder === "number") {
-      const found = folders.find((f) => f.id === folder);
-      if (found) setFolderToDelete(found);
+  const handlePromptDeleteFolder = (folderOrFolders: FolderItem | FolderItem[] | number | number[]) => {
+    if (Array.isArray(folderOrFolders)) {
+      if (folderOrFolders.length === 0) return;
+      if (typeof folderOrFolders[0] === "number") {
+        const idSet = new Set(folderOrFolders as number[]);
+        const found = folders.filter((f) => idSet.has(f.id));
+        setFoldersToDelete(found);
+      } else {
+        setFoldersToDelete(folderOrFolders as FolderItem[]);
+      }
+    } else if (typeof folderOrFolders === "number") {
+      const found = folders.find((f) => f.id === folderOrFolders);
+      if (found) setFoldersToDelete([found]);
     } else {
-      setFolderToDelete(folder);
+      setFoldersToDelete([folderOrFolders]);
     }
   };
 
   const handleConfirmDeleteFolder = async () => {
-    if (!folderToDelete) return;
+    if (foldersToDelete.length === 0) return;
     setIsDeletingFolder(true);
-    const target = folderToDelete;
-    const entityType = target.is_collection ? "Collection" : "Album";
-    const entityName = target.name || "";
+    const targets = foldersToDelete;
+    const targetIds = targets.map((f) => f.id);
+    const count = targets.length;
     try {
-      await deleteFolder(target.id);
-      if (activeFolder && activeFolder.id === target.id) {
+      if (count === 1) {
+        await deleteFolder(targets[0].id);
+      } else {
+        await bulkDeleteFolders(targetIds);
+      }
+      if (activeFolder && targetIds.includes(activeFolder.id)) {
         setActiveFolder(null);
       }
-      setFolderToDelete(null);
+      setFoldersToDelete([]);
       loadFolders();
-      showToast(`${entityType} "${entityName}" deleted`, "info");
+      const label =
+        count === 1
+          ? `${targets[0].is_collection ? "Collection" : "Album"} "${targets[0].name}" deleted`
+          : `Deleted ${count} albums/collections`;
+      showToast(label, "info");
     } catch (err: any) {
-      showToast(err.message || `Failed to delete ${entityType.toLowerCase()}.`, "error");
+      showToast(err.message || "Failed to delete album(s).", "error");
     } finally {
       setIsDeletingFolder(false);
     }
@@ -2123,7 +2141,7 @@ export const App: React.FC = () => {
         <div className="w-16 h-16 rounded-neo-xl neo-pressed flex items-center justify-center text-primary mb-4 animate-pulse">
           <Cloud className="w-8 h-8" />
         </div>
-        <p className="text-sm text-on-surface-variant font-medium tracking-wide">Connecting to Silk Cloud...</p>
+        <p className="text-sm text-on-surface-variant font-medium tracking-wide">Connecting to Tellery...</p>
       </div>
     );
   }
@@ -2602,10 +2620,10 @@ export const App: React.FC = () => {
 
       {/* Global Folder Delete Confirmation Dialog */}
       <FolderDeleteConfirmModal
-        isOpen={Boolean(folderToDelete)}
-        folder={folderToDelete}
+        isOpen={foldersToDelete.length > 0}
+        folders={foldersToDelete}
         onConfirm={handleConfirmDeleteFolder}
-        onCancel={() => setFolderToDelete(null)}
+        onCancel={() => setFoldersToDelete([])}
         isDeleting={isDeletingFolder}
       />
 

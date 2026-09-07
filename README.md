@@ -1,4 +1,15 @@
-# TeleGallery — Personal Telegram Media Archive & Streaming Gallery
+<!--
+=============================================================================
+Module: README.md
+Purpose: Comprehensive project documentation, architecture guide, and setup instructions for Tellery (Gallery Vault).
+Used by: Developers, users, and deployment workflows.
+Dependencies: None.
+Public Members: Overview, Architecture, Key Features, Getting Started, Usage, Verification.
+Side Effects: None (Documentation).
+=============================================================================
+-->
+
+# Tellery (Gallery Vault) — Personal Telegram Media Archive & Streaming Gallery
 
 A self-hosted, zero-cost personal media preservation and streaming gallery using Telegram MTProto as a remote document warehouse, indexed via a local high-performance SQLite catalog, with EXIF timeline organization, WebP thumbnail caching, cryptographic deduplication, and HTTP 206 seekable streaming.
 
@@ -7,10 +18,10 @@ A self-hosted, zero-cost personal media preservation and streaming gallery using
 ## Architecture Overview
 
 ```
-                      ┌────────────────────────────────────────┐
-                      │    TeleGallery Web UI (React + TS)     │
-                      │  Timeline Grid • Lightbox • Player     │
-                      └───────────────────┬────────────────────┘
+                      ┌───────────────────────────────────────────────┐
+                      │    Tellery (Gallery Vault) Web UI (React+TS)  │
+                      │       Timeline Grid • Lightbox • Player       │
+                      └───────────────────────┬───────────────────────┘
                                           │ HTTP / REST & Range
                                           ▼
                       ┌────────────────────────────────────────┐
@@ -111,7 +122,7 @@ Open **[http://localhost:5173](http://localhost:5173)**.
 
 ## Automated Verification & Testing
 
-TeleGallery includes automated test suites for every subsystem:
+Tellery includes automated test suites for every subsystem:
 
 ```bash
 # Test 1: MTProto Core Storage & Byte-for-byte SHA-256 Integrity

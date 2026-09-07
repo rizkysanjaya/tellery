@@ -3,6 +3,7 @@
 Module: src.services.auth_service
 Purpose: Telegram MTProto interactive authentication state machine, OTP verification,
          2FA cloud password management, session lifecycle, and 1-click vault provisioning.
+         Validates API credentials to prevent blacklisted desktop keys (2040) from breaking MTProto flows.
 Used by: src.api.routes.auth, src.api.app
 Dependencies: telethon, src.storage.telegram_client, src.services.vault_service, src.config
 Public Members: AuthService, get_auth_service()
@@ -17,6 +18,7 @@ from pathlib import Path
 import re
 from typing import Any, Optional
 from telethon.errors import (
+    ApiIdInvalidError,
     FloodWaitError,
     PasswordHashInvalidError,
     PhoneCodeExpiredError,
@@ -33,6 +35,9 @@ from src.services.vault_service import get_vault_service
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
 
 logger = logging.getLogger(__name__)
+
+BLOCKED_OR_DUMMY_API_IDS = {0, 2040, 12345678}
+BLOCKED_OR_DUMMY_API_HASHES = {"", "b1844dda5045e8e4585d827ddf3f6de3"}
 
 
 class AuthService:
@@ -52,7 +57,7 @@ class AuthService:
         """
         Evaluates current Telegram client and session status.
         Returns the active onboarding step:
-        - 'need_credentials': API ID or Hash is missing.
+        - 'need_credentials': API ID or Hash is missing or blacklisted.
         - 'need_phone': Client connected, awaiting phone number.
         - 'need_code': Verification code dispatched to user, awaiting OTP.
         - 'need_password': Two-factor (2FA) cloud password required.
@@ -60,16 +65,24 @@ class AuthService:
         - 'ready': Fully authenticated and connected to an active vault.
         """
         settings = get_settings()
-        has_credentials = bool(self.telegram_client.api_id and self.telegram_client.api_hash)
+        curr_api_id = self.telegram_client.api_id
+        curr_api_hash = (self.telegram_client.api_hash or "").strip()
 
-        if not has_credentials:
+        has_credentials = bool(
+            curr_api_id
+            and curr_api_hash
+            and curr_api_id not in BLOCKED_OR_DUMMY_API_IDS
+            and curr_api_hash not in BLOCKED_OR_DUMMY_API_HASHES
+        )
+
+        if not has_credentials or self._pending_step == "need_credentials":
             return {
                 "is_authenticated": False,
                 "step": "need_credentials",
                 "has_credentials": False,
                 "user": None,
                 "active_vault": None,
-                "message": "Telegram API ID and API Hash are required to connect.",
+                "message": "Telegram API ID and API Hash from my.telegram.org are required to connect.",
             }
 
         # Check if authorized
@@ -154,6 +167,11 @@ class AuthService:
             raise ValueError("Both API ID and API Hash are required.")
 
         clean_hash = api_hash.strip()
+        if api_id in BLOCKED_OR_DUMMY_API_IDS or clean_hash in BLOCKED_OR_DUMMY_API_HASHES:
+            raise ValueError(
+                "The public Telegram Desktop credentials (API ID 2040) are blocked by Telegram servers for third-party clients. Please register your own free API ID & Hash at https://my.telegram.org."
+            )
+
         self._update_env_file({"TG_API_ID": str(api_id), "TG_API_HASH": clean_hash})
 
         # Update running settings and reinitialize client
@@ -203,6 +221,12 @@ class AuthService:
                 "timeout": getattr(sent_code, "timeout", 120),
                 "message": f"Verification code sent to {clean_phone} via Telegram/SMS.",
             }
+        except ApiIdInvalidError:
+            self._pending_step = "need_credentials"
+            logger.error("Telegram server rejected API credentials with ApiIdInvalidError")
+            raise ValueError(
+                "The Telegram API ID or Hash is invalid or has been blocked by Telegram. Please provide valid credentials from https://my.telegram.org."
+            )
         except PhoneNumberInvalidError:
             raise ValueError("The phone number entered is invalid. Please check the international country code.")
         except PhoneNumberBannedError:

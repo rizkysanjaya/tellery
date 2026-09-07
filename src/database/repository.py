@@ -10,7 +10,7 @@ Dependencies: aiosqlite, src.database.connection
 Public Members: MediaRepository (get_timeline, get_stats, get_by_id, get_by_hash, get_by_message_id,
                 insert_media, update_favorite, delete_media, restore_media, restore_batch,
                 get_trash_items, get_trash_count, purge_media_permanently, get_all_trash_media,
-                get_all_folder_media, get_filter_metadata)
+                get_all_folder_media, get_filter_metadata, delete_folder, bulk_delete_folders)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
 ============================================================================
 """
@@ -825,6 +825,28 @@ class MediaRepository:
             await conn.execute("UPDATE folders SET parent_id = NULL WHERE parent_id = ?;", (folder_id,))
             async with conn.execute("DELETE FROM folders WHERE id = ?;", (folder_id,)) as cursor:
                 affected = cursor.rowcount > 0
+            await conn.commit()
+            return affected
+
+    @staticmethod
+    async def bulk_delete_folders(folder_ids: list[int]) -> int:
+        """
+        Deletes multiple folders/collections in a single atomic transaction.
+        Ungroups child albums (sets parent_id = NULL) to protect against accidental deletion of nested albums.
+        """
+        if not folder_ids:
+            return 0
+        placeholders = ",".join("?" for _ in folder_ids)
+        async with get_db_connection() as conn:
+            await conn.execute(
+                f"UPDATE folders SET parent_id = NULL WHERE parent_id IN ({placeholders});",
+                folder_ids,
+            )
+            async with conn.execute(
+                f"DELETE FROM folders WHERE id IN ({placeholders});",
+                folder_ids,
+            ) as cursor:
+                affected = cursor.rowcount
             await conn.commit()
             return affected
 
