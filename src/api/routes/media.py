@@ -2,16 +2,19 @@
 =============================================================================
 Module: src.api.routes.media
 Purpose: REST API endpoints for media ingestion, timeline queries, EXIF filtering,
-         batch ZIP downloads, soft-delete data recovery, and multi-vault permissions enforcement.
+         batch ZIP downloads, soft-delete data recovery, multi-vault channel isolation,
+         and channel-scoped telemetry and avatar serving.
 Used by: src.api.app, frontend/src/api.ts
-Dependencies: fastapi, pydantic, src.database.repository, src.services.archive_service,
+Dependencies: fastapi, pydantic, asyncio, src.database.repository, src.services.archive_service,
               src.services.vault_service, src.services.upload_tracker, src.services.zip_export_service
 Public Members: router, get_timeline, get_stats, get_filter_metadata, upload_media,
-                delete_media_item, restore_media_item, delete_media_permanently, empty_trash
-Side Effects: Spools uploaded files, updates SQLite rows, executes soft-deletes, triggers ZIP streaming.
+                get_channel_avatar, get_user_avatar, delete_media_item, restore_media_item
+Side Effects: Spools uploaded files, updates SQLite rows, executes soft-deletes, triggers ZIP streaming,
+              caches and serves Telegram channel/user avatars.
 =============================================================================
 """
 
+import asyncio
 from collections import defaultdict
 from datetime import datetime
 import logging
@@ -253,13 +256,30 @@ async def get_telegram_profile_info() -> dict[str, Optional[str]]:
 
 
 @router.get("/avatar/channel")
-async def get_channel_avatar():
+@router.get("/avatar/channel/{channel_id}")
+async def get_channel_avatar(channel_id: Optional[int] = None):
     """
     Serves the target Telegram vault channel's cached profile avatar.
+    Supports specific channel IDs with graceful fallback to default channel avatar.
     """
-    avatar_path = Path("data/avatars/channel_avatar.jpg")
-    if not avatar_path.exists():
+    from src.services.vault_service import get_vault_service
+    active_id = channel_id if channel_id is not None else get_vault_service().get_active_channel_id()
+    avatar_dir = Path("data/avatars")
+
+    avatar_path = None
+    if active_id is not None:
+        cand = avatar_dir / f"channel_avatar_{abs(active_id)}.jpg"
+        if cand.exists():
+            avatar_path = cand
+
+    if not avatar_path or not avatar_path.exists():
+        cand_default = avatar_dir / "channel_avatar.jpg"
+        if cand_default.exists():
+            avatar_path = cand_default
+
+    if not avatar_path or not avatar_path.exists():
         raise HTTPException(status_code=404, detail="Channel avatar not found")
+
     return FileResponse(
         avatar_path,
         media_type="image/jpeg",
@@ -287,13 +307,38 @@ async def get_stats(channel_id: Optional[int] = Query(None, description="Filter 
     """
     Retrieves overall archive statistics (photo/video breakdown and total storage used)
     along with Telegram account and vault channel identity.
+    Dynamically partitions metadata by active or requested channel ID.
     """
     from src.services.vault_service import get_vault_service
-    active_id = channel_id if channel_id is not None else get_vault_service().get_active_channel_id()
+    vault_service = get_vault_service()
+    active_id = channel_id if channel_id is not None else vault_service.get_active_channel_id()
     stats = await MediaRepository.get_stats(channel_id=active_id)
     profile = await get_telegram_profile_info()
     avatar_dir = Path("data/avatars")
-    channel_has_avatar = (avatar_dir / "channel_avatar.jpg").exists()
+
+    # Resolve channel-specific name
+    channel_name = None
+    if active_id is not None:
+        cached_vault = vault_service.get_vault_by_id(active_id)
+        if cached_vault:
+            channel_name = cached_vault.get("title")
+
+    if not channel_name:
+        channel_name = profile.get("channel_name")
+
+    # Resolve channel-specific avatar
+    channel_avatar_file = (avatar_dir / f"channel_avatar_{abs(active_id)}.jpg") if active_id is not None else None
+    if channel_avatar_file and channel_avatar_file.exists():
+        channel_avatar_url = f"/api/media/avatar/channel/{active_id}"
+    elif (avatar_dir / "channel_avatar.jpg").exists():
+        channel_avatar_url = "/api/media/avatar/channel"
+    else:
+        channel_avatar_url = None
+
+    # Trigger async background download of channel avatar if missing
+    if active_id is not None and (not channel_avatar_file or not channel_avatar_file.exists()):
+        asyncio.create_task(vault_service.download_channel_avatar(active_id))
+
     user_has_avatar = (avatar_dir / "user_avatar.jpg").exists()
 
     return StatsResponse(
@@ -304,8 +349,8 @@ async def get_stats(channel_id: Optional[int] = Query(None, description="Filter 
         total_size_formatted=_format_bytes(stats["total_size_bytes"] or 0),
         account_name=profile.get("account_name"),
         account_username=profile.get("account_username"),
-        channel_name=profile.get("channel_name"),
-        channel_avatar_url="/api/media/avatar/channel" if channel_has_avatar else None,
+        channel_name=channel_name,
+        channel_avatar_url=channel_avatar_url,
         user_avatar_url="/api/media/avatar/user" if user_has_avatar else None,
     )
 

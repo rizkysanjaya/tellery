@@ -207,7 +207,10 @@ class SyncService:
         """
         async with self._sync_lock:
             self._is_syncing = True
-            target_channel = channel_id or self.settings.tg_channel_id
+            target_channel = channel_id
+            if target_channel is None:
+                from src.services.vault_service import get_vault_service
+                target_channel = get_vault_service().get_active_channel_id() or self.settings.tg_channel_id
 
             stats = {
                 "scanned": 0,

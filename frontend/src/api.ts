@@ -458,7 +458,11 @@ export async function fetchMediaFolders(mediaId: number): Promise<FolderItem[]> 
   return response.json();
 }
 
-export async function triggerVaultSync(fullScan: boolean = false, limit: number = 200): Promise<{
+export async function triggerVaultSync(
+  channelId?: number | null,
+  fullScan: boolean = false,
+  limit: number = 200
+): Promise<{
   status: string;
   message: string;
   stats: {
@@ -472,7 +476,11 @@ export async function triggerVaultSync(fullScan: boolean = false, limit: number 
   const response = await fetch(`${API_BASE}/api/sync`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ full_scan: fullScan, limit }),
+    body: JSON.stringify({
+      channel_id: channelId ?? undefined,
+      full_scan: fullScan,
+      limit,
+    }),
   });
 
   if (!response.ok) {

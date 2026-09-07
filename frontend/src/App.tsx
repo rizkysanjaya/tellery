@@ -407,24 +407,65 @@ export const App: React.FC = () => {
 
   const handleSelectVault = useCallback(
     async (channelId: number) => {
+      // 1. Immediately clear timeline and display loading state to ensure old channel items NEVER linger
+      setGroups([]);
+      setLoading(true);
+      setActiveFolder(null);
+      setSelectedMedia(null);
+      setSelectedIds(new Set());
+
+      // 2. Immediately update vaults array state so switcher modal & badges mark this channel as active
+      setVaults((prev) =>
+        prev.map((v) => ({
+          ...v,
+          is_active: v.id === channelId,
+        }))
+      );
+
+      const matchingVault = vaults.find((v) => v.id === channelId);
+
+      // 3. Immediately update active vault & synchronous ref
+      if (matchingVault) {
+        const optimisticVault: VaultItem = {
+          ...matchingVault,
+          is_active: true,
+        };
+        setActiveVaultState(optimisticVault);
+        activeVaultRef.current = optimisticVault;
+
+        // Optimistic stats update so sidebar immediately reflects the newly active vault
+        setStats((prev) =>
+          prev
+            ? {
+                ...prev,
+                channel_name: matchingVault.title,
+                channel_avatar_url: null,
+                total_items: matchingVault.media_count,
+                total_photos: 0,
+                total_videos: 0,
+                total_size_bytes: matchingVault.total_size_bytes,
+              }
+            : null
+        );
+      }
+
       try {
         const res = await setActiveVault(channelId);
-        const matchingVault = vaults.find((v) => v.id === channelId);
+
         if (matchingVault) {
-          setActiveVaultState({
+          const updatedActive: VaultItem = {
             ...matchingVault,
             role: res.role || matchingVault.role,
             can_upload: res.can_upload !== undefined ? res.can_upload : matchingVault.can_upload,
             can_delete: res.can_delete !== undefined ? res.can_delete : matchingVault.can_delete,
             is_active: true,
-          });
+          };
+          setActiveVaultState(updatedActive);
+          activeVaultRef.current = updatedActive;
         } else {
           await loadVaults();
         }
-        // Reset navigation and selections for clean partitioned timeline view
-        setActiveFolder(null);
-        setSelectedMedia(null);
-        setSelectedIds(new Set());
+
         // Re-fetch channel-scoped telemetry, metadata, and folders
         fetchStats(channelId).then(setStats).catch(console.error);
         fetchFilterMetadata(channelId).then(setFilterMetadata).catch(console.error);
@@ -434,6 +475,33 @@ export const App: React.FC = () => {
           `Active vault switched to ${matchingVault?.title || channelId}.`,
           "success"
         );
+
+        // 4. If newly selected vault has 0 items, trigger a quick auto-sync
+        if (matchingVault && matchingVault.media_count === 0) {
+          setIsSyncing(true);
+          triggerVaultSync(channelId, false)
+            .then(async (syncRes) => {
+              const isFav = currentViewRef.current === "favorites";
+              const refreshedTimeline = await fetchTimeline(
+                0,
+                100,
+                activeFilterRef.current,
+                debouncedSearchQueryRef.current,
+                null,
+                sortByRef.current,
+                isFav,
+                activeExifFiltersRef.current,
+                channelId
+              );
+              setGroups(refreshedTimeline.groups);
+              fetchStats(channelId).then(setStats).catch(console.error);
+              if (syncRes.stats && syncRes.stats.added > 0) {
+                showToast(`Found and indexed ${syncRes.stats.added} item(s) from ${matchingVault.title}.`, "success");
+              }
+            })
+            .catch(console.error)
+            .finally(() => setIsSyncing(false));
+        }
       } catch (err: any) {
         console.error("Failed to switch vault:", err);
         showToast(err.message || "Failed to switch Telegram storage vault.", "error");
@@ -477,6 +545,8 @@ export const App: React.FC = () => {
 
     let isMounted = true;
     setLoading(true);
+    // Clear items immediately on active vault or filter switch to prevent lingering state
+    setGroups([]);
 
     const folderId = activeFolder ? activeFolder.id : pendingFolderIdRef.current;
     const isFavoritesView = currentView === "favorites" && !activeFolder;
@@ -616,15 +686,21 @@ export const App: React.FC = () => {
   const handleSyncVault = useCallback(async (fullScan: boolean = false) => {
     if (isSyncing) return;
     setIsSyncing(true);
+    const targetChannelId = activeVaultRef.current?.id;
     try {
-      await triggerVaultSync(fullScan);
+      const res = await triggerVaultSync(targetChannelId, fullScan);
       loadData();
-    } catch (err) {
+      if (targetChannelId) {
+        fetchStats(targetChannelId).then(setStats).catch(console.error);
+      }
+      showToast(res.message || "Vault synchronized successfully.", "success");
+    } catch (err: any) {
       console.error("Vault sync error:", err);
+      showToast(err.message || "Failed to synchronize vault.", "error");
     } finally {
       setIsSyncing(false);
     }
-  }, [isSyncing, loadData]);
+  }, [isSyncing, loadData, showToast]);
 
   const handleRestoreItem = useCallback(async (mediaId: number) => {
     try {

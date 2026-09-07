@@ -2,8 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/VaultSwitcherModal.tsx
  * Purpose: Silk Cloud neomorphic modal dialog allowing users to switch between
- *          multiple Telegram storage channels (owned write-capable vaults vs.
- *          view-only joined channels), with search filtering and MTProto dialog refresh.
+ *          multiple owned Telegram storage vaults with instantaneous state synchronization,
+ *          search filtering, and MTProto dialog refresh.
  * Used by: frontend/src/App.tsx, frontend/src/components/Sidebar.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, frontend/src/api.ts
  * Public Members: VaultSwitcherModal
@@ -264,21 +264,17 @@ export const VaultSwitcherModal: React.FC<VaultSwitcherModalProps> = ({
             )}
           </div>
 
-          {/* Section 2: Joined Channels (Read-Only) */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
-                Connected Channels ({joinedVaults.length})
-              </span>
-              <span className="text-[11px] text-on-surface-variant">View-Only Access</span>
-            </div>
-
-            {joinedVaults.length === 0 ? (
-              <div className="p-4 rounded-neo-lg neo-card bg-surface-container-lowest text-center text-xs text-on-surface-variant">
-                No joined channels match your search filter.
+          {/* Section 2: Joined Channels (Read-Only) - Only rendered if any exist */}
+          {joinedVaults.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-2.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center gap-1.5">
+                  <Eye className="w-3.5 h-3.5 text-on-surface-variant" />
+                  Connected Channels ({joinedVaults.length})
+                </span>
+                <span className="text-[11px] text-on-surface-variant">View-Only Access</span>
               </div>
-            ) : (
+
               <div className="space-y-2">
                 {joinedVaults.map((vault) => {
                   const isActive = activeVault?.id === vault.id;
@@ -354,8 +350,8 @@ export const VaultSwitcherModal: React.FC<VaultSwitcherModalProps> = ({
                   );
                 })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Modal Footer */}

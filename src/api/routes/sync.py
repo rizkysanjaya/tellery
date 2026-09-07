@@ -2,8 +2,9 @@
 =============================================================================
 Module: src.api.routes.sync
 Purpose: REST API endpoints for Telegram Channel synchronization & real-time status.
+         Supports target-specific vault channel synchronization and active vault discovery.
 Used by: src.api.app, frontend/src/api.ts
-Dependencies: fastapi, pydantic, src.services.sync_service
+Dependencies: fastapi, pydantic, src.services.sync_service, src.services.vault_service
 Public Members: router, trigger_sync(), get_sync_status()
 Side Effects: Triggers background Telegram channel scans and updates database catalog.
 =============================================================================
@@ -18,6 +19,7 @@ router = APIRouter(prefix="/api/sync", tags=["Vault Synchronization"])
 
 
 class SyncRequest(BaseModel):
+    channel_id: Optional[int] = Field(default=None, description="Target Telegram channel ID to synchronize. If omitted, uses active vault.")
     limit: int = Field(default=200, ge=1, le=1000, description="Max messages to scan in channel")
     full_scan: bool = Field(default=False, description="Scan full history instead of early-stopping incremental sync")
 
@@ -36,7 +38,13 @@ async def trigger_sync(payload: SyncRequest = SyncRequest()):
             "stats": sync_service.get_status().get("last_sync_stats"),
         }
 
+    target_channel = payload.channel_id
+    if target_channel is None:
+        from src.services.vault_service import get_vault_service
+        target_channel = get_vault_service().get_active_channel_id()
+
     stats = await sync_service.sync_channel_history(
+        channel_id=target_channel,
         limit=payload.limit,
         full_scan=payload.full_scan,
     )

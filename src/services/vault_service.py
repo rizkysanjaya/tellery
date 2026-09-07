@@ -2,16 +2,19 @@
 =============================================================================
 Module: src.services.vault_service
 Purpose: Telegram Channel / Vault discovery, permission intelligence (Owner vs Viewer),
-         and active vault state management for multi-channel library switching.
+         owned-channel isolation harness, avatar caching, and active vault state management
+         for seamless multi-channel gallery switching.
 Used by: src.api.routes.vaults, src.api.routes.media, src.services.sync_service
-Dependencies: telethon, src.storage.telegram_client, src.database.repository, src.config
-Public Members: VaultService, get_vault_service()
-Side Effects: Calls Telegram MTProto get_dialogs(), queries SQLite database for channel stats.
+Dependencies: telethon, pathlib, src.storage.telegram_client, src.database.repository, src.config
+Public Members: VaultService, get_vault_service(), get_vault_by_id(), download_channel_avatar()
+Side Effects: Calls Telegram MTProto get_dialogs() & download_profile_photo(),
+              writes avatar files to data/avatars/, queries SQLite database for channel stats.
 =============================================================================
 """
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any, Optional, Union
 from telethon.tl.types import Channel, Chat, ChatAdminRights
 from src.config import get_settings
@@ -41,6 +44,37 @@ class VaultService:
         self._cached_vaults: list[dict[str, Any]] = []
         self._permissions_cache: dict[int, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
+
+    def get_vault_by_id(self, channel_id: int) -> Optional[dict[str, Any]]:
+        """Returns cached metadata for a specific vault by ID or raw ID."""
+        for v in self._cached_vaults:
+            if v["id"] == channel_id or v.get("raw_id") == abs(channel_id):
+                return v
+        return None
+
+    async def download_channel_avatar(self, channel_id: int) -> Optional[str]:
+        """
+        Downloads and caches profile avatar for a specific Telegram channel.
+        Saves to data/avatars/channel_avatar_{abs_id}.jpg.
+        """
+        avatar_dir = Path("data/avatars")
+        avatar_dir.mkdir(parents=True, exist_ok=True)
+        avatar_file = avatar_dir / f"channel_avatar_{abs(channel_id)}.jpg"
+        if avatar_file.exists():
+            return str(avatar_file)
+
+        try:
+            await self.telegram_client.start()
+            entity = await self.telegram_client.get_target_entity(channel_id)
+            if entity:
+                res = await self.telegram_client.raw_client.download_profile_photo(
+                    entity, file=str(avatar_file)
+                )
+                if res:
+                    return str(avatar_file)
+        except Exception as e:
+            logger.debug("Failed to download avatar for channel %s: %s", channel_id, e)
+        return None
 
     def get_active_channel_id(self) -> Optional[int]:
         """Returns the currently active Telegram channel ID."""
@@ -126,6 +160,10 @@ class VaultService:
 
                         can_delete = is_creator or (is_admin and getattr(admin_rights, "delete_messages", False))
                         role = "owner" if (is_creator or (is_admin and can_post)) else "viewer"
+
+                        # Harness: Only list channels the user owns or administers with upload capabilities
+                        if role != "owner":
+                            continue
 
                         full_id = d.id
                         if self.settings.tg_channel_id and (
