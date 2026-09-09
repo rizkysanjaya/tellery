@@ -341,10 +341,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 >
                   <div className="flex items-center gap-1.5 min-w-0">
                     <HardDrive className="w-3.5 h-3.5 text-primary shrink-0" />
-                    <span className="font-mono font-bold text-on-surface text-[11px] truncate tracking-tight">
+                    <span className="font-mono font-bold text-on-surface text-[11px] shrink-0 tracking-tight">
                       {stats.total_size_formatted}
                     </span>
-                    <span className="text-[10px] text-on-surface-variant/80 truncate font-medium">Cloud Storage</span>
                   </div>
                   <div
                     className="flex items-center justify-center px-1.5 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[9px] font-semibold text-primary font-mono shrink-0"
@@ -381,7 +380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Section (Google Drive Style Hierarchical Tree) */}
-        <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
+        <div className="flex-1 overflow-y-auto px-3 space-y-0.5">
           {/* 1. Timeline */}
           <div
             onClick={() => {
