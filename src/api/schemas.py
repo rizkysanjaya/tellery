@@ -5,9 +5,9 @@ Purpose: Pydantic schemas and serialization models for TeleGallery REST API.
 Used by: src.api.routes.media, src.api.routes.stream, src.api.routes.folders.
 Dependencies: pydantic, typing
 Public Members: MediaItemResponse, TimelineGroup, TimelineResponse, StatsResponse,
-                FolderResponse, CreateFolderRequest, AddMediaToFolderRequest,
-                UpdateFolderColorRequest, FavoriteMediaRequest, BulkFavoriteMediaRequest,
-                RestoreMediaBatchRequest, BatchDownloadRequest, TrashResponse,
+                TimelinePeriodSummary, TimelineSummaryResponse, FolderResponse, CreateFolderRequest,
+                AddMediaToFolderRequest, UpdateFolderColorRequest, FavoriteMediaRequest,
+                BulkFavoriteMediaRequest, RestoreMediaBatchRequest, BatchDownloadRequest, TrashResponse,
                 CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, BulkDeleteFoldersRequest
 Side Effects: None
 =============================================================================
@@ -113,11 +113,27 @@ class TimelineGroup(BaseModel):
 
 
 class TimelineResponse(BaseModel):
-    """Paginated timeline feed containing period-grouped media items."""
+    """Paginated timeline feed containing period-grouped media items with keyset cursor."""
 
     total_count: int
     has_more: bool
     groups: list[TimelineGroup]
+    next_cursor: Optional[str] = None
+
+
+class TimelinePeriodSummary(BaseModel):
+    """Aggregated timeline period summary for fast 100k+ date scrubbing."""
+
+    period_key: str
+    period_title: str
+    item_count: int
+
+
+class TimelineSummaryResponse(BaseModel):
+    """High-level timeline date markers and counts for instant scrubbing."""
+
+    total_count: int
+    periods: list[TimelinePeriodSummary]
 
 
 class StatsResponse(BaseModel):

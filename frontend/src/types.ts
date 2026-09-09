@@ -6,8 +6,8 @@
  *          and state models for TeleGallery frontend.
  * Used by: frontend/src/App.tsx, frontend/src/api.ts, components/
  * Dependencies: None
- * Public Members: MediaItem, TimelineGroup, TimelineResponse, StorageStats,
- *                 FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse,
+ * Public Members: MediaItem, TimelineGroup, TimelineResponse, TimelinePeriodSummary, TimelineSummaryResponse,
+ *                 StorageStats, FolderItem, UploadTask, DuplicateConflict, ConflictResolutionAction, TrashResponse,
  *                 CameraFilterItem, PeriodSummaryItem, FilterMetadataResponse, ActiveExifFilters,
  *                 VaultItem, AuthStep, TelegramUser, AuthStatusResponse
  * Side Effects: None (Type declarations only).
@@ -44,8 +44,22 @@ export interface TimelineGroup {
 }
 
 export interface TimelineResponse {
-  total: number;
+  total?: number;
+  total_count?: number;
   groups: TimelineGroup[];
+  has_more?: boolean;
+  next_cursor?: string | null;
+}
+
+export interface TimelinePeriodSummary {
+  period_key: string;
+  period_title: string;
+  item_count: number;
+}
+
+export interface TimelineSummaryResponse {
+  total_count: number;
+  periods: TimelinePeriodSummary[];
 }
 
 export interface StorageStats {

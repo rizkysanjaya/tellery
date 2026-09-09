@@ -3,11 +3,12 @@
 Module: src.services.sync_service
 Purpose: Telegram Channel Ingestion, Manual Sync, and Real-time Live Message Ingest Engine.
          Indexes photos, videos, and raw documents sent directly to Telegram storage channels,
-         extracting technical attributes, generating WebP thumbnails, and coordinating with
-         ArchiveService to prevent in-flight duplicate ingestion.
+         extracting technical attributes, generating WebP thumbnails, canonicalizing channel IDs,
+         and coordinating with ArchiveService to prevent in-flight duplicate ingestion.
 Used by: src.api.routes.sync, src.api.app (lifespan background listener)
-Dependencies: telethon, datetime, pathlib, src.database.repository, src.services.archive_service,
-              src.services.thumbnail_service, src.storage.telegram_client, src.config
+Dependencies: telethon, datetime, pathlib, src.database.repository, src.database.connection,
+              src.services.archive_service, src.services.thumbnail_service,
+              src.storage.telegram_client, src.config
 Public Members: SyncService, get_sync_service()
 Side Effects: Downloads preview thumbnails from Telegram MTProto, generates WebP files in data/thumbnails/,
               writes rows to media_items and audit_logs in SQLite database.
@@ -29,6 +30,7 @@ from telethon.tl.types import (
     MessageMediaPhoto,
 )
 from src.config import get_settings
+from src.database.connection import normalize_channel_id
 from src.database.repository import MediaRepository
 from src.services.thumbnail_service import generate_thumbnail_from_bytes
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
@@ -76,12 +78,7 @@ class SyncService:
         if not message.media:
             return None
 
-        target_channel_id = channel_id or self.settings.tg_channel_id
-        if isinstance(target_channel_id, str):
-            try:
-                target_channel_id = int(target_channel_id)
-            except ValueError:
-                pass
+        target_channel_id = normalize_channel_id(channel_id or self.settings.tg_channel_id)
 
         # 1. Fast O(log N) check: Is this exact channel message already indexed or currently in flight?
         from src.services.archive_service import ArchiveService
@@ -211,6 +208,7 @@ class SyncService:
             if target_channel is None:
                 from src.services.vault_service import get_vault_service
                 target_channel = get_vault_service().get_active_channel_id() or self.settings.tg_channel_id
+            target_channel = normalize_channel_id(target_channel)
 
             stats = {
                 "scanned": 0,

@@ -2,18 +2,18 @@
  * =============================================================================
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
+ *          virtual windowing for 100,000+ item scalability, keyset cursor infinite scroll,
  *          contextual empty states, per-section select-all toggles, chronological
- *          date-jump scrubber bar, dense grid ergonomics, battery saver propagation,
- *          and natural aspect masonry showcase.
+ *          date-jump scrubber bar, dense grid ergonomics, and natural aspect masonry.
  * Used by: frontend/src/App.tsx, frontend/src/components/FavoritesView.tsx
  * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx,
  *               frontend/src/components/MediaListItem.tsx, frontend/src/components/TimelineDateScrubber.tsx, lucide-react
  * Public Members: TimelineGrid
- * Side Effects: Dispatches media item click, selection toggle, favorite toggle, search clearing, and context menu events.
+ * Side Effects: Dispatches media item click, selection toggle, favorite toggle, infinite scroll triggers, and context menu events.
  * =============================================================================
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Image as ImageIcon,
   ArrowUp,
@@ -56,6 +56,77 @@ function useResponsiveColumns(): number {
   return columnCount;
 }
 
+interface WindowedSectionProps {
+  id: string;
+  itemCount: number;
+  layout: DisplayLayout;
+  columnCount: number;
+  children: React.ReactNode;
+}
+
+/**
+ * High-performance virtual windowing container for 100,000+ items.
+ * Unmounts off-screen DOM nodes beyond a 1000px overscan boundary while
+ * preserving exact placeholder scroll height to ensure zero layout jumps.
+ */
+const WindowedSection: React.FC<WindowedSectionProps> = ({
+  id,
+  itemCount,
+  layout,
+  columnCount,
+  children,
+}) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(true);
+  const heightRef = useRef<number>(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        } else {
+          if (el.offsetHeight > 0) {
+            heightRef.current = el.offsetHeight;
+          }
+          // Only virtualize away if the group has more than 8 items to prevent tiny jumps
+          if (itemCount > 8) {
+            setIsVisible(false);
+          }
+        }
+      },
+      {
+        rootMargin: "1000px 0px 1000px 0px",
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [itemCount]);
+
+  const estimatedHeight = heightRef.current > 0
+    ? heightRef.current
+    : Math.max(120, Math.ceil(itemCount / (layout === "list" ? 1 : columnCount)) * (layout === "list" ? 48 : layout === "dense" ? 100 : 200) + 60);
+
+  return (
+    <div
+      ref={containerRef}
+      id={id}
+      style={!isVisible ? { minHeight: `${estimatedHeight}px` } : undefined}
+      className="scroll-mt-24"
+    >
+      {isVisible ? (
+        children
+      ) : (
+        <div style={{ height: `${estimatedHeight}px` }} className="w-full pointer-events-none" aria-hidden="true" />
+      )}
+    </div>
+  );
+};
+
 interface TimelineGridProps {
   groups: TimelineGroup[];
   selectedIds: Set<number>;
@@ -74,6 +145,9 @@ interface TimelineGridProps {
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
   onToggleFavorite?: (id: number, isFavorite: boolean) => void;
   loading: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
 }
 
 export const TimelineGrid: React.FC<TimelineGridProps> = ({
@@ -94,9 +168,34 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   onContextMenu,
   onToggleFavorite,
   loading,
+  onLoadMore,
+  hasMore,
+  isLoadingMore,
 }) => {
   const isSelectionMode = selectedIds.size > 0;
   const columnCount = useResponsiveColumns();
+
+  // 100k+ Infinite Scroll Sentinel Observer
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !onLoadMore || !hasMore || isLoadingMore) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasMore && !isLoadingMore) {
+          onLoadMore();
+        }
+      },
+      {
+        rootMargin: "600px",
+      }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [onLoadMore, hasMore, isLoadingMore]);
 
   const toggleSort = (column: "name" | "date" | "size") => {
     if (!onSortChange) return;
@@ -204,11 +303,14 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
         const someSelected = groupItemIds.some((id) => selectedIds.has(id));
 
         return (
-          <section
+          <WindowedSection
             key={group.period_key}
             id={`timeline-group-${group.period_key}`}
-            className="space-y-3.5 scroll-mt-24"
+            itemCount={group.items.length}
+            layout={layout}
+            columnCount={columnCount}
           >
+            <section className="space-y-3.5">
             {/* Sleek Apple Pro Sticky Date Header */}
             <div className="sticky top-[60px] sm:top-[64px] z-20 py-2 bg-background/90 backdrop-blur-md">
               <div className="flex items-center justify-between w-full px-1 group/header">
@@ -387,9 +489,25 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                 ))}
               </div>
             )}
-          </section>
+            </section>
+          </WindowedSection>
         );
       })}
+
+      {/* Keyset Cursor Infinite Scroll Sentinel */}
+      <div ref={sentinelRef} className="h-12 flex items-center justify-center my-4">
+        {isLoadingMore && (
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-surface-container-high text-primary text-body-sm shadow-sm animate-in fade-in">
+            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="font-medium text-[13px]">Loading more items...</span>
+          </div>
+        )}
+        {!hasMore && groups.length > 0 && (
+          <span className="text-[12px] font-medium text-on-surface-variant/40 uppercase tracking-wider">
+            All media loaded
+          </span>
+        )}
+      </div>
     </div>
   );
 };

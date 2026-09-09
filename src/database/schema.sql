@@ -67,6 +67,10 @@ CREATE INDEX IF NOT EXISTS idx_media_channel_timeline
     ON media_items(telegram_channel_id, date_taken DESC, id DESC) 
     WHERE is_deleted = 0;
 
+CREATE INDEX IF NOT EXISTS idx_media_channel_timeline_coalesce 
+    ON media_items(telegram_channel_id, COALESCE(date_taken, created_at) DESC, id DESC) 
+    WHERE is_deleted = 0;
+
 CREATE INDEX IF NOT EXISTS idx_media_trash_channel 
     ON media_items(telegram_channel_id, deleted_at DESC) 
     WHERE is_deleted = 1;

@@ -6,7 +6,7 @@
  *          authentication & onboarding, and sync operations.
  * Used by: frontend/src/App.tsx, components.
  * Dependencies: frontend/src/types.ts
- * Public Members: fetchTimeline, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
+ * Public Members: fetchTimeline, fetchTimelineSummary, fetchFilterMetadata, fetchStats, fetchMediaItem, uploadMediaFile,
  *                deleteMediaItem, toggleFavoriteMedia, bulkToggleFavoriteMedia,
  *                fetchFolders, createFolder, deleteFolder, bulkDeleteFolders,
  *                updateFolderColor, updateFolder, fetchFolderMediaOptions,
@@ -19,7 +19,7 @@
  * =============================================================================
  */
 
-import { ActiveExifFilters, AuthStatusResponse, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TrashResponse, VaultItem } from "./types";
+import { ActiveExifFilters, AuthStatusResponse, CacheStats, FilterMetadataResponse, FilterType, FolderItem, MediaItem, StatsResponse, SystemStats, TimelineResponse, TimelineSummaryResponse, TrashResponse, VaultItem } from "./types";
 
 const API_BASE = "";
 
@@ -32,13 +32,18 @@ export async function fetchTimeline(
   sortBy: string = "date_desc",
   onlyFavorites: boolean = false,
   exifFilters?: ActiveExifFilters,
-  channelId?: number | null
+  channelId?: number | null,
+  cursor?: string | null
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
     limit: limit.toString(),
     sort_by: sortBy,
   });
+
+  if (cursor) {
+    params.append("cursor", cursor);
+  }
 
   if (filterType !== "all") {
     params.append("type", filterType);
@@ -81,6 +86,19 @@ export async function fetchTimeline(
   const response = await fetch(`${API_BASE}/api/media?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch timeline: ${response.statusText}`);
+  }
+  return response.json();
+}
+
+export async function fetchTimelineSummary(channelId?: number | null): Promise<TimelineSummaryResponse> {
+  const params = new URLSearchParams();
+  if (channelId !== undefined && channelId !== null) {
+    params.append("channel_id", channelId.toString());
+  }
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_BASE}/api/media/summary${qs}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch timeline summary: ${response.statusText}`);
   }
   return response.json();
 }

@@ -1,7 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/App.tsx
- * Purpose: Root application component managing gallery state, VS Code-style 10-theme
+ * Purpose: Root application component managing gallery state, 100,000+ item keyset cursor
+ *          pagination & infinite scroll, virtual windowing integration, VS Code-style 10-theme
  *          multi-theme system (Obsidian, Light, Matcha, Solar Flare, Tuscan, Tokyo,
  *          Abyss, Amethyst, Vapor Lime, Sakura), Battery Saver / Low Power GPU conservation mode,
  *          centralized Preferences & Storage dialog (SettingsModal),
@@ -27,10 +28,10 @@
  * Dependencies: React (Suspense, lazy), framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
  *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts, OnboardingWizard
  * Public Members: App
- * Side Effects: Fetches timeline/folders/stats/trash/vaults/auth/filter-meta over HTTP, executes uploads, soft deletions,
- *                restorations, permanent purges, single/bulk folder deletions, ZIP exports/downloads, folder color & icon updates,
- *                favorites toggles, folder assignments, vault sync, updates browser window.location.hash history,
- *                handles MTProto auth session & disconnection, and persists theme/layout/batterySaver in localStorage.
+ * Side Effects: Fetches keyset-paginated timeline/folders/stats/trash/vaults/auth/filter-meta over HTTP, executes uploads,
+ *                soft deletions, restorations, permanent purges, single/bulk folder deletions, ZIP exports/downloads,
+ *                folder color & icon updates, favorites toggles, folder assignments, vault sync, updates browser
+ *                window.location.hash history, handles MTProto auth session & disconnection, and persists theme/layout/batterySaver in localStorage.
  * =============================================================================
  */
 
@@ -130,6 +131,17 @@ export const App: React.FC = () => {
   const pendingFolderIdRef = useRef<number | null>(initialRoute.folderId ?? null);
   const pendingCollectionIdRef = useRef<number | null>(initialRoute.collectionId ?? null);
   const [groups, setGroups] = useState<TimelineGroup[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(false);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+  const nextCursorRef = useRef<string | null>(null);
+  useEffect(() => {
+    nextCursorRef.current = nextCursor;
+  }, [nextCursor]);
+  const hasMoreRef = useRef<boolean>(false);
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [activeFolder, setActiveFolder] = useState<FolderItem | null>(null);
   const [selectedCollection, setSelectedCollection] = useState<FolderItem | null>(null);
@@ -629,6 +641,8 @@ export const App: React.FC = () => {
       .then((res) => {
         if (isMounted) {
           setGroups(res.groups);
+          setNextCursor(res.next_cursor || null);
+          setHasMore(!!res.has_more);
           setLoading(false);
         }
       })
@@ -733,6 +747,8 @@ export const App: React.FC = () => {
     )
       .then((res) => {
         setGroups(res.groups);
+        setNextCursor(res.next_cursor || null);
+        setHasMore(!!res.has_more);
         setLoading(false);
       })
       .catch((err) => {
@@ -745,6 +761,60 @@ export const App: React.FC = () => {
   useEffect(() => {
     loadDataRef.current = loadData;
   }, [loadData]);
+
+  // Keyset Cursor Infinite Scroll Pagination Handler for 100,000+ Scalability
+  const handleLoadMore = useCallback(async () => {
+    if (!hasMoreRef.current || isLoadingMore || !nextCursorRef.current) return;
+    setIsLoadingMore(true);
+
+    const currentFolder = activeFolderRef.current;
+    const folderId = currentFolder ? currentFolder.id : null;
+    const isFavoritesView = currentViewRef.current === "favorites" && !currentFolder;
+
+    try {
+      const res = await fetchTimeline(
+        0,
+        50,
+        activeFilterRef.current,
+        debouncedSearchQueryRef.current,
+        folderId,
+        sortByRef.current,
+        isFavoritesView,
+        activeExifFiltersRef.current,
+        activeVaultRef.current?.id,
+        nextCursorRef.current
+      );
+
+      if (res.groups && res.groups.length > 0) {
+        setGroups((prev) => {
+          const merged = [...prev];
+          for (const newGroup of res.groups) {
+            const existingGroupIndex = merged.findIndex((g) => g.period_key === newGroup.period_key);
+            if (existingGroupIndex !== -1) {
+              const existingGroup = merged[existingGroupIndex];
+              const existingIds = new Set(existingGroup.items.map((i) => i.id));
+              const freshItems = newGroup.items.filter((i) => !existingIds.has(i.id));
+              merged[existingGroupIndex] = {
+                ...existingGroup,
+                items: [...existingGroup.items, ...freshItems],
+                count: (existingGroup.count || existingGroup.items.length) + freshItems.length,
+              };
+            } else {
+              merged.push(newGroup);
+            }
+          }
+          return merged;
+        });
+      }
+
+      setNextCursor(res.next_cursor || null);
+      setHasMore(!!res.has_more);
+    } catch (err) {
+      console.error("Failed to load more media items:", err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore]);
 
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -2580,6 +2650,9 @@ export const App: React.FC = () => {
               onToggleFavorite={handleToggleFavoriteMedia}
               loading={loading}
               batterySaver={batterySaver}
+              onLoadMore={handleLoadMore}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
             />
           )}
         </main>

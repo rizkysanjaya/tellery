@@ -2,10 +2,12 @@
 =============================================================================
 Module: src.services.archive_service
 Purpose: High-level media archival orchestration, deduplication, EXIF extraction, WebP thumbnails,
-         safe soft-delete (Trash), 1-click restore, permanent vault purging, and in-flight upload coordination.
+         safe soft-delete (Trash), 1-click restore, permanent vault purging, channel ID canonicalization,
+         and in-flight upload coordination.
 Used by: src.cli.verify_pipeline, src.cli.import_folder, FastAPI routes (media, sync, stream).
-Dependencies: src.database.repository, src.storage.telegram_client, src.storage.tdlib_client,
-              src.services.hasher, src.services.metadata_extractor, src.services.thumbnail_service, src.config
+Dependencies: src.database.repository, src.database.connection, src.storage.telegram_client,
+              src.storage.tdlib_client, src.services.hasher, src.services.metadata_extractor,
+              src.services.thumbnail_service, src.config
 Public Members: ArchiveService (archive_file, is_message_in_flight, delete_media_item, restore_media_item, restore_batch, purge_media_permanently, empty_trash, etc.)
 Side Effects: Database reads/writes, MTProto network uploads/downloads/deletes, local WebP file creation, audit logging.
 =============================================================================
@@ -17,6 +19,7 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 from telethon.errors import FloodWaitError
 from src.config import get_settings
+from src.database.connection import normalize_channel_id
 from src.database.repository import MediaRepository
 from src.services.hasher import compute_bytes_sha256, compute_file_sha256
 from src.services.metadata_extractor import extract_media_metadata
@@ -72,7 +75,7 @@ class ArchiveService:
         if not target_path.exists():
             raise FileNotFoundError(f"File not found: {target_path}")
 
-        target_channel = channel_id or self.settings.tg_channel_id
+        target_channel = normalize_channel_id(channel_id or self.settings.tg_channel_id)
         if not target_channel:
             raise ValueError("Telegram channel ID is required for archiving.")
 
@@ -172,7 +175,7 @@ class ArchiveService:
                 "file_name": target_path.name,
                 "file_size": file_size,
                 "mime_type": final_mime_type,
-                "telegram_channel_id": int(str(target_channel).replace("-100", "")),
+                "telegram_channel_id": target_channel,
                 "telegram_message_id": uploaded_msg_id,
                 "telegram_file_id": telegram_file_id,
                 "width": meta.width,
@@ -390,7 +393,8 @@ class ArchiveService:
         Permanently purges all items currently in Trash from Telegram storage and database,
         optionally scoped to a specific channel.
         """
-        items = await self.repository.get_all_trash_media(channel_id=channel_id)
+        target_ch = normalize_channel_id(channel_id)
+        items = await self.repository.get_all_trash_media(channel_id=target_ch)
         purged_count = 0
 
         for media in items:

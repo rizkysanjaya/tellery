@@ -1,19 +1,50 @@
 """
 =============================================================================
 Module: src.database.connection
-Purpose: Async SQLite connection lifecycle manager with WAL, PRAGMA tuning, and lightweight schema migrations.
-Used by: src.database.repository, src.services, CLI scripts.
-Dependencies: aiosqlite, src.config
-Public Members: get_db_connection(), init_db()
-Side Effects: Creates SQLite database file on disk, executes schema DDL, runs non-blocking column migrations.
+Purpose: Async SQLite connection lifecycle manager with WAL, PRAGMA tuning,
+         lightweight schema migrations, and Telegram channel ID canonicalization.
+Used by: src.database.repository, src.services, src.api, CLI scripts.
+Dependencies: aiosqlite, src.config, typing
+Public Members: get_db_connection(), init_db(), normalize_channel_id()
+Side Effects: Creates SQLite database file on disk, executes schema DDL,
+              runs non-blocking column migrations & channel ID canonicalization.
 =============================================================================
 """
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Optional, Union
 import aiosqlite
 from src.config import get_settings
+
+
+def normalize_channel_id(channel_id: Union[int, str, None]) -> Optional[int]:
+    """
+    Normalizes any Telegram channel ID format to canonical supergroup integer (-100...).
+    Examples:
+        -1002376755502 -> -1002376755502
+        2376755502     -> -1002376755502
+        "-1002376755502" -> -1002376755502
+        "2376755502"   -> -1002376755502
+        None           -> None
+    """
+    if channel_id is None:
+        return None
+    s = str(channel_id).strip()
+    if not s or s == "0":
+        return None
+    try:
+        val = int(s)
+    except ValueError:
+        return None
+    if val < 0:
+        if s.startswith("-100"):
+            return val
+        clean = s.lstrip("-")
+        return -int(f"100{clean}")
+    else:
+        return -int(f"100{val}")
 
 
 @asynccontextmanager
@@ -74,6 +105,18 @@ async def init_db() -> None:
                 await conn.execute("ALTER TABLE media_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0;")
             if "deleted_at" not in media_cols:
                 await conn.execute("ALTER TABLE media_items ADD COLUMN deleted_at TEXT;")
+
+            # Canonicalize legacy stripped channel IDs (> 0) to standard negative (-100...)
+            await conn.execute("""
+                UPDATE media_items 
+                SET telegram_channel_id = -CAST(('100' || telegram_channel_id) AS INTEGER) 
+                WHERE telegram_channel_id > 0;
+            """)
+            await conn.execute("""
+                UPDATE folders 
+                SET telegram_channel_id = -CAST(('100' || telegram_channel_id) AS INTEGER) 
+                WHERE telegram_channel_id > 0;
+            """)
         await conn.commit()
 
     # ---------- 2. Execute schema.sql (tables and covered indexes) ----------
