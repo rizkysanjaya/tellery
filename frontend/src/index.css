@@ -87,70 +87,76 @@
     --scrollbar-thumb-hover: #b0b6c6;
   }
 
-  /* ── Silk Cloud Dark Mode Palette (.dark) ── */
+  /* ── Silk Cloud OLED Dark Mode Palette (.dark) ── */
   .dark {
-    --color-background: 11 19 38; /* #0b1326 */
-    --color-surface-base: 15 23 42; /* #0f172a */
-    --color-surface-container: 23 31 51; /* #171f33 */
-    --color-surface-container-low: 19 27 46; /* #131b2e */
-    --color-surface-container-high: 34 42 61; /* #222a3d */
-    --color-surface-container-highest: 45 52 73; /* #2d3449 */
-    --color-surface-container-lowest: 6 14 32; /* #060e20 */
-    --color-surface-elevated: 22 30 46; /* #161e2e */
-    --color-surface-variant: 45 52 73; /* #2d3449 */
-    --color-surface-bright: 49 57 77; /* #31394d */
+    /* 60% Canvas: Pure OLED pitch black (#000000) */
+    --color-background: 0 0 0; /* #000000 - True OLED Black (pixels completely powered off) */
 
-    --color-on-surface: 218 226 253; /* #dae2fd */
-    --color-on-surface-variant: 199 196 215; /* #c7c4d7 */
+    /* 30% Structural Surfaces: Neutral Obsidian / Dark Graphite hierarchy (zero navy/blue tint) */
+    --color-surface-container-lowest: 0 0 0; /* #000000 - Inset wells & deeply recessed inputs */
+    --color-surface-container-low: 10 10 10; /* #0a0a0a - Very subtle elevation */
+    --color-surface-base: 14 14 14; /* #0e0e0e - Base card and frame surface */
+    --color-surface-container: 20 20 20; /* #141414 - Sidebar, header, dialog containers */
+    --color-surface-container-high: 28 28 28; /* #1c1c1c - Interactive hover states and active items */
+    --color-surface-container-highest: 38 38 38; /* #262626 - Sliders, scrub tracks, badge backings */
+    --color-surface-elevated: 24 24 24; /* #181818 - Floating menus, tooltips, command palette */
+    --color-surface-variant: 32 32 32; /* #202020 */
+    --color-surface-bright: 45 45 45; /* #2d2d2d */
 
-    --color-primary: 192 193 255; /* #c0c1ff */
-    --color-primary-container: 128 131 255; /* #8083ff */
-    --color-on-primary: 16 0 169; /* #1000a9 */
-    --color-inverse-primary: 73 75 214; /* #494bd6 */
-    --color-glow-indigo: 129 140 248; /* #818cf8 */
+    /* High-contrast crisp typography */
+    --color-on-surface: 250 250 250; /* #fafafa - Pure crisp white for primary headers & titles */
+    --color-on-surface-variant: 161 161 170; /* #a1a1aa - Zinc neutral silver for secondary/meta text */
 
-    --color-secondary: 188 199 222; /* #bcc7de */
-    --color-secondary-container: 62 73 93; /* #3e495d */
-    --color-on-secondary: 38 49 67; /* #263143 */
+    /* 10% Accent: Electric Indigo / Periwinkle with high OLED vibrancy */
+    --color-primary: 165 180 252; /* #a5b4fc - High contrast periwinkle/indigo */
+    --color-primary-container: 99 102 241; /* #6366f1 - Vivid indigo for active selections */
+    --color-on-primary: 255 255 255; /* #ffffff */
+    --color-inverse-primary: 99 102 241; /* #6366f1 */
+    --color-glow-indigo: 129 140 248; /* #818cf8 - Ambient glows & progress bars */
 
-    --color-tertiary: 255 183 131; /* #ffb783 */
-    --color-tertiary-container: 217 119 33; /* #d97721 */
-    --color-on-tertiary: 79 37 0; /* #4f2500 */
+    --color-secondary: 212 212 216; /* #d4d4d8 */
+    --color-secondary-container: 39 39 42; /* #27272a */
+    --color-on-secondary: 255 255 255; /* #ffffff */
 
-    --color-error: 255 180 171; /* #ffb4ab */
-    --color-error-container: 147 0 10; /* #93000a */
-    --color-on-error: 105 0 5; /* #690005 */
+    --color-tertiary: 251 191 36; /* #fbbf24 - Warm amber/gold for stars */
+    --color-tertiary-container: 180 83 9; /* #b45309 */
+    --color-on-tertiary: 0 0 0; /* #000000 */
 
-    --color-outline: 144 143 160; /* #908fa0 */
-    --color-outline-variant: 70 69 84; /* #464554 */
+    --color-error: 248 113 113; /* #f87171 */
+    --color-error-container: 127 29 29; /* #7f1d1d */
+    --color-on-error: 255 255 255;
 
-    --color-shadow-dark: #060910;
-    --color-shadow-light: #1e293b;
+    /* Subtle hairline borders for crisp OLED definition */
+    --color-outline: 63 63 70; /* #3f3f46 - Distinct borders */
+    --color-outline-variant: 39 39 42; /* #27272a - Subtle hairline divider lines */
 
-    /* Clean deep navy dark mode shadows */
-    --neo-raised-shadow: 0 8px 24px -4px #060910, 0 2px 8px -2px #060910, 0 0 0 1px rgba(255, 255, 255, 0.05);
-    --neo-raised-border-top: 1px solid rgba(255, 255, 255, 0.05);
-    --neo-raised-border-left: 1px solid rgba(255, 255, 255, 0.05);
+    --color-shadow-dark: #000000;
+    --color-shadow-light: #1c1c1c;
 
-    --neo-pressed-shadow: inset 0 3px 6px 0 #060910, 0 0 0 1px rgba(255, 255, 255, 0.04);
+    /* OLED Neomorphic Shadow Tokens: pure black drop shadows + delicate 1px border highlight */
+    --neo-raised-shadow: 0 8px 24px -4px #000000, 0 2px 8px -2px #000000, 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --neo-raised-border-top: 1px solid rgba(255, 255, 255, 0.09);
+    --neo-raised-border-left: 1px solid rgba(255, 255, 255, 0.07);
 
-    --neo-card-shadow: 0 8px 24px -4px #060910, 0 2px 8px -2px #060910, 0 0 0 1px rgba(255, 255, 255, 0.04);
-    --neo-card-border-top: 1px solid rgba(255, 255, 255, 0.05);
-    --neo-card-border-left: 1px solid rgba(255, 255, 255, 0.05);
+    --neo-pressed-shadow: inset 0 2px 5px 0 #000000, 0 0 0 1px rgba(255, 255, 255, 0.06);
 
-    --neo-frame-shadow: 0 4px 14px -2px #060910, 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --neo-card-shadow: 0 8px 28px -4px #000000, 0 2px 8px -2px #000000, 0 0 0 1px rgba(255, 255, 255, 0.07);
+    --neo-card-border-top: 1px solid rgba(255, 255, 255, 0.09);
+    --neo-card-border-left: 1px solid rgba(255, 255, 255, 0.07);
 
-    --neo-image-shadow: 0 2px 8px -1px #060910;
+    --neo-frame-shadow: 0 4px 14px -2px #000000, 0 0 0 1px rgba(255, 255, 255, 0.07);
 
-    --neo-button-shadow: 0 2px 6px -1px #060910, 0 0 0 1px rgba(255, 255, 255, 0.05);
-    --neo-button-hover-shadow: 0 4px 12px -2px #060910, 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --neo-image-shadow: 0 4px 12px -2px #000000;
 
-    --neo-button-primary-bg: linear-gradient(135deg, #494bd6, #2f2ebe);
-    --neo-button-primary-shadow: 0 4px 16px -2px rgba(129, 140, 248, 0.35);
-    --neo-button-primary-color: #e0e2ff;
+    --neo-button-shadow: 0 2px 6px -1px #000000, 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --neo-button-hover-shadow: 0 4px 16px -2px #000000, 0 0 0 1px rgba(255, 255, 255, 0.14);
 
-    --scrollbar-thumb: #2d3449;
-    --scrollbar-thumb-hover: #464554;
+    --neo-button-primary-bg: linear-gradient(135deg, #6366f1, #4f46e5);
+    --neo-button-primary-shadow: 0 4px 20px -2px rgba(99, 102, 241, 0.45);
+    --neo-button-primary-color: #ffffff;
+
+    --scrollbar-thumb: #27272a;
+    --scrollbar-thumb-hover: #3f3f46;
   }
 
   body {
@@ -257,20 +263,20 @@
 
   /* Vanguard Modern Gallery Glassmorphism */
   .glass-card {
-    background: linear-gradient(180deg, rgba(20, 29, 52, 0.75) 0%, rgba(13, 19, 36, 0.90) 100%);
+    background: linear-gradient(180deg, rgba(20, 20, 24, 0.85) 0%, rgba(10, 10, 12, 0.95) 100%);
     backdrop-filter: blur(28px);
     -webkit-backdrop-filter: blur(28px);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 
-      0 30px 70px -15px rgba(0, 0, 0, 0.7),
-      0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-      0 1px 0 0 rgba(255, 255, 255, 0.2) inset;
+      0 30px 70px -15px rgba(0, 0, 0, 0.85),
+      0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+      0 1px 0 0 rgba(255, 255, 255, 0.15) inset;
   }
 
   .glass-input {
-    background: rgba(9, 13, 24, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+    background: rgba(12, 12, 14, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
     transition: all 0.2s ease;
   }
 

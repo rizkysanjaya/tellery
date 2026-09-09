@@ -81,7 +81,7 @@ export const TeleGalleryLogo: React.FC<TeleGalleryLogoProps> = ({
       />
 
       {/* Central Media Aperture Lens */}
-      <circle cx="33" cy="33" r="7" fill="#0b1326" stroke="url(#tgApertureGrad)" strokeWidth="2" />
+      <circle cx="33" cy="33" r="7" fill="#000000" stroke="url(#tgApertureGrad)" strokeWidth="2" />
       <circle cx="33" cy="33" r="3" fill="#38bdf8" />
     </svg>
   );
