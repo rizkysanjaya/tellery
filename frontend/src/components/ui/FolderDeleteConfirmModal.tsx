@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/FolderDeleteConfirmModal.tsx
- * Purpose: Neomorphic confirmation dialog before deleting an Album, Collection, or multiple selected items
+ * Purpose: Precision confirmation dialog before deleting an Album, Collection, or multiple selected items
  *          with clear explanations and protection against accidental deletion.
  * Used by: frontend/src/App.tsx, frontend/src/components/FolderGrid.tsx, frontend/src/components/Sidebar.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -68,21 +68,21 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
 
   return (
     <div
-      className="fixed inset-0 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
       onClick={() => {
         if (!isDeleting) onCancel();
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="neo-card bg-surface-base border border-outline-variant/30 rounded-neo-xl p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-150 relative select-none"
+        className="bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-150 relative select-none"
       >
         {/* Close Button */}
         <button
           type="button"
           onClick={onCancel}
           disabled={isDeleting}
-          className="absolute top-4 right-4 p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer disabled:opacity-50"
           title="Close"
         >
           <X className="w-4 h-4" />
@@ -90,7 +90,7 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
 
         {/* Header Icon + Title */}
         <div className="flex items-center gap-3.5 mb-4">
-          <div className="w-11 h-11 rounded-neo bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 neo-pressed">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0">
             {anyCollection ? <Layers className="w-5 h-5 text-red-400" /> : <Trash2 className="w-5 h-5 text-red-400" />}
           </div>
           <div>
@@ -104,14 +104,14 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
         </div>
 
         {/* Content Info */}
-        <div className="my-4 p-3.5 rounded-neo-lg bg-surface-container/60 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed space-y-2">
+        <div className="my-4 p-3.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed space-y-2">
           {isMultiple ? (
             <div>
               <p className="mb-1.5">
                 Are you sure you want to delete{" "}
                 <span className="text-on-surface font-bold">{targetFolders.length} selected organizers</span>?
               </p>
-              <div className="max-h-28 overflow-y-auto space-y-1 pr-1 border border-outline-variant/10 rounded-neo p-2 bg-surface-base/50">
+              <div className="max-h-28 overflow-y-auto space-y-1 pr-1 border border-outline-variant/15 rounded-lg p-2 bg-surface-container-low">
                 {targetFolders.map((f) => (
                   <div key={f.id} className="flex items-center gap-1.5 text-on-surface font-medium truncate">
                     <span className="w-1.5 h-1.5 rounded-full bg-error shrink-0" />
@@ -138,12 +138,12 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center justify-end gap-3 mt-6">
+        <div className="flex items-center justify-end gap-2.5 mt-6">
           <button
             type="button"
             onClick={onCancel}
             disabled={isDeleting}
-            className="px-4 py-2 text-xs font-semibold text-on-surface-variant hover:text-on-surface neo-button rounded-neo transition-all cursor-pointer disabled:opacity-50"
+            className="px-3.5 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] rounded-lg transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -151,7 +151,7 @@ export const FolderDeleteConfirmModal: React.FC<FolderDeleteConfirmModalProps> =
             type="button"
             onClick={onConfirm}
             disabled={isDeleting}
-            className="px-4 py-2 text-xs font-semibold text-white bg-error hover:bg-red-600 active:scale-95 rounded-neo shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 active:scale-95 rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
           >
             {isDeleting ? "Deleting..." : `Delete ${entityLabel}`}
           </button>

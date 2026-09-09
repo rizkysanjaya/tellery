@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/ui/FolderColorPicker.tsx
  * Purpose: Hover-triggered 4×4 color palette popover for folder icon customization.
- *          Shows 16 curated stock colors matching Silk Cloud Light & Dark themes.
+ *          Shows 16 curated stock colors with pro-grade flat obsidian styling.
  * Used by: Sidebar.tsx (album list), FolderGrid.tsx (album cards).
  * Dependencies: React, lucide-react (RotateCcw).
  * Public Members: FolderColorPicker, FOLDER_PALETTE
@@ -106,7 +106,7 @@ export const FolderColorPicker: React.FC<FolderColorPickerProps> = ({
       {/* Palette Popover */}
       {isOpen && (
         <div
-          className={`absolute ${getPlacementClasses()} z-50 p-3 rounded-2xl neo-card bg-surface-base border border-outline-variant/30 shadow-2xl min-w-[152px] animate-in fade-in zoom-in-95 duration-150 select-none`}
+          className={`absolute ${getPlacementClasses()} z-50 p-3 rounded-xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 shadow-2xl min-w-[152px] animate-in fade-in zoom-in-95 duration-150 select-none`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="text-[10px] font-semibold text-on-surface-variant uppercase tracking-wider mb-2 text-center">

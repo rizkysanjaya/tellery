@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/FolderRenameModal.tsx
- * Purpose: Neomorphic modal dialog for renaming an album with validation and duplicate prevention.
+ * Purpose: Precision modal dialog for renaming an album with validation and duplicate prevention.
  * Used by: Sidebar.tsx, FolderGrid.tsx, App.tsx
  * Dependencies: React, lucide-react
  * Public Members: FolderRenameModal
@@ -62,9 +62,9 @@ export const FolderRenameModal: React.FC<FolderRenameModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
       <div
-        className="max-w-md w-full bg-surface-base border border-outline-variant/20 rounded-neo-xl p-6 neo-card shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
+        className="max-w-md w-full bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
@@ -75,7 +75,7 @@ export const FolderRenameModal: React.FC<FolderRenameModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface neo-button"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -96,7 +96,7 @@ export const FolderRenameModal: React.FC<FolderRenameModalProps> = ({
               }}
               placeholder="e.g. Summer Trip 2026"
               autoFocus
-              className="w-full px-3.5 py-2.5 rounded-neo bg-surface-container text-sm text-on-surface placeholder:text-on-surface-variant outline-none border border-outline-variant/15 focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all font-medium"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/20 text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all font-medium"
             />
             {error && (
               <p className="text-xs text-red-400 mt-1.5 font-medium">{error}</p>
@@ -107,14 +107,14 @@ export const FolderRenameModal: React.FC<FolderRenameModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface rounded-neo neo-button cursor-pointer"
+              className="px-3.5 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !name.trim()}
-              className="px-4 py-2 text-xs font-semibold neo-button-primary rounded-neo cursor-pointer transition-all disabled:opacity-50"
+              className="px-4 py-2 text-xs font-semibold bg-primary text-on-primary rounded-lg hover:bg-primary/90 active:scale-95 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? "Renaming..." : "Save Name"}
             </button>

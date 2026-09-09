@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/ui/ErrorBoundary.tsx
  * Purpose: Top-level React Error Boundary providing graceful fault tolerance,
- *          catching unhandled render exceptions and rendering a Silk Cloud recovery UI.
+ *          catching unhandled render exceptions and rendering a pro-grade obsidian recovery UI.
  * Used by: frontend/src/main.tsx
  * Dependencies: React, lucide-react (AlertTriangle, RefreshCw)
  * Public Members: ErrorBoundary
@@ -50,8 +50,8 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <div className="min-h-screen w-full bg-background flex items-center justify-center p-6 text-on-surface">
-          <div className="max-w-md w-full neo-card rounded-neo-xl p-8 space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 mx-auto rounded-full neo-pressed bg-surface-base flex items-center justify-center text-error shadow-inner">
+          <div className="max-w-md w-full rounded-2xl bg-surface-container-low/95 backdrop-blur-xl border border-outline-variant/20 p-8 space-y-6 text-center shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-error shadow-inner">
               <AlertTriangle className="w-8 h-8 text-rose-400 animate-pulse" />
             </div>
 
@@ -63,7 +63,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
 
             {this.state.error?.message && (
-              <div className="p-3 rounded-neo neo-pressed bg-surface-container-lowest text-xs font-mono text-on-surface-variant/80 text-left overflow-x-auto max-h-24">
+              <div className="p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/15 text-xs font-mono text-on-surface-variant/80 text-left overflow-x-auto max-h-24">
                 {this.state.error.message}
               </div>
             )}
@@ -71,7 +71,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="pt-2">
               <button
                 onClick={this.handleReload}
-                className="w-full py-3 px-4 rounded-neo neo-button text-sm font-semibold text-primary hover:text-primary-hover active:neo-pressed flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="w-full py-3 px-4 rounded-lg bg-primary hover:bg-primary-hover text-on-primary text-sm font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-95"
               >
                 <RefreshCw className="w-4 h-4" />
                 <span>Reload Gallery</span>

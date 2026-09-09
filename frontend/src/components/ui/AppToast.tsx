@@ -1,8 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/AppToast.tsx
- * Purpose: Sleek, non-blocking in-app neomorphic toast notification banner
- *          replacing native browser alerts for errors, warnings, and successes.
+ * Purpose: Sleek, non-blocking in-app toast notification banner with pro-grade
+ *          obsidian styling, replacing native browser alerts for errors, warnings, and successes.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, framer-motion
  * Public Members: AppToast, ToastNotification, ToastType
@@ -79,7 +79,7 @@ const ToastItem: React.FC<{ toast: ToastNotification; onDismiss: () => void }> =
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -15, scale: 0.95 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-neo-xl neo-card bg-surface-base border ${config.border} shadow-[0_10px_30px_rgba(0,0,0,0.5)]`}
+      className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl bg-surface-container-low/95 backdrop-blur-xl border ${config.border} shadow-2xl`}
     >
       {config.icon}
       <div className="flex-1 min-w-0">
@@ -87,7 +87,7 @@ const ToastItem: React.FC<{ toast: ToastNotification; onDismiss: () => void }> =
       </div>
       <button
         onClick={onDismiss}
-        className="p-1 rounded-neo neo-button text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0 -mr-1 -mt-1"
+        className="p-1 rounded-md text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer shrink-0 -mr-1 -mt-1"
         aria-label="Dismiss"
       >
         <X className="w-3.5 h-3.5" />

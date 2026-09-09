@@ -1,8 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/FolderCustomizeModal.tsx
- * Purpose: Neomorphic floating modal dialog for customizing an album's icon and color.
- *          Provides 24 curated Lucide icons and 16 stock theme colors with live preview.
+ * Purpose: Precision modal dialog for customizing an album's icon and color palette.
+ *          Provides curated Lucide icons and stock theme colors with live preview.
  * Used by: Sidebar.tsx, FolderGrid.tsx, App.tsx
  * Dependencies: React, lucide-react, FolderIcon, FOLDER_PALETTE
  * Public Members: FolderCustomizeModal
@@ -53,9 +53,9 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
       <div
-        className="max-w-md w-full bg-surface-base border border-outline-variant/20 rounded-neo-xl p-6 neo-card shadow-2xl space-y-6 animate-in zoom-in-95 duration-200"
+        className="max-w-md w-full bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 shadow-2xl space-y-6 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -72,7 +72,7 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface neo-button"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -80,9 +80,9 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
         </div>
 
         {/* Live Preview Card */}
-        <div className="p-4 rounded-xl neo-pressed bg-surface-container/60 flex items-center gap-4">
+        <div className="p-4 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 flex items-center gap-4">
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center neo-raised transition-all"
+            className="w-14 h-14 rounded-xl flex items-center justify-center border border-outline-variant/15 transition-all"
             style={{
               backgroundColor: selectedColor ? `${selectedColor}18` : undefined,
             }}
@@ -111,7 +111,7 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
           <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">
             Select Icon
           </div>
-          <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-1 rounded-xl neo-pressed bg-surface-container/30">
+          <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-2 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15">
             {AVAILABLE_FOLDER_ICONS.map((item) => {
               const isSelected = selectedIcon === item.name;
               return (
@@ -119,10 +119,10 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
                   key={item.name}
                   type="button"
                   onClick={() => setSelectedIcon(item.name)}
-                  className={`p-2 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer ${
+                  className={`p-2 rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
                     isSelected
-                      ? "neo-pressed bg-primary/20 text-primary ring-2 ring-primary scale-105"
-                      : "neo-raised hover:bg-surface-container text-on-surface-variant hover:text-on-surface"
+                      ? "bg-primary/20 text-primary ring-1 ring-primary scale-105"
+                      : "hover:bg-white/[0.06] text-on-surface-variant hover:text-on-surface"
                   }`}
                   title={item.label}
                 >
@@ -150,7 +150,7 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
               </button>
             )}
           </div>
-          <div className="grid grid-cols-8 gap-2.5 p-2 rounded-xl neo-pressed bg-surface-container/30">
+          <div className="grid grid-cols-8 gap-2.5 p-2.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15">
             {FOLDER_PALETTE.map((color) => {
               const isSelected = selectedColor?.toLowerCase() === color.toLowerCase();
               return (
@@ -180,7 +180,7 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
           <button
             type="button"
             onClick={handleReset}
-            className="text-xs text-on-surface-variant hover:text-on-surface py-2 px-3 rounded-lg hover:bg-surface-container transition-colors cursor-pointer"
+            className="text-xs text-on-surface-variant hover:text-on-surface py-2 px-3 rounded-lg hover:bg-white/[0.04] transition-colors cursor-pointer"
           >
             Reset All
           </button>
@@ -188,7 +188,7 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface rounded-neo neo-button cursor-pointer"
+              className="px-3.5 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -196,7 +196,7 @@ export const FolderCustomizeModal: React.FC<FolderCustomizeModalProps> = ({
               type="button"
               onClick={handleSave}
               disabled={isSubmitting}
-              className="px-4 py-2 text-xs font-semibold neo-button-primary rounded-neo cursor-pointer transition-all disabled:opacity-50"
+              className="px-4 py-2 text-xs font-semibold bg-primary text-on-primary rounded-lg hover:bg-primary/90 active:scale-95 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? "Saving..." : "Apply Changes"}
             </button>

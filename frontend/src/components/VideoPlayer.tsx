@@ -5,7 +5,7 @@
  *          buffered range tracking, playback speed controls, picture-in-picture,
  *          custom right-click context menu (Loop, Speed, PiP, URL copy, Stats for Nerds),
  *          keyboard shortcuts (YouTube/Netflix style), and auto-hiding controls.
- *          Updated with mobile touch target hit slop and touch scrubbing.
+ *          Pro-grade obsidian floating controls, zero clay artifacts, and mobile hit slop.
  * Used by: frontend/src/components/MediaLightbox.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: VideoPlayer
@@ -596,7 +596,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       ref={containerRef}
       onMouseMove={handleMouseMove}
       onContextMenu={handleContextMenu}
-      className={`relative w-full h-full max-h-[88vh] flex items-center justify-center select-none group rounded-neo-xl overflow-hidden bg-black/40 ${
+      className={`relative w-full h-full max-h-[88vh] flex items-center justify-center select-none group rounded-2xl overflow-hidden bg-black/40 ${
         isFullscreen ? "w-screen h-screen max-h-screen rounded-none bg-black" : ""
       }`}
     >
@@ -655,7 +655,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       {isEnded && !isLoading && !hasError && (
         <button
           onClick={handleReplay}
-          className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-surface-base/90 hover:bg-surface-base backdrop-blur-md border border-white/15 flex items-center justify-center neo-button shadow-[0_0_35px_rgba(129,140,248,0.5)] text-primary hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer group/replay animate-in fade-in zoom-in-75 duration-200"
+          className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl text-primary hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer group/replay animate-in fade-in zoom-in-75 duration-200"
           title="Replay Video (Space / Click)"
         >
           <RotateCcw className="w-10 h-10 text-primary group-hover/replay:-rotate-90 transition-transform duration-300 drop-shadow-[0_0_8px_rgba(129,140,248,0.8)]" />
@@ -666,7 +666,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       {!isPlaying && !isEnded && !isLoading && !hasError && (
         <button
           onClick={togglePlay}
-          className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-surface-base/80 hover:bg-surface-base backdrop-blur-md border border-white/10 flex items-center justify-center neo-button shadow-[0_0_30px_rgba(0,0,0,0.6)] text-primary hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer"
+          className="absolute inset-0 m-auto w-20 h-20 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-2xl text-primary hover:scale-110 active:scale-95 transition-all z-20 cursor-pointer"
           title="Play Video"
         >
           <Play className="w-10 h-10 fill-primary text-primary ml-1" />
@@ -696,7 +696,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       {/* Playback Error Fallback */}
       {hasError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-base text-center p-6 z-30 animate-in fade-in duration-200">
-          <div className="w-14 h-14 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mb-3 neo-pressed">
+          <div className="w-14 h-14 rounded-2xl bg-red-500/10 text-red-400 flex items-center justify-center mb-3 border border-red-500/20">
             <AlertCircle className="w-7 h-7" />
           </div>
           <h4 className="text-base font-bold text-on-surface">Playback Error</h4>
@@ -706,14 +706,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           <div className="flex items-center gap-3 mt-4">
             <button
               onClick={handleRetry}
-              className="px-4 py-2 neo-button-primary rounded-neo-lg text-xs font-semibold shadow-[0_0_15px_rgba(129,140,248,0.3)] cursor-pointer"
+              className="px-4 py-2 bg-primary hover:bg-primary-hover text-on-primary rounded-lg text-xs font-semibold shadow-md cursor-pointer transition-colors"
             >
               Retry Playback
             </button>
             <a
               href={item.stream_url}
               download={item.file_name}
-              className="px-4 py-2 neo-button rounded-neo-lg text-xs font-medium text-on-surface-variant hover:text-on-surface cursor-pointer"
+              className="px-4 py-2 bg-surface-container hover:bg-surface-container-high rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface border border-outline-variant/20 cursor-pointer transition-colors"
             >
               Download Video
             </a>
@@ -723,7 +723,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
       {/* Floating Overlay Controls Bar (Bottom of video) */}
       <div
-        className={`absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2.5rem)] max-w-2xl bg-surface-base/95 backdrop-blur-xl p-3 sm:p-3.5 rounded-2xl neo-raised border border-outline-variant/30 z-30 flex flex-col gap-2.5 transition-all duration-300 shadow-[0_16px_40px_rgba(0,0,0,0.5)] ${
+        className={`absolute bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2.5rem)] max-w-2xl bg-surface-container-low/95 backdrop-blur-xl p-3 sm:p-3.5 rounded-2xl border border-outline-variant/20 z-30 flex flex-col gap-2.5 transition-all duration-300 shadow-2xl ${
           showControls || !isPlaying
             ? "opacity-100 translate-y-0"
             : "opacity-0 translate-y-4 pointer-events-none"
@@ -737,13 +737,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             onMouseLeave={() => setHoverTime(null)}
             onMouseDown={handleScrubMouseDown}
             onTouchStart={handleScrubTouchStart}
-            className="w-full h-2 hover:h-3 neo-pressed rounded-full relative cursor-pointer transition-all duration-150 group/scrubber flex items-center touch-manipulation"
+            className="w-full h-2 hover:h-3 bg-surface-container-lowest border border-outline-variant/15 rounded-full relative cursor-pointer transition-all duration-150 group/scrubber flex items-center touch-manipulation"
           >
             {/* Scrubber Hover Time Tooltip */}
             {hoverTime !== null && (
               <div
                 style={{ left: `${Math.max(5, Math.min(95, hoverPosition))}%` }}
-                className="absolute bottom-5 -translate-x-1/2 z-30 flex items-center px-2.5 py-1 bg-surface-base/98 border border-outline-variant/30 rounded-neo shadow-lg pointer-events-none animate-in fade-in duration-100"
+                className="absolute bottom-5 -translate-x-1/2 z-30 flex items-center px-2.5 py-1 bg-surface-container-lowest/98 border border-outline-variant/30 rounded-md shadow-lg pointer-events-none animate-in fade-in duration-100"
               >
                 <span className="text-[11px] font-mono font-bold text-primary">
                   {formatTime(hoverTime)}
@@ -762,7 +762,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             <div
               ref={playedBarRef}
               style={{ width: "0%" }}
-              className="absolute top-0 bottom-0 left-0 bg-glow-indigo rounded-full shadow-[0_0_10px_rgba(129,140,248,0.5)] flex items-center justify-end"
+              className="absolute top-0 bottom-0 left-0 bg-primary rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)] flex items-center justify-end"
             >
               {/* Scrubber Thumb Knob */}
               <div className="w-3.5 h-3.5 rounded-full bg-white shadow-md ring-2 ring-primary scale-0 group-hover/scrubber:scale-100 transition-transform -mr-1.5" />
@@ -777,7 +777,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Play/Pause Button */}
             <button
               onClick={togglePlay}
-              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full neo-button-primary flex items-center justify-center cursor-pointer active:scale-95 transition-transform shrink-0 shadow-md touch-manipulation"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-primary hover:bg-primary-hover text-on-primary flex items-center justify-center cursor-pointer active:scale-95 transition-transform shrink-0 shadow-md touch-manipulation"
               title={isPlaying ? "Pause (Space/K)" : "Play (Space/K)"}
             >
               {isPlaying ? (
@@ -790,7 +790,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Skip Backward 10s */}
             <button
               onClick={() => handleSkip(-10)}
-              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer shrink-0 touch-manipulation"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full bg-surface-container-high/60 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/15 flex items-center justify-center transition-colors cursor-pointer shrink-0 touch-manipulation"
               title="Skip backward 10s (Left Arrow/J)"
             >
               <RotateCcw className="w-4 h-4" />
@@ -799,7 +799,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Skip Forward 10s */}
             <button
               onClick={() => handleSkip(10)}
-              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer shrink-0 touch-manipulation"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full bg-surface-container-high/60 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/15 flex items-center justify-center transition-colors cursor-pointer shrink-0 touch-manipulation"
               title="Skip forward 10s (Right Arrow/L)"
             >
               <RotateCw className="w-4 h-4" />
@@ -809,7 +809,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             <div className="flex items-center gap-1.5 ml-1 group/vol">
               <button
                 onClick={toggleMute}
-                className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0 touch-manipulation"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full bg-surface-container-high/60 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/15 flex items-center justify-center transition-colors cursor-pointer shrink-0 touch-manipulation"
                 title={isMuted ? "Unmute (M)" : "Mute (M)"}
               >
                 {isMuted || volume === 0 ? (
@@ -871,8 +871,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
               onClick={toggleLoop}
               className={`w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 touch-manipulation ${
                 isLooping
-                  ? "neo-pressed text-primary ring-1 ring-primary/40 bg-primary/10"
-                  : "neo-button text-on-surface-variant hover:text-on-surface"
+                  ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                  : "bg-surface-container-high/60 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/15"
               }`}
               title={isLooping ? "Loop Enabled" : "Loop Disabled"}
             >
@@ -885,8 +885,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
                 onClick={() => setShowSettingsMenu((p) => !p)}
                 className={`h-9 px-2.5 min-h-[36px] relative after:absolute after:-inset-1 after:content-[''] rounded-full flex items-center gap-1 text-xs font-mono font-semibold transition-all cursor-pointer shrink-0 touch-manipulation ${
                   showSettingsMenu || playbackRate !== 1
-                    ? "neo-pressed text-primary ring-1 ring-primary/40 bg-primary/10"
-                    : "neo-button text-on-surface-variant hover:text-on-surface"
+                    ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                    : "bg-surface-container-high/60 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/15"
                 }`}
                 title="Playback Speed"
               >
@@ -896,7 +896,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
               {/* Speed Popover Menu */}
               {showSettingsMenu && (
-                <div className="absolute bottom-full right-0 mb-3 w-36 bg-surface-base border border-outline-variant/20 rounded-neo-xl p-1.5 neo-card shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute bottom-full right-0 mb-3 w-36 bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-xl p-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-100">
                   <div className="text-[10px] font-bold text-on-surface-variant px-2.5 py-1 border-b border-outline-variant/15 mb-1 uppercase tracking-wider">
                     Playback Speed
                   </div>
@@ -904,10 +904,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
                     <button
                       key={rate}
                       onClick={() => handleRateChange(rate)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-neo text-xs font-medium transition-all text-left cursor-pointer touch-manipulation ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-left cursor-pointer touch-manipulation ${
                         playbackRate === rate
-                          ? "bg-primary/15 text-primary neo-pressed font-bold"
-                          : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+                          ? "bg-primary/15 text-primary font-bold"
+                          : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
                       }`}
                     >
                       <span>{rate === 1 ? "Normal (1x)" : `${rate}x`}</span>
@@ -921,7 +921,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Fullscreen */}
             <button
               onClick={toggleFullscreen}
-              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0 touch-manipulation"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full bg-surface-container-high/60 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border border-outline-variant/15 flex items-center justify-center transition-colors cursor-pointer shrink-0 touch-manipulation"
               title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}
             >
               {isFullscreen ? (
@@ -939,15 +939,15 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
         <div
           ref={contextMenuRef}
           style={{ left: `${contextMenu.x}px`, top: `${contextMenu.y}px` }}
-          className="absolute z-50 w-56 bg-surface-base border border-outline-variant/20 rounded-neo-xl p-1.5 neo-card shadow-[0_10px_35px_rgba(0,0,0,0.7)] animate-in fade-in zoom-in-95 duration-100 select-none text-xs"
+          className="absolute z-50 w-56 bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-xl p-1.5 shadow-2xl animate-in fade-in zoom-in-95 duration-100 select-none text-xs"
         >
           {/* Loop Toggle */}
           <button
             onClick={toggleLoop}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-neo transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all cursor-pointer ${
               isLooping
-                ? "bg-primary/10 text-primary font-bold neo-pressed"
-                : "text-on-surface hover:bg-surface-container"
+                ? "bg-primary/10 text-primary font-bold"
+                : "text-on-surface hover:bg-surface-container-high"
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -967,7 +967,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
               togglePlay();
               setContextMenu(null);
             }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-on-surface hover:bg-surface-container-high transition-all cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               {isPlaying ? (
@@ -984,22 +984,22 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           <div className="relative">
             <button
               onClick={() => setShowSpeedSubmenu((p) => !p)}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-neo transition-all cursor-pointer ${
-                showSpeedSubmenu ? "bg-surface-container text-primary" : "text-on-surface hover:bg-surface-container"
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all cursor-pointer ${
+                showSpeedSubmenu ? "bg-surface-container-high text-primary" : "text-on-surface hover:bg-surface-container-high"
               }`}
             >
               <div className="flex items-center gap-2.5">
                 <Gauge className="w-4 h-4 text-on-surface-variant" />
                 <span>Speed</span>
               </div>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-surface-container text-primary font-bold font-mono">
+              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-surface-container-highest text-primary font-bold font-mono">
                 {playbackRate === 1 ? "Normal" : `${playbackRate}x`}
               </span>
             </button>
 
             {/* Speed Inline Grid */}
             {showSpeedSubmenu && (
-              <div className="my-1 p-1 bg-surface-container-lowest rounded-neo grid grid-cols-3 gap-1">
+              <div className="my-1 p-1 bg-surface-container-lowest rounded-lg grid grid-cols-3 gap-1 border border-outline-variant/15">
                 {PLAYBACK_RATES.map((rate) => (
                   <button
                     key={rate}
@@ -1007,10 +1007,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
                       handleRateChange(rate);
                       setContextMenu(null);
                     }}
-                    className={`py-1 px-1 rounded text-[11px] font-mono text-center transition-all cursor-pointer ${
+                    className={`py-1 px-1 rounded-md text-[11px] font-mono text-center transition-all cursor-pointer ${
                       playbackRate === rate
                         ? "bg-primary text-on-primary font-bold"
-                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                        : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
                     }`}
                   >
                     {rate === 1 ? "1x" : `${rate}x`}
@@ -1028,7 +1028,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
               togglePiP();
               setContextMenu(null);
             }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-on-surface hover:bg-surface-container-high transition-all cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <ExternalLink className="w-4 h-4 text-on-surface-variant" />
@@ -1040,7 +1040,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           {/* Copy Video Stream Link */}
           <button
             onClick={handleCopyVideoUrl}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-neo text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-on-surface hover:bg-surface-container-high transition-all cursor-pointer"
           >
             <div className="flex items-center gap-2.5">
               <Link className="w-4 h-4 text-on-surface-variant" />
@@ -1054,10 +1054,10 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
               setShowStatsOverlay((prev) => !prev);
               setContextMenu(null);
             }}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-neo transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all cursor-pointer ${
               showStatsOverlay
-                ? "bg-primary/10 text-primary font-bold neo-pressed"
-                : "text-on-surface hover:bg-surface-container"
+                ? "bg-primary/10 text-primary font-bold"
+                : "text-on-surface hover:bg-surface-container-high"
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -1074,7 +1074,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             href={item.stream_url}
             download={item.file_name}
             onClick={() => setContextMenu(null)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-neo text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-all cursor-pointer"
           >
             <Download className="w-4 h-4 text-on-surface-variant" />
             <span>Download Video</span>
@@ -1084,7 +1084,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
       {/* Stats for Nerds HUD Overlay */}
       {showStatsOverlay && (
-        <div className="absolute top-4 left-4 z-40 bg-surface-base/95 backdrop-blur-md border border-outline-variant/30 rounded-neo-lg p-3 text-[11px] font-mono text-on-surface shadow-2xl space-y-1.5 min-w-[270px] neo-card animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-4 left-4 z-40 bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-xl p-3 text-[11px] font-mono text-on-surface shadow-2xl space-y-1.5 min-w-[270px] animate-in fade-in zoom-in-95 duration-150">
           <div className="flex items-center justify-between pb-1.5 border-b border-outline-variant/20 text-primary font-sans font-bold text-xs">
             <div className="flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5" />
@@ -1092,7 +1092,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             </div>
             <button
               onClick={() => setShowStatsOverlay(false)}
-              className="p-1 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
+              className="p-1 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -1138,7 +1138,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
       {/* Copied URL Toast */}
       {copiedToast && (
-        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface-base/95 border border-primary/30 rounded-full neo-card text-xs font-semibold text-primary shadow-xl flex items-center gap-2 animate-in fade-in duration-150">
+        <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-surface-container-low/95 backdrop-blur-md border border-primary/30 rounded-full text-xs font-semibold text-primary shadow-xl flex items-center gap-2 animate-in fade-in duration-150">
           <Check className="w-4 h-4 text-primary" />
           <span>Video stream URL copied to clipboard!</span>
         </div>

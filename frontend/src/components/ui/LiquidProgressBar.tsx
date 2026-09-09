@@ -1,9 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/LiquidProgressBar.tsx
- * Purpose: Neomorphic liquid fluid progress bar with undulating wave meniscus,
- *          translucent specular sheen, and continuous liquid charging physics
- *          inspired by liquid battery charging CSS animations.
+ * Purpose: Precision liquid fluid progress bar with undulating wave meniscus,
+ *          translucent specular sheen, and smooth GPU-accelerated charging physics.
  * Used by: frontend/src/components/Sidebar.tsx,
  *          frontend/src/components/UploadManager.tsx,
  *          frontend/src/components/ui/UndoToast.tsx
@@ -78,7 +77,7 @@ export const LiquidProgressBar: React.FC<LiquidProgressBarProps> = ({
 
   return (
     <div
-      className={`relative w-full overflow-hidden rounded-full neo-pressed bg-surface-base/90 border border-outline-variant/25 shadow-inner ${height} ${className}`}
+      className={`relative w-full overflow-hidden rounded-full bg-surface-container-lowest border border-outline-variant/20 shadow-inner ${height} ${className}`}
     >
       {/* Liquid Column */}
       <div

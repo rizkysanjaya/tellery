@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/LogoutConfirmModal.tsx
- * Purpose: Neomorphic confirmation dialog before disconnecting/logging out of the active Telegram MTProto session.
+ * Purpose: Precision confirmation dialog before disconnecting/logging out of the active Telegram MTProto session.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react
  * Public Members: LogoutConfirmModal
@@ -48,21 +48,21 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
       onClick={() => {
         if (!isLoggingOut) onCancel();
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="neo-card bg-surface-base border border-outline-variant/30 rounded-neo-xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-150 relative select-none"
+        className="bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-150 relative select-none"
       >
         {/* Close Button */}
         <button
           type="button"
           onClick={onCancel}
           disabled={isLoggingOut}
-          className="absolute top-4 right-4 p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer disabled:opacity-50"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer disabled:opacity-50"
           title="Close"
         >
           <X className="w-4 h-4" />
@@ -70,7 +70,7 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
 
         {/* Header Icon + Title */}
         <div className="flex items-center gap-3.5 mb-3">
-          <div className="w-11 h-11 rounded-neo bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 neo-pressed">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0">
             <LogOut className="w-5 h-5 text-red-400" />
           </div>
           <div>
@@ -84,7 +84,7 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
         </div>
 
         {/* Info card */}
-        <div className="my-4 p-3.5 rounded-neo bg-surface-container/60 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed space-y-2.5">
+        <div className="my-4 p-3.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed space-y-2.5">
           <p>
             Are you sure you want to disconnect? You will need to log in again with your phone number to access Tellery.
           </p>
@@ -113,12 +113,12 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="flex items-center gap-3 pt-2">
+        <div className="flex items-center gap-2.5 pt-2">
           <button
             type="button"
             onClick={onCancel}
             disabled={isLoggingOut}
-            className="flex-1 py-2.5 px-4 rounded-neo text-xs font-semibold text-on-surface hover:text-primary transition-all cursor-pointer neo-button disabled:opacity-50"
+            className="flex-1 py-2 px-3 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
@@ -127,7 +127,7 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
             type="button"
             onClick={onConfirm}
             disabled={isLoggingOut}
-            className="flex-1 py-2.5 px-4 rounded-neo text-xs font-semibold text-white bg-gradient-to-r from-red-600 via-red-500 to-rose-600 hover:from-red-500 hover:to-rose-500 shadow-[0_0_20px_-3px_rgba(239,68,68,0.4)] hover:shadow-[0_0_24px_rgba(239,68,68,0.6)] transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="flex-1 py-2 px-3 rounded-lg text-xs font-semibold text-white bg-rose-600 hover:bg-rose-500 active:scale-95 shadow-sm transition-all cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {isLoggingOut ? (
               <>

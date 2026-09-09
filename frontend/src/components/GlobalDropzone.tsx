@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/GlobalDropzone.tsx
- * Purpose: Silk Cloud full-window neomorphic drag-and-drop overlay. Provides sleek,
+ * Purpose: Full-window drag-and-drop overlay with pro-grade obsidian styling. Provides sleek,
  *          zero-flicker visual feedback with context awareness (Vault Timeline vs
  *          target Album vs Read-Only Channel warning) and hints for recursive folder-to-album conversion.
  * Used by: frontend/src/App.tsx
@@ -42,7 +42,7 @@ export const GlobalDropzone: React.FC<GlobalDropzoneProps> = ({
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.92, y: 15 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className={`neo-card bg-surface-base border-2 border-dashed rounded-neo-xl p-8 sm:p-10 max-w-lg w-full flex flex-col items-center text-center shadow-2xl relative overflow-hidden ${
+            className={`rounded-2xl bg-surface-container-low/95 backdrop-blur-xl border-2 border-dashed p-8 sm:p-10 max-w-lg w-full flex flex-col items-center text-center shadow-2xl relative overflow-hidden ${
               readOnly ? "border-amber-500/50" : "border-primary/50"
             }`}
           >
@@ -60,7 +60,7 @@ export const GlobalDropzone: React.FC<GlobalDropzoneProps> = ({
 
             {/* Central Animated Icon */}
             <div
-              className={`w-20 h-20 rounded-full neo-pressed flex items-center justify-center mb-5 relative ${
+              className={`w-20 h-20 rounded-2xl flex items-center justify-center mb-5 relative border border-outline-variant/20 shadow-inner ${
                 readOnly
                   ? "bg-amber-500/10 text-amber-400"
                   : "bg-surface-container text-primary"
@@ -114,11 +114,11 @@ export const GlobalDropzone: React.FC<GlobalDropzoneProps> = ({
                 </span>
               ) : (
                 <>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant neo-raised">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant border border-outline-variant/20 shadow-sm">
                     <ShieldCheck className="w-3.5 h-3.5 text-primary" />
                     Original Byte-for-Byte Quality
                   </span>
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant neo-raised">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-surface-container text-on-surface-variant border border-outline-variant/20 shadow-sm">
                     <Sparkles className="w-3.5 h-3.5 text-primary" />
                     Deep Recursive Folder Crawl
                   </span>

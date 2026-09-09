@@ -52,8 +52,8 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
-      <div className="max-w-md w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl p-6 neo-card shadow-2xl space-y-4">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
+      <div className="max-w-md w-full bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
           <h3 className="text-base font-bold text-on-surface flex items-center gap-2">
@@ -62,7 +62,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
           </h3>
           <button
             onClick={onClose}
-            className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface neo-button cursor-pointer"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -80,8 +80,8 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
             onClick={() => setSelectedColId(null)}
             className={`w-full flex items-center justify-between p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
               selectedColId === null
-                ? "neo-pressed bg-surface-base border-primary/50 text-primary shadow-sm"
-                : "bg-surface-container/30 border-outline-variant/10 text-on-surface-variant hover:text-on-surface hover:bg-surface-container/60"
+                ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
+                : "bg-surface-container-lowest/80 border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
             }`}
           >
             <div className="flex items-center gap-2.5">
@@ -101,8 +101,8 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
                 onClick={() => setSelectedColId(col.id)}
                 className={`w-full flex items-center justify-between p-3 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                   isSelected
-                    ? "neo-pressed bg-surface-base border-primary/50 text-primary shadow-sm"
-                    : "bg-surface-container/30 border-outline-variant/10 text-on-surface hover:bg-surface-container/60"
+                    ? "bg-primary/10 border-primary/40 text-primary shadow-sm"
+                    : "bg-surface-container-lowest/80 border-outline-variant/15 text-on-surface hover:bg-white/[0.04]"
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate pr-2">
@@ -120,7 +120,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2.5 neo-button rounded-neo-lg text-on-surface text-xs font-semibold transition-all cursor-pointer"
+            className="px-3.5 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -128,7 +128,7 @@ export const FolderMoveModal: React.FC<FolderMoveModalProps> = ({
             type="button"
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-1.5 px-4 py-2.5 neo-button-primary rounded-neo-lg disabled:opacity-50 text-xs font-semibold shadow-lg transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-sm disabled:opacity-50 cursor-pointer"
           >
             {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>Save</span>

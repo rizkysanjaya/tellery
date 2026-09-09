@@ -1,8 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/TimelineDateScrubber.tsx
- * Purpose: Apple/Google Photos-inspired chronological date-jump scrubber bar
- *          with floating month preview bubble, precision rAF scrollspy synchronization,
+ * Purpose: Apple/Google Photos-inspired chronological date-jump scrubber bar with
+ *          precision obsidian rail, floating month preview bubble, rAF scrollspy synchronization,
  *          smart year-disambiguated period labels (e.g. "Sep '26" vs "Sep '25"),
  *          touch-manipulation expanded hit slop, and 1-click smooth jump navigation.
  * Used by: frontend/src/components/TimelineGrid.tsx, frontend/src/App.tsx
@@ -225,8 +225,8 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
           className={`absolute ${needsYear ? "right-16" : "right-12"} -translate-y-1/2 pointer-events-none transition-all duration-150 ease-out`}
           style={{ top: tooltipPos }}
         >
-          <div className="flex items-center gap-2.5 px-3.5 py-2 bg-surface-base/95 border border-outline-variant/30 rounded-neo-lg shadow-xl backdrop-blur-md whitespace-nowrap">
-            <div className="w-6 h-6 rounded-neo bg-primary/15 text-primary flex items-center justify-center shrink-0">
+          <div className="flex items-center gap-2.5 px-3.5 py-2 bg-surface-container-low/95 border border-outline-variant/20 rounded-xl shadow-xl backdrop-blur-md whitespace-nowrap">
+            <div className="w-6 h-6 rounded-lg bg-primary/15 text-primary flex items-center justify-center shrink-0">
               <Calendar className="w-3.5 h-3.5" />
             </div>
             <div>
@@ -238,13 +238,13 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
               </p>
             </div>
             {/* Arrow pointer */}
-            <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-surface-base border-r border-t border-outline-variant/30 rotate-45" />
+            <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-3 h-3 bg-surface-container-low border-r border-t border-outline-variant/20 rotate-45" />
           </div>
         </div>
       )}
 
       {/* Main Scrubber Rail */}
-      <div className="flex flex-col items-center py-2 px-1.5 bg-surface-base/90 border border-outline-variant/20 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-sm neo-card gap-1">
+      <div className="flex flex-col items-center py-2 px-1.5 bg-surface-container-low/90 border border-outline-variant/20 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.35)] backdrop-blur-md gap-1">
         {/* Top Scroll Hint */}
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}

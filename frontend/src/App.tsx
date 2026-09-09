@@ -2205,7 +2205,7 @@ export const App: React.FC = () => {
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center text-on-surface">
-        <div className="w-16 h-16 rounded-neo-xl neo-pressed flex items-center justify-center text-primary mb-4 animate-pulse">
+        <div className="w-16 h-16 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-center text-primary mb-4 animate-pulse shadow-xl">
           <Cloud className="w-8 h-8" />
         </div>
         <p className="text-sm text-on-surface-variant font-medium tracking-wide">Connecting to Tellery...</p>
@@ -2946,7 +2946,7 @@ export const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowVaultSetupWizard(true)}
-          className="px-3 py-1.5 rounded-full bg-surface-base neo-raised text-on-surface-variant hover:text-on-surface border border-outline-variant/30 text-xs font-semibold shadow-lg backdrop-blur-md flex items-center gap-2 transition-all group cursor-pointer hover:scale-105 active:scale-95"
+          className="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant/30 text-xs font-semibold shadow-lg backdrop-blur-md flex items-center gap-2 transition-all group cursor-pointer hover:scale-105 active:scale-95"
           title="Open Step 5 (Welcome & Vault Strategy Hub) without logging out or needing OTP"
         >
           <span className="w-2 h-2 rounded-full bg-primary group-hover:scale-125 transition-transform" />

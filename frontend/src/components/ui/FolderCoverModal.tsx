@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/FolderCoverModal.tsx
- * Purpose: Neomorphic floating modal dialog allowing users to choose an image/video
+ * Purpose: Precision floating modal dialog allowing users to choose an image/video
  *          from inside an album to act as its custom cover thumbnail.
  * Used by: Sidebar.tsx, FolderGrid.tsx, App.tsx
  * Dependencies: React, lucide-react, frontend/src/api.ts, frontend/src/types.ts
@@ -69,9 +69,9 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
+    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150 select-none">
       <div
-        className="max-w-xl w-full bg-surface-base border border-outline-variant/20 rounded-neo-xl p-6 neo-card shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
+        className="max-w-xl w-full bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 shadow-2xl space-y-5 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -88,7 +88,7 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface neo-button cursor-pointer"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -112,11 +112,11 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
           </div>
 
           {loading ? (
-            <div className="h-48 flex items-center justify-center neo-pressed rounded-xl bg-surface-container/40">
+            <div className="h-48 flex items-center justify-center rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15">
               <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
           ) : items.length === 0 ? (
-            <div className="h-48 flex flex-col items-center justify-center text-center p-4 neo-pressed rounded-xl bg-surface-container/40">
+            <div className="h-48 flex flex-col items-center justify-center text-center p-4 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15">
               <ImageIcon className="w-8 h-8 text-on-surface-variant/40 mb-2" />
               <p className="text-xs text-on-surface-variant">
                 This album doesn't contain any media items yet.
@@ -126,7 +126,7 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5 max-h-72 overflow-y-auto p-2 neo-pressed rounded-xl bg-surface-container/30">
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2.5 max-h-72 overflow-y-auto p-2.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15">
               {items.map((media) => {
                 const isSelected = selectedMediaId === media.id;
                 return (
@@ -134,9 +134,9 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
                     key={media.id}
                     type="button"
                     onClick={() => setSelectedMediaId(media.id)}
-                    className={`group relative aspect-square rounded-lg overflow-hidden transition-all duration-150 cursor-pointer ${
+                    className={`group relative aspect-square rounded-lg overflow-hidden border border-outline-variant/20 hover:border-primary/50 transition-all duration-150 cursor-pointer ${
                       isSelected
-                        ? "ring-3 ring-primary scale-[0.96] shadow-md"
+                        ? "ring-2 ring-primary scale-[0.97] shadow-md"
                         : "hover:opacity-90 hover:scale-102"
                     }`}
                   >
@@ -172,7 +172,7 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface rounded-neo neo-button cursor-pointer"
+            className="px-3.5 py-2 text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] rounded-lg transition-colors cursor-pointer"
           >
             Cancel
           </button>
@@ -180,7 +180,7 @@ export const FolderCoverModal: React.FC<FolderCoverModalProps> = ({
             type="button"
             onClick={handleSave}
             disabled={isSaving || (items.length === 0 && selectedMediaId === null)}
-            className="px-4 py-2 text-xs font-semibold neo-button-primary rounded-neo cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+            className="px-4 py-2 text-xs font-semibold bg-primary text-on-primary rounded-lg hover:bg-primary/90 active:scale-95 transition-all shadow-sm disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
           >
             {isSaving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>Save as Album Cover</span>

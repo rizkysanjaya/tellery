@@ -4,6 +4,7 @@
  * Purpose: Google Drive-style floating upload manager widget with individual per-file
  *          progress bars, byte transfer counters, processing/syncing indicators,
  *          target album badges, duplicate conflict badges, collapsible panel, and completion badges.
+ *          Engineered with pro-grade obsidian surfaces and hairline borders.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: UploadManager
@@ -89,15 +90,15 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 30, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 350, damping: 25 }}
-      className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 neo-card bg-surface-base rounded-neo-lg overflow-hidden"
+      className="fixed bottom-4 right-4 z-50 w-80 sm:w-96 rounded-2xl bg-surface-container-low/95 backdrop-blur-xl border border-outline-variant/20 shadow-2xl overflow-hidden"
     >
       {/* Header Bar */}
       <div
         onClick={() => setIsCollapsed((prev) => !prev)}
-        className="flex items-center justify-between px-4 py-3 bg-surface-container-lowest border-b border-surface-container-highest cursor-pointer select-none hover:bg-surface-container transition-colors"
+        className="flex items-center justify-between px-4 py-3 bg-surface-container-lowest/80 border-b border-outline-variant/15 cursor-pointer select-none hover:bg-surface-container transition-colors"
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-neo bg-surface-container text-primary flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-surface-container text-primary flex items-center justify-center shrink-0">
             {inProgressCount > 0 ? (
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
             ) : (
@@ -123,14 +124,14 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
           {(completedCount > 0 || duplicateCount > 0) && inProgressCount === 0 && (
             <button
               onClick={onClearCompleted}
-              className="text-[11px] font-semibold text-on-surface-variant hover:text-primary px-1.5 py-0.5 rounded-neo hover:bg-surface-container transition-colors cursor-pointer"
+              className="text-[11px] font-semibold text-on-surface-variant hover:text-primary px-1.5 py-0.5 rounded-md hover:bg-surface-container transition-colors cursor-pointer"
             >
               Clear
             </button>
           )}
           <button
             onClick={() => setIsCollapsed((prev) => !prev)}
-            className="p-1 text-on-surface-variant hover:text-on-surface rounded-neo hover:bg-surface-container transition-colors cursor-pointer"
+            className="p-1 text-on-surface-variant hover:text-on-surface rounded-md hover:bg-surface-container transition-colors cursor-pointer"
             title={isCollapsed ? "Expand" : "Collapse"}
           >
             {isCollapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -138,7 +139,7 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
           {inProgressCount === 0 && (
             <button
               onClick={onDismiss}
-              className="p-1 text-on-surface-variant hover:text-on-surface rounded-neo hover:bg-surface-container transition-colors cursor-pointer"
+              className="p-1 text-on-surface-variant hover:text-on-surface rounded-md hover:bg-surface-container transition-colors cursor-pointer"
               title="Close upload widget"
             >
               <X className="w-4 h-4" />
@@ -149,18 +150,18 @@ export const UploadManager: React.FC<UploadManagerProps> = ({
 
       {/* Collapsible File List Body */}
       {!isCollapsed && (
-        <div className="max-h-64 overflow-y-auto divide-y divide-surface-container-highest p-2 space-y-1">
+        <div className="max-h-64 overflow-y-auto divide-y divide-outline-variant/15 p-2 space-y-1">
           {tasks.map((task) => {
             const isVideo = task.type.startsWith("video/");
             return (
               <div
                 key={task.id}
-                className="p-2 rounded-neo hover:bg-surface-container transition-colors space-y-1.5"
+                className="p-2 rounded-lg hover:bg-surface-container transition-colors space-y-1.5"
               >
                 {/* File Row Header */}
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="p-1.5 rounded-neo bg-surface-container-high text-on-surface-variant shrink-0">
+                    <div className="p-1.5 rounded-md bg-surface-container-high text-on-surface-variant shrink-0">
                       {isVideo ? (
                         <FileVideo className="w-4 h-4 text-primary" />
                       ) : (

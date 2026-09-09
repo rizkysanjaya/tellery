@@ -1,9 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/DuplicateConflictModal.tsx
- * Purpose: Silk Cloud neomorphic interactive modal for resolving duplicate file conflicts
+ * Purpose: Precision interactive modal for resolving duplicate file conflicts
  *          during uploads (Skip, Keep Both with Custom Name, Rename Existing).
- *          Fully adaptive to both Light and Dark mode themes.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: DuplicateConflictModal
@@ -63,22 +62,22 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-lg bg-surface-base border border-outline-variant/20 rounded-neo-xl neo-card shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="w-full max-w-lg bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-outline-variant/15 flex items-start gap-4">
-          <div className="p-3 rounded-neo-lg bg-amber-500/10 border border-amber-500/25 text-amber-500 shrink-0">
-            <AlertTriangle className="w-6 h-6" />
+          <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-500 shrink-0">
+            <AlertTriangle className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold text-on-surface">Duplicate File Detected</h3>
+            <h3 className="text-base font-bold text-on-surface">Duplicate File Detected</h3>
             <p className="text-xs text-on-surface-variant mt-0.5">
               An identical file already exists in your private Telegram storage vault.
             </p>
           </div>
           <button
             onClick={onCancel}
-            className="p-1.5 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
             title="Cancel"
           >
             <X className="w-4 h-4" />
@@ -88,32 +87,32 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
         {/* Content Body */}
         <div className="p-6 space-y-5">
           {/* Comparison Card */}
-          <div className="p-3.5 bg-surface-container rounded-neo-lg neo-pressed space-y-2 text-xs">
+          <div className="p-3.5 bg-surface-container-lowest/80 border border-outline-variant/15 rounded-xl space-y-2 text-xs">
             <div className="flex items-center justify-between text-on-surface">
-              <span className="font-semibold text-on-surface-variant">Existing in Vault:</span>
+              <span className="font-medium text-on-surface-variant">Existing in Vault:</span>
               <span className="font-mono text-on-surface truncate max-w-[200px]">
                 {conflict.existingFileName}
               </span>
             </div>
             <div className="flex items-center justify-between text-on-surface">
-              <span className="font-semibold text-on-surface-variant">File Size:</span>
+              <span className="font-medium text-on-surface-variant">File Size:</span>
               <span className="font-mono text-on-surface-variant">{formatBytes(conflict.fileSize)}</span>
             </div>
           </div>
 
           {/* Action Options */}
           <div className="space-y-2.5">
-            <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider">
+            <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
               Choose an Action:
             </p>
 
             {/* Option 1: Skip */}
             <label
               onClick={() => setSelectedAction("skip")}
-              className={`flex items-start gap-3.5 p-3.5 rounded-neo-lg border cursor-pointer transition-all ${
+              className={`flex items-start gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${
                 selectedAction === "skip"
-                  ? "bg-primary/10 border-primary/50 neo-pressed ring-1 ring-primary/30"
-                  : "bg-surface-base neo-raised border-outline-variant/15 hover:border-primary/40 hover:bg-surface-container-low"
+                  ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20"
+                  : "bg-surface-container-lowest/50 border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest"
               }`}
             >
               <input
@@ -140,10 +139,10 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
             {/* Option 2: Keep Both & Rename */}
             <label
               onClick={() => setSelectedAction("keep_both")}
-              className={`flex items-start gap-3.5 p-3.5 rounded-neo-lg border cursor-pointer transition-all ${
+              className={`flex items-start gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${
                 selectedAction === "keep_both"
-                  ? "bg-primary/10 border-primary/50 neo-pressed ring-1 ring-primary/30"
-                  : "bg-surface-base neo-raised border-outline-variant/15 hover:border-primary/40 hover:bg-surface-container-low"
+                  ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20"
+                  : "bg-surface-container-lowest/50 border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest"
               }`}
             >
               <input
@@ -155,7 +154,7 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
               />
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-1.5">
-                  <Files className="w-4 h-4 text-secondary" />
+                  <Files className="w-4 h-4 text-primary" />
                   <span className="text-xs font-bold text-on-surface">Keep Both (Rename New)</span>
                 </div>
                 <p className="text-[11px] text-on-surface-variant">
@@ -169,7 +168,7 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
                       onChange={(e) => setKeepBothName(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       placeholder="New filename"
-                      className="w-full px-3 py-1.5 bg-surface-container rounded-neo text-xs text-on-surface border border-outline-variant/30 neo-pressed focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                      className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/20 focus:outline-none focus:ring-1 focus:ring-primary/40 font-mono"
                     />
                   </div>
                 )}
@@ -179,10 +178,10 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
             {/* Option 3: Rename Existing */}
             <label
               onClick={() => setSelectedAction("rename_existing")}
-              className={`flex items-start gap-3.5 p-3.5 rounded-neo-lg border cursor-pointer transition-all ${
+              className={`flex items-start gap-3.5 p-3.5 rounded-xl border cursor-pointer transition-all ${
                 selectedAction === "rename_existing"
-                  ? "bg-primary/10 border-primary/50 neo-pressed ring-1 ring-primary/30"
-                  : "bg-surface-base neo-raised border-outline-variant/15 hover:border-primary/40 hover:bg-surface-container-low"
+                  ? "bg-primary/10 border-primary/40 ring-1 ring-primary/20"
+                  : "bg-surface-container-lowest/50 border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest"
               }`}
             >
               <input
@@ -194,7 +193,7 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
               />
               <div className="flex-1 space-y-2">
                 <div className="flex items-center gap-1.5">
-                  <Edit3 className="w-4 h-4 text-tertiary" />
+                  <Edit3 className="w-4 h-4 text-primary" />
                   <span className="text-xs font-bold text-on-surface">Rename Existing in Vault</span>
                 </div>
                 <p className="text-[11px] text-on-surface-variant">
@@ -208,7 +207,7 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
                       onChange={(e) => setRenameExistingName(e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       placeholder="Updated filename"
-                      className="w-full px-3 py-1.5 bg-surface-container rounded-neo text-xs text-on-surface border border-outline-variant/30 neo-pressed focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                      className="w-full px-3 py-1.5 bg-surface-container-lowest rounded-lg text-xs text-on-surface border border-outline-variant/20 focus:outline-none focus:ring-1 focus:ring-primary/40 font-mono"
                     />
                   </div>
                 )}
@@ -235,13 +234,13 @@ export const DuplicateConflictModal: React.FC<DuplicateConflictModalProps> = ({
         <div className="px-6 py-4 bg-surface-container-low border-t border-outline-variant/15 flex items-center justify-end gap-2.5">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-neo-lg text-xs font-semibold text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+            className="px-3.5 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
           >
             Cancel Upload
           </button>
           <button
             onClick={handleConfirm}
-            className="px-5 py-2 rounded-neo-lg text-xs font-bold text-on-primary bg-primary hover:bg-primary-container shadow-md shadow-primary/25 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
+            className="px-4 py-2 rounded-lg text-xs font-semibold text-on-primary bg-primary hover:bg-primary/90 shadow-sm active:scale-95 transition-all cursor-pointer flex items-center gap-1.5"
           >
             <Check className="w-3.5 h-3.5" />
             Apply Choice

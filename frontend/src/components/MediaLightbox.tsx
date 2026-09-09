@@ -2,10 +2,9 @@
  * =============================================================================
  * Module: frontend/src/components/MediaLightbox.tsx
  * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
- *          zoomable viewport, album/folder assignment manager, 1-click favorite toggle,
+ *          borderless floating photo canvas, 1-click favorite toggle,
  *          accessible 44px+ mobile touch targets, and deletion controls.
  *          Supports permission gating (hiding Delete action when active vault is read-only).
- *          Updated to match Silk Cloud dark neomorphic design system.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/api.ts, frontend/src/components/VideoPlayer.tsx
  * Public Members: MediaLightbox
@@ -101,33 +100,27 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
         img.src = target.stream_url;
       }
     }
-  }, [nextItem?.id, prevItem?.id]);
-
-  const handleCopyLink = async () => {
-    try {
-      const fullUrl = `${window.location.origin}${item.stream_url}`;
-      await navigator.clipboard.writeText(fullUrl);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
-    }
-  };
+  }, [nextItem, prevItem]);
 
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (showDeleteConfirm) return;
-      if (e.key === "Escape") onClose();
-      if (!isVideo) {
-        if (e.key === "ArrowLeft" && hasPrev) onPrev();
-        if (e.key === "ArrowRight" && hasNext) onNext();
+      if (e.key === "Escape") {
+        if (showDeleteConfirm) {
+          setShowDeleteConfirm(false);
+        } else {
+          onClose();
+        }
+      } else if (e.key === "ArrowLeft" && hasPrev) {
+        onPrev();
+      } else if (e.key === "ArrowRight" && hasNext) {
+        onNext();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [hasPrev, hasNext, isVideo, onClose, onPrev, onNext, showDeleteConfirm]);
+  }, [onClose, onPrev, onNext, hasPrev, hasNext, showDeleteConfirm]);
 
   const handleDelete = async () => {
     if (!onDelete) return;
@@ -135,7 +128,6 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
     try {
       await onDelete(item.id);
       setShowDeleteConfirm(false);
-      onClose();
     } catch (err) {
       console.error("Failed to delete media item:", err);
     } finally {
@@ -143,30 +135,31 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
     }
   };
 
-  const formatBytes = (bytes: number) => {
-    if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${bytes} B`;
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.origin + item.stream_url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatDuration = (seconds: number) => {
-    if (!seconds || isNaN(seconds) || seconds <= 0) return "--:--";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    if (h > 0) {
-      return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-    }
-    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  const formatBytes = (bytes?: number) => {
+    if (!bytes) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
   };
 
-  const formatDate = (iso: string | null) => {
-    if (!iso) return "Unknown Date";
+  const formatDuration = (seconds?: number) => {
+    if (!seconds) return "00:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatDate = (iso?: string | null) => {
+    if (!iso) return "Unknown date";
     try {
-      const d = new Date(iso);
-      if (isNaN(d.getTime())) return iso;
-      return d.toLocaleDateString("en-US", {
+      return new Date(iso).toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -184,14 +177,14 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.2 }}
-      className="fixed inset-0 z-50 bg-background/95 flex flex-col select-none font-sans text-on-surface"
+      className="fixed inset-0 z-50 bg-black/95 flex flex-col select-none font-sans text-on-surface"
     >
       {/* Top Action Bar */}
-      <header className="w-full flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 bg-surface-base/90 backdrop-blur-md border-b border-outline-variant/10 z-10">
+      <header className="w-full flex justify-between items-center px-4 sm:px-6 py-3 bg-surface-container-low/80 backdrop-blur-md border-b border-outline-variant/15 z-10">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onClose}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shrink-0 touch-manipulation"
+            className="p-2 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer shrink-0 touch-manipulation"
             title="Back (Esc)"
             aria-label="Back to gallery (Esc)"
           >
@@ -207,51 +200,49 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       {/* Main Content Canvas */}
       <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden">
         {/* Image/Video Container */}
-        <div className="flex-1 p-2 md:p-6 flex items-center justify-center relative bg-surface-container-lowest overflow-hidden">
+        <div className="flex-1 p-2 md:p-6 flex items-center justify-center relative bg-black/40 overflow-hidden">
           {isVideo ? (
             <div className="w-full h-full flex items-center justify-center">
               <VideoPlayer key={item.id} item={item} />
             </div>
           ) : (
-            <div className="relative max-w-5xl max-h-[88vh] rounded-neo-xl neo-raised p-2 bg-surface-base flex items-center justify-center min-w-[320px] min-h-[320px]">
-              <div className="w-full h-full rounded-neo-lg overflow-hidden neo-pressed bg-surface-container-highest relative flex items-center justify-center min-w-[300px] min-h-[300px]">
-                {/* GIF Animation Pill Indicator */}
-                {(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
-                  <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-surface-base/90 border border-primary/30 text-primary text-xs font-bold tracking-wider uppercase z-20 shadow-md backdrop-blur-xs flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    <span>GIF Animation</span>
-                  </div>
-                )}
+            <div className="relative max-w-6xl max-h-[88vh] flex items-center justify-center min-w-[320px] min-h-[320px]">
+              {/* GIF Animation Pill Indicator */}
+              {(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
+                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/70 border border-primary/40 text-primary text-xs font-bold tracking-wider uppercase z-20 shadow-md backdrop-blur-xs flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  <span>GIF Animation</span>
+                </div>
+              )}
 
-                {/* Instant Low-Res / High-Res Thumbnail Base Layer (0ms visual rendering) */}
-                {item.thumbnail_url && !isImageLoaded && !(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
-                  <img
-                    src={item.thumbnail_url}
-                    alt={item.file_name}
-                    className="absolute inset-0 w-full h-full object-contain filter blur-[2px] opacity-75 z-0"
-                  />
-                )}
-
-                {!isImageLoaded && !item.thumbnail_url && !(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-surface-base/50 z-10">
-                    <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                  </div>
-                )}
-
-                <motion.img
-                  key={item.id}
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{
-                    opacity: (isImageLoaded || item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) ? 1 : 0,
-                    scale: (isImageLoaded || item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) ? 1 : 0.98
-                  }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                  src={item.stream_url}
+              {/* Instant Low-Res / High-Res Thumbnail Base Layer (0ms visual rendering) */}
+              {item.thumbnail_url && !isImageLoaded && !(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
+                <img
+                  src={item.thumbnail_url}
                   alt={item.file_name}
-                  onLoad={() => setIsImageLoaded(true)}
-                  className="relative object-contain max-h-[84vh] w-auto max-w-full rounded-neo-lg shadow-inner z-10"
+                  className="absolute inset-0 w-full h-full object-contain filter blur-[2px] opacity-75 z-0"
                 />
-              </div>
+              )}
+
+              {!isImageLoaded && !item.thumbnail_url && !(item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) && (
+                <div className="absolute inset-0 flex items-center justify-center bg-transparent z-10">
+                  <Loader2 className="w-10 h-10 text-primary animate-spin" />
+                </div>
+              )}
+
+              <motion.img
+                key={item.id}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{
+                  opacity: (isImageLoaded || item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) ? 1 : 0,
+                  scale: (isImageLoaded || item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif")) ? 1 : 0.98
+                }}
+                transition={{ duration: 0.15, ease: "easeOut" }}
+                src={item.stream_url}
+                alt={item.file_name}
+                onLoad={() => setIsImageLoaded(true)}
+                className="relative object-contain max-h-[84vh] w-auto max-w-full rounded-lg shadow-2xl z-10"
+              />
             </div>
           )}
 
@@ -266,7 +257,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             >
               <button
                 onClick={onPrev}
-                className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg touch-manipulation"
+                className="w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95 touch-manipulation"
                 title="Previous (Left Arrow)"
                 aria-label="Previous item (Left Arrow)"
               >
@@ -284,7 +275,7 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             >
               <button
                 onClick={onNext}
-                className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg touch-manipulation"
+                className="w-11 h-11 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/80 hover:text-white transition-all cursor-pointer shadow-lg active:scale-95 touch-manipulation"
                 title="Next (Right Arrow)"
                 aria-label="Next item (Right Arrow)"
               >
@@ -300,16 +291,16 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                className="absolute inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className="max-w-sm w-full bg-surface-base rounded-neo-xl p-6 neo-card text-center space-y-4 border border-outline-variant/15"
+                  className="max-w-sm w-full bg-surface-container-low/95 backdrop-blur-md rounded-2xl p-6 text-center space-y-4 border border-outline-variant/20 shadow-2xl"
                 >
-                  <div className="w-12 h-12 rounded-neo-lg bg-red-500/10 text-red-400 flex items-center justify-center mx-auto shadow-[inset_4px_4px_8px_rgba(0,0,0,0.2)]">
-                    <AlertTriangle className="w-6 h-6" />
+                  <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center mx-auto">
+                    <AlertTriangle className="w-5 h-5" />
                   </div>
                   <div>
                     <h4 className="text-base font-bold text-on-surface">Delete Media Item?</h4>
@@ -317,18 +308,18 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                       This will permanently delete <span className="text-on-surface font-semibold">{item.file_name}</span>.
                     </p>
                   </div>
-                  <div className="flex items-center justify-end gap-2 pt-2">
+                  <div className="flex items-center justify-end gap-2.5 pt-2">
                     <button
                       onClick={() => setShowDeleteConfirm(false)}
                       disabled={isDeleting}
-                      className="flex-1 px-4 py-2.5 min-h-[44px] neo-button rounded-neo-lg text-on-surface text-xs font-semibold transition-all cursor-pointer touch-manipulation"
+                      className="flex-1 px-3.5 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-50"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleDelete}
                       disabled={isDeleting}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 min-h-[44px] bg-red-600/20 text-red-400 hover:bg-red-600/30 active:scale-95 disabled:opacity-50 rounded-neo-lg text-xs font-semibold transition-all cursor-pointer touch-manipulation"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 active:scale-95 disabled:opacity-50 rounded-lg text-xs font-semibold text-white shadow-sm transition-all cursor-pointer"
                     >
                       {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       <span>{isDeleting ? "Deleting..." : "Delete"}</span>
@@ -341,33 +332,33 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
         </div>
 
         {/* Info Panel (Right Side Desktop / Bottom Mobile) */}
-        <aside className="w-full md:w-80 bg-surface-base flex flex-col gap-6 p-6 neo-raised md:shadow-[-6px_0_12px_rgba(0,0,0,0.05)] z-10 shrink-0 overflow-y-auto animate-in fade-in duration-200">
+        <aside className="w-full md:w-80 bg-surface-container-low/60 border-l border-outline-variant/15 flex flex-col gap-6 p-6 z-10 shrink-0 overflow-y-auto animate-in fade-in duration-200">
           {/* File Meta */}
-          <div className="flex flex-col gap-1 px-2">
-            <h2 className="text-xl font-semibold text-on-surface break-words">{item.file_name}</h2>
-            <p className="text-sm text-on-surface-variant">{formatDate(item.date_taken)} • {formatBytes(item.file_size)}</p>
+          <div className="flex flex-col gap-1 px-1">
+            <h2 className="text-base font-semibold text-on-surface break-words">{item.file_name}</h2>
+            <p className="text-xs text-on-surface-variant">{formatDate(item.date_taken)} • {formatBytes(item.file_size)}</p>
           </div>
 
           {/* Action Grid (Download, Share, Favorite, Delete) */}
-          <div className="grid grid-cols-4 gap-2 mt-2">
+          <div className="grid grid-cols-4 gap-2">
             <a
               href={item.stream_url}
               download={item.file_name}
-              className="flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer touch-manipulation"
+              className="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest text-on-surface transition-all text-center cursor-pointer touch-manipulation"
               title="Download"
               aria-label="Download file"
             >
               <Download className="w-4 h-4" />
-              <span className="text-[11px] font-semibold">Save</span>
+              <span className="text-[11px] font-medium">Save</span>
             </a>
             <button
               onClick={handleCopyLink}
-              className="flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer touch-manipulation"
+              className="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest text-on-surface transition-all text-center cursor-pointer touch-manipulation"
               title="Share Link"
               aria-label="Share media link"
             >
               {copied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
-              <span className="text-[11px] font-semibold">{copied ? "Copied!" : "Share"}</span>
+              <span className="text-[11px] font-medium">{copied ? "Copied!" : "Share"}</span>
             </button>
             <button
               onClick={() => {
@@ -375,34 +366,34 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                   onToggleFavorite(item.id, !item.is_favorite);
                 }
               }}
-              className={`flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button transition-all text-center cursor-pointer touch-manipulation ${
+              className={`flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 hover:border-outline-variant/30 hover:bg-surface-container-lowest transition-all text-center cursor-pointer touch-manipulation ${
                 item.is_favorite ? "text-amber-400" : "text-on-surface hover:text-amber-400"
               }`}
               title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
               aria-label={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
             >
               <Star className={`w-4 h-4 ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`} />
-              <span className="text-[11px] font-semibold">{item.is_favorite ? "Starred" : "Star"}</span>
+              <span className="text-[11px] font-medium">{item.is_favorite ? "Starred" : "Star"}</span>
             </button>
             {onDelete && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer touch-manipulation"
+                className="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 hover:border-rose-500/30 hover:bg-rose-500/10 text-rose-400 transition-all text-center cursor-pointer touch-manipulation"
                 title="Delete"
                 aria-label="Delete media item"
               >
                 <Trash2 className="w-4 h-4" />
-                <span className="text-[11px] font-semibold">Delete</span>
+                <span className="text-[11px] font-medium">Delete</span>
               </button>
             )}
           </div>
 
           {/* Details Section */}
-          <div className="mt-auto md:mt-6 rounded-neo-xl bg-surface-container-low p-4 neo-pressed border border-white/[0.02]">
-            <h3 className="text-sm font-semibold text-on-surface mb-3 flex items-center gap-2">
+          <div className="mt-auto md:mt-4 rounded-xl bg-surface-container-lowest/80 p-4 border border-outline-variant/15">
+            <h3 className="text-xs font-semibold text-on-surface mb-3 flex items-center gap-2">
               <Info className="w-4 h-4 text-primary" /> Details
             </h3>
-            <div className="space-y-3 text-sm">
+            <div className="space-y-2.5 text-xs">
               {(item.camera_make || item.camera_model) && (
                 <div className="flex justify-between">
                   <span className="text-on-surface-variant">Camera</span>

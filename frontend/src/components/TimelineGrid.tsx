@@ -127,8 +127,8 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
     if (isSearchActive) {
       return (
         <div className="flex flex-col items-center justify-center py-20 text-center px-4 animate-in fade-in duration-200">
-          <div className="w-20 h-20 rounded-neo-2xl neo-card bg-surface-base border border-dashed border-outline-variant/30 flex items-center justify-center text-on-surface-variant/40 mb-4 shadow-sm">
-            <Search className="w-10 h-10" />
+          <div className="w-16 h-16 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-center text-on-surface-variant/40 mb-4 shadow-sm">
+            <Search className="w-8 h-8" />
           </div>
           <h3 className="text-headline-md font-bold text-on-surface tracking-tight">
             No media found
@@ -147,7 +147,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
           {onClearSearch && (
             <button
               onClick={onClearSearch}
-              className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 neo-button bg-surface-base text-on-surface hover:text-primary rounded-neo text-xs font-semibold cursor-pointer transition-all active:scale-95 shadow-sm"
+              className="mt-4 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-low hover:bg-surface-container text-on-surface hover:text-primary rounded-lg text-xs font-semibold border border-outline-variant/20 cursor-pointer transition-all active:scale-95 shadow-sm"
             >
               <X className="w-3.5 h-3.5" />
               <span>Clear Search</span>
@@ -161,8 +161,8 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
     if (activeFolderName) {
       return (
         <div className="flex flex-col items-center justify-center py-24 text-center px-4 animate-in fade-in duration-200">
-          <div className="w-20 h-20 rounded-neo-2xl neo-card bg-surface-base border border-dashed border-outline-variant/30 flex items-center justify-center text-on-surface-variant/40 mb-4 shadow-sm">
-            <FolderOpen className="w-10 h-10" />
+          <div className="w-16 h-16 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-center text-on-surface-variant/40 mb-4 shadow-sm">
+            <FolderOpen className="w-8 h-8" />
           </div>
           <h3 className="text-headline-md font-bold text-on-surface tracking-tight">
             Album is empty
@@ -177,14 +177,14 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
     // Default Empty Vault State
     return (
       <div className="flex flex-col items-center justify-center py-28 text-center px-4 animate-in fade-in duration-200">
-        <div className="w-20 h-20 rounded-neo-2xl neo-card bg-surface-base border border-outline-variant/20 flex items-center justify-center text-on-surface-variant/50 mb-5 shadow-sm">
-          <ImageIcon className="w-10 h-10 opacity-60" />
+        <div className="w-16 h-16 rounded-2xl bg-surface-container-low border border-outline-variant/20 flex items-center justify-center text-on-surface-variant/50 mb-5 shadow-sm">
+          <ImageIcon className="w-8 h-8 opacity-60" />
         </div>
         <h3 className="text-headline-md font-semibold text-on-surface tracking-tight">No media in vault</h3>
         <p className="text-body-sm text-on-surface-variant max-w-sm mt-1.5 leading-relaxed">
           Upload media directly using the button above or sync local folders via the CLI:
         </p>
-        <code className="mt-4 px-3.5 py-2 neo-pressed bg-surface-container rounded-neo text-label-md text-glow-indigo font-mono select-all">
+        <code className="mt-4 px-3.5 py-2 bg-surface-container-lowest border border-outline-variant/20 rounded-lg text-label-md text-primary font-mono select-all">
           python -m src.cli.import_folder "D:\Pictures"
         </code>
       </div>

@@ -9,7 +9,7 @@
  *          - Albums empty canvas (create new album, create new collection, refresh)
  *          - Active Album/Collection view canvas (upload to this album, select all, rename, back to albums)
  *          Supports permission gating (conditionally hiding media deletion in read-only vaults).
- *          Includes hover bridge and debounce protection for submenus and dynamic Light/Dark mode tokens.
+ *          Precision Raycast-style floating menu with hairline borders, obsidian backdrop, and fluid transitions.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: ContextMenu, ContextMenuPosition
@@ -254,7 +254,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         left: `${adjustedX}px`,
         top: `${adjustedY}px`,
       }}
-      className="fixed z-50 w-[230px] neo-card bg-surface-base border border-outline-variant/30 shadow-2xl rounded-neo-lg p-1.5 text-xs text-on-surface animate-in fade-in zoom-in-95 duration-100 select-none"
+      className="fixed z-50 w-[230px] rounded-xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 shadow-2xl p-1.5 text-xs text-on-surface animate-in fade-in zoom-in-95 duration-100 select-none"
     >
       {/* ------------------------------------------------------------- */}
       {/* CASE 1: TARGET IS A SPECIFIC MEDIA ITEM                       */}
@@ -266,7 +266,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onOpenItem(targetItem);
               onClose();
             }}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
           >
             <Maximize2 className="w-4 h-4 text-primary" />
             <span>Open Lightbox</span>
@@ -277,7 +277,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onToggleSelect(targetItem.id);
               onClose();
             }}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
           >
             <CheckSquare className="w-4 h-4 text-on-surface-variant" />
             <span>{isTargetSelected ? "Deselect Item" : "Select Item"}</span>
@@ -289,7 +289,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onToggleFavoriteMedia(targetItem.id, !targetItem.is_favorite);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <Star className={`w-4 h-4 ${targetItem.is_favorite ? "text-amber-400 fill-amber-400" : "text-on-surface-variant"}`} />
               <span>{targetItem.is_favorite ? "Remove from Favorites" : "Add to Favorites"}</span>
@@ -304,7 +304,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             <button
               onClick={() => setShowAlbumSubmenu((p) => !p)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <div className="flex items-center gap-2.5">
                 <FolderPlus className="w-4 h-4 text-on-surface-variant" />
@@ -317,7 +317,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               <div
                 onMouseEnter={handleSubmenuMouseEnter}
                 onMouseLeave={handleSubmenuMouseLeave}
-                className={`absolute w-52 neo-card bg-surface-base border border-outline-variant/30 rounded-neo-lg p-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-100 ${
+                className={`absolute w-52 rounded-xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 p-2 z-50 shadow-2xl animate-in fade-in zoom-in-95 duration-100 ${
                   openSubmenuLeft ? "right-full mr-1.5" : "left-full ml-1.5"
                 } ${openSubmenuUp ? "bottom-0" : "top-0"} before:content-[''] before:absolute before:-top-6 before:-bottom-6 ${
                   openSubmenuLeft ? "before:-right-4 before:w-6" : "before:-left-4 before:w-6"
@@ -369,7 +369,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                     <button
                       type="submit"
                       disabled={isProcessing || !newAlbumName.trim()}
-                      className="p-1 neo-button-primary disabled:opacity-50 text-white rounded cursor-pointer"
+                      className="p-1.5 bg-primary hover:bg-primary-hover text-on-primary disabled:opacity-50 rounded-md cursor-pointer transition-colors"
                     >
                       {isProcessing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
                     </button>
@@ -389,7 +389,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
 
           <button
             onClick={handleDownload}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
           >
             <Download className="w-4 h-4 text-sky-400" />
             <span>{count > 1 ? `Download ${count} Items (.ZIP)` : "Download File"}</span>
@@ -402,7 +402,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               <button
                 onClick={handleDeleteMediaAction}
                 disabled={isProcessing}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer disabled:opacity-50"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer disabled:opacity-50"
               >
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                 <span>{count > 1 ? `Delete ${count} Items` : "Delete"}</span>
@@ -423,7 +423,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               onSelectFolder?.(targetFolder);
               onClose();
             }}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
           >
             {targetFolder.is_collection ? (
               <Layers className="w-4 h-4 text-primary" />
@@ -440,7 +440,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onSetFolderCover(targetFolder);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <Palette className="w-4 h-4 text-primary" />
               <span>Change Cover Thumbnail</span>
@@ -454,7 +454,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onCustomizeFolder(targetFolder);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <Palette className="w-4 h-4 text-on-surface-variant" />
               <span>Customize Style</span>
@@ -468,7 +468,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onRenameFolder(targetFolder);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <Edit2 className="w-4 h-4 text-on-surface-variant" />
               <span>{targetFolder.is_collection ? "Rename Collection" : "Rename Album"}</span>
@@ -482,7 +482,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onOpenMoveModal(targetFolder);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <FolderInput className="w-4 h-4 text-primary" />
               <span>Move to Collection</span>
@@ -496,7 +496,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onToggleFavoriteFolder(targetFolder.id, !targetFolder.is_favorite);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
             >
               <Star
                 className={`w-4 h-4 ${
@@ -516,7 +516,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                 onDeleteFolder(targetFolder);
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-error-container/20 text-error font-medium transition-all text-left cursor-pointer"
             >
               <Trash2 className="w-4 h-4" />
               <span>{targetFolder.is_collection ? "Delete Collection" : "Delete Album"}</span>
@@ -538,7 +538,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onCreateFolder("", false);
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-primary" />
                 <span>New Album</span>
@@ -549,7 +549,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onCreateFolder("", true);
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <Layers className="w-4 h-4 text-primary" />
                 <span>New Collection</span>
@@ -562,7 +562,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onTriggerUpload();
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-on-surface-variant" />
                 <span>Upload Media</span>
@@ -574,7 +574,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                     onRefreshData();
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
                 >
                   <RefreshCw className="w-4 h-4 text-on-surface-variant" />
                   <span>Refresh Grid</span>
@@ -591,7 +591,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onTriggerUpload();
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-primary" />
                 <span>Upload to "{activeFolder.name}"</span>
@@ -602,7 +602,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onSelectAll();
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <CheckSquare className="w-4 h-4 text-on-surface-variant" />
                 <span>Select All in Album</span>
@@ -614,7 +614,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                     onCustomizeFolder(activeFolder);
                     onClose();
                   }}
-                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
                 >
                   <Palette className="w-4 h-4 text-on-surface-variant" />
                   <span>Customize Album</span>
@@ -628,7 +628,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onBackToOverview?.();
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4 text-on-surface-variant" />
                 <span>Back to Albums</span>
@@ -644,7 +644,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onSelectAll();
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <CheckSquare className="w-4 h-4 text-on-surface-variant" />
                 <span>Select All Photos</span>
@@ -655,7 +655,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
                   onTriggerUpload();
                   onClose();
                 }}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-neo hover:bg-surface-container-high text-on-surface font-medium transition-all text-left cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-surface-container-high/80 text-on-surface font-medium transition-all text-left cursor-pointer"
               >
                 <Upload className="w-4 h-4 text-primary" />
                 <span>Upload Media</span>

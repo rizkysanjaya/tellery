@@ -1,12 +1,12 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/FolderGrid.tsx
- * Purpose: Responsive album and collection grid view with Silk Cloud dark neomorphic design:
- *          - Long-press multi-select system to select multiple albums/collections
- *          - Controlled and stateful collection drill-down sub-album views and breadcrumb navigation
+ * Purpose: Responsive album and collection grid view with pro-grade obsidian craft:
+ *          - Multi-select system to select multiple albums/collections
+ *          - Collection drill-down sub-album views and breadcrumb navigation
  *          - Interactive Star favorite button on each card (isolated from drag/click)
  *          - Isolated 3-dots action menu for editing, cover thumbnail, moving, ZIP export, deleting
- *          - Floating multi-selection toolbar (bulk favorite, bulk move to collection, bulk delete)
+ *          - Floating precision multi-selection toolbar (bulk favorite, bulk move, bulk delete)
  *          - Live search filtering by album and collection names
  *          - HTML5 drag-and-drop targets with prohibited collection nesting prevention
  *          - Right-click context menu integration and Favorites filter toggle
@@ -480,16 +480,16 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {/* Favorites Filter Toggle (only on top-level) */}
           {!selectedCollection && (
             <button
               type="button"
               onClick={() => setOnlyFavorites((p) => !p)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-neo text-xs font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
                 onlyFavorites
-                  ? "neo-pressed bg-surface-base text-amber-400 ring-1 ring-amber-400/40"
-                  : "neo-button text-on-surface-variant hover:text-amber-400"
+                  ? "border-amber-400/40 bg-amber-400/10 text-amber-400"
+                  : "border-outline-variant/15 text-on-surface-variant hover:text-amber-400 hover:bg-white/[0.04]"
               }`}
               title="Filter by favorited albums"
             >
@@ -507,7 +507,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   setCreateAsCollection(true);
                   setShowCreateModal(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 neo-button rounded-neo text-xs font-semibold text-primary hover:text-primary-hover active:scale-95 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-outline-variant/15 text-xs font-semibold text-primary hover:bg-white/[0.04] active:scale-95 transition-all cursor-pointer"
                 title="Create a new collection to group albums"
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -520,7 +520,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   setCreateAsCollection(false);
                   setShowCreateModal(true);
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 neo-button-primary rounded-neo text-xs font-semibold active:scale-95 transition-all cursor-pointer shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shadow-sm"
                 title="Create a new standalone album"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -534,7 +534,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                 setCreateAsCollection(false);
                 setShowCreateModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 neo-button-primary rounded-neo text-xs font-semibold active:scale-95 transition-all cursor-pointer shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shadow-sm"
               title="Add album to this collection"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -546,7 +546,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
       {/* Floating Bulk Selection Toolbar */}
       {isSelectionMode && (
-        <div className="sticky top-2 z-40 flex items-center justify-between gap-3 px-4 py-3 neo-raised bg-surface-base border border-primary/30 rounded-neo-xl shadow-xl animate-in slide-in-from-top-2 duration-200">
+        <div className="sticky top-2 z-40 flex items-center justify-between gap-3 px-4 py-2.5 bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/25 rounded-xl shadow-2xl animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -554,25 +554,25 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               className="flex items-center gap-1.5 text-xs font-semibold text-on-surface hover:text-primary transition-colors cursor-pointer"
             >
               {isAllSelected ? (
-                <CheckSquare className="w-4 h-4 text-primary" />
+                <CheckSquare className="w-3.5 h-3.5 text-primary" />
               ) : (
-                <Square className="w-4 h-4 text-on-surface-variant" />
+                <Square className="w-3.5 h-3.5 text-on-surface-variant" />
               )}
               <span>{isAllSelected ? "Deselect All" : "Select All"}</span>
             </button>
-            <div className="h-4 w-px bg-outline-variant/30" />
-            <span className="text-xs font-bold text-primary">
+            <div className="h-4 w-px bg-outline-variant/20" />
+            <span className="text-xs font-semibold text-primary">
               {selectedFolderIds.size} {selectedFolderIds.size === 1 ? "album" : "albums"} selected
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* Bulk Star / Favorite */}
             <button
               type="button"
               onClick={() => handleBulkToggleFavorites(true)}
               disabled={isBulkProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-neo text-xs font-medium neo-button text-amber-400 hover:bg-surface-container active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-outline-variant/15 text-amber-400 hover:bg-white/[0.04] transition-colors cursor-pointer"
               title="Add selected to favorites"
             >
               <Star className="w-3.5 h-3.5 fill-amber-400" />
@@ -584,7 +584,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               type="button"
               onClick={() => setShowBulkMoveModal(true)}
               disabled={isBulkProcessing || collections.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-neo text-xs font-medium neo-button text-primary hover:bg-surface-container active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border border-outline-variant/15 text-primary hover:bg-white/[0.04] transition-colors cursor-pointer disabled:opacity-50"
               title="Move selected albums into a collection"
             >
               <FolderInput className="w-3.5 h-3.5" />
@@ -596,7 +596,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               type="button"
               onClick={handleBulkDelete}
               disabled={isBulkProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-neo text-xs font-medium neo-button text-error hover:bg-error-container/20 active:scale-95 transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25 transition-colors cursor-pointer"
               title="Delete selected albums"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -607,7 +607,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
             <button
               type="button"
               onClick={() => setSelectedFolderIds(new Set())}
-              className="p-1.5 rounded-neo text-on-surface-variant hover:text-on-surface neo-button cursor-pointer"
+              className="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
               title="Exit selection mode"
             >
               <X className="w-4 h-4" />
@@ -618,14 +618,14 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
       {/* Empty State */}
       {displayedFolders.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-24 text-center px-4 neo-pressed bg-surface-container/20 rounded-neo-xl border border-outline-variant/10">
-          <div className="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-4 neo-raised">
+        <div className="flex flex-col items-center justify-center py-24 text-center px-4 bg-surface-container-low/30 rounded-2xl border border-dashed border-outline-variant/15">
+          <div className="w-14 h-14 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant mb-3 border border-outline-variant/15">
             {onlyFavorites ? (
-              <Star className="w-8 h-8 text-amber-400/50" />
+              <Star className="w-7 h-7 text-amber-400/60" />
             ) : query ? (
-              <Search className="w-8 h-8 opacity-40" />
+              <Search className="w-7 h-7 opacity-40" />
             ) : (
-              <FolderPlus className="w-8 h-8 text-primary/50" />
+              <FolderPlus className="w-7 h-7 text-primary/60" />
             )}
           </div>
           <h3 className="text-base font-bold text-on-surface">
@@ -637,7 +637,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   ? "This collection is empty"
                   : "No Albums or Collections Yet"}
           </h3>
-          <p className="text-xs text-on-surface-variant max-w-sm mt-1.5 leading-relaxed">
+          <p className="text-xs text-on-surface-variant max-w-sm mt-1 leading-relaxed">
             {onlyFavorites
               ? "Star your favorite albums to easily access them in this filter."
               : query
@@ -649,7 +649,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
           {query && onClearSearch ? (
             <button
               onClick={onClearSearch}
-              className="mt-4 px-4 py-2 neo-button rounded-neo text-xs font-semibold text-primary transition-all cursor-pointer"
+              className="mt-4 px-3.5 py-1.5 rounded-lg border border-outline-variant/15 text-xs font-semibold text-primary hover:bg-white/[0.04] transition-colors cursor-pointer"
             >
               Clear Search
             </button>
@@ -660,7 +660,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   setCreateAsCollection(false);
                   setShowCreateModal(true);
                 }}
-                className="mt-5 inline-flex items-center gap-2 px-4 py-2 neo-button-primary rounded-neo text-xs font-semibold active:scale-95 transition-all cursor-pointer"
+                className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 active:scale-95 transition-all cursor-pointer shadow-sm"
               >
                 <Plus className="w-4 h-4" />
                 <span>Create First Album</span>
@@ -737,17 +737,17 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                 onDragOver={(e) => handleFolderDragOver(e, folder)}
                 onDragLeave={handleFolderDragLeave}
                 onDrop={(e) => handleFolderDrop(e, folder)}
-                className={`folder-card-item group relative flex flex-col h-full w-full neo-card bg-surface-base rounded-neo-lg cursor-pointer transition-all duration-200 select-none ${
+                className={`folder-card-item group relative flex flex-col h-full w-full bg-surface-container-low/60 hover:bg-surface-container-low border rounded-xl cursor-pointer transition-all duration-150 select-none ${
                   isSelected
-                    ? "ring-2 ring-primary bg-primary/10 shadow-[0_0_15px_rgba(99,102,241,0.25)] scale-[0.99]"
+                    ? "ring-2 ring-primary border-transparent bg-surface-container-low"
                     : isProhibited
-                      ? "ring-2 ring-red-500 cursor-not-allowed bg-red-950/20"
+                      ? "ring-2 ring-rose-500 cursor-not-allowed bg-rose-950/20 border-rose-500/40"
                       : isDragOver
-                        ? "ring-2 ring-primary scale-[1.03]"
-                        : "hover:scale-[1.01]"
-                } ${isCollection ? "ring-1 ring-primary/30 shadow-[0_4px_20px_rgba(99,102,241,0.15)]" : ""}`}
+                        ? "ring-2 ring-primary border-transparent"
+                        : "border-outline-variant/15 hover:border-outline-variant/30"
+                } ${isCollection ? "ring-1 ring-primary/30" : ""}`}
               >
-                <div className="relative flex-1 w-full min-h-[120px] neo-image-wrapper rounded-t-neo-lg bg-surface-container overflow-hidden">
+                <div className="relative flex-1 w-full min-h-[120px] rounded-t-xl bg-surface-container overflow-hidden">
                   {/* Cover Image or Placeholder */}
                   {folder.cover_thumbnail_url ? (
                     <img
@@ -764,7 +764,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                       <FolderIcon
                         name={folder.icon || (isCollection ? "Layers" : "Folder")}
                         color={folder.color || (isDragOver ? "var(--color-primary, #6366f1)" : undefined)}
-                        className={`w-12 h-12 transition-colors ${
+                        className={`w-10 h-10 transition-colors ${
                           folder.color
                             ? ""
                             : isDragOver
@@ -777,7 +777,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
                   {/* Prohibited Nesting Overlay */}
                   {isProhibited && (
-                    <div className="absolute inset-0 bg-red-950/85 backdrop-blur-xs flex flex-col items-center justify-center z-30 p-2 text-center border-2 border-red-500 rounded-t-neo-lg animate-in fade-in duration-150">
+                    <div className="absolute inset-0 bg-red-950/85 backdrop-blur-xs flex flex-col items-center justify-center z-30 p-2 text-center border-2 border-red-500 rounded-t-xl animate-in fade-in duration-150">
                       <span className="text-2xl mb-1">🚫</span>
                       <span className="text-xs font-bold text-red-200 leading-tight">
                         Cannot Nest Collections
@@ -797,7 +797,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                       className={`absolute top-2 left-2 w-6 h-6 rounded-full z-20 flex items-center justify-center transition-all cursor-pointer shadow-md ${
                         isSelected
                           ? "bg-primary text-on-primary ring-2 ring-primary scale-105"
-                          : "bg-surface-base/80 backdrop-blur-xs text-transparent hover:text-on-surface-variant border border-outline-variant/40"
+                          : "bg-black/60 backdrop-blur-md text-transparent hover:text-white border border-white/20"
                       }`}
                     >
                       <Check className={`w-3.5 h-3.5 ${isSelected ? "text-on-primary" : ""}`} />
@@ -827,8 +827,8 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                           }}
                           className={`absolute top-2 left-2 p-1.5 rounded-full z-10 transition-all cursor-pointer ${
                             folder.is_favorite
-                              ? "bg-surface-base/90 text-amber-400 shadow-md ring-1 ring-amber-400/40 opacity-100 scale-105"
-                              : "bg-surface-base/75 text-on-surface-variant hover:text-amber-400 hover:bg-surface-base/95 shadow-sm opacity-0 group-hover:opacity-100"
+                              ? "bg-black/60 text-amber-400 shadow-md ring-1 ring-amber-400/40 opacity-100 scale-105"
+                              : "bg-black/50 text-white/80 hover:text-amber-400 hover:bg-black/70 shadow-sm opacity-0 group-hover:opacity-100"
                           }`}
                           title={folder.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
                         >
@@ -844,7 +844,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   {isDragOver && !isProhibited && (
                     <div className="absolute inset-0 bg-primary/20 backdrop-blur-xs flex flex-col items-center justify-center z-20 animate-in fade-in duration-150">
                       <ArrowDownToLine className="w-8 h-8 text-primary animate-pulse mb-1" />
-                      <span className="text-xs font-bold bg-primary text-on-primary px-2.5 py-1 rounded-neo shadow-lg">
+                      <span className="text-xs font-semibold bg-primary text-on-primary px-2.5 py-1 rounded-md shadow-lg">
                         Drop to Add
                       </span>
                     </div>
@@ -878,39 +878,39 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                       }}
                       onExportZip={onExportFolderZip}
                       onDelete={(f) => onDeleteFolder(f)}
-                      triggerClassName="bg-surface-base/85 backdrop-blur-xs shadow-md hover:bg-surface-container"
+                      triggerClassName="bg-black/60 border border-white/15 text-white backdrop-blur-md shadow-md hover:bg-black/80"
                     />
                   </div>
                 </div>
 
                 {/* Folder Details */}
-                <div className="p-3 sm:p-4 border-t border-outline-variant/10">
-                  <div className="flex items-center gap-2.5 min-w-0">
+                <div className="p-3 border-t border-outline-variant/10">
+                  <div className="flex items-center gap-2 min-w-0">
                     <FolderIcon
                       name={folder.icon || (isCollection ? "Layers" : "Folder")}
                       color={folder.color || "var(--color-primary, #6366f1)"}
                       className="w-4 h-4 shrink-0 transition-colors"
                     />
-                    <h3 className="text-sm font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
+                    <h3 className="text-xs font-semibold text-on-surface truncate group-hover:text-primary transition-colors">
                       {folder.name}
                     </h3>
                   </div>
 
                   {/* Item / Sub-album count aligned cleanly underneath the title */}
-                  <div className="flex items-center gap-1.5 mt-1.5 pl-6.5">
+                  <div className="flex items-center gap-1.5 mt-1.5 pl-6">
                     {isCollection ? (
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md neo-pressed bg-surface-container text-xs font-medium text-primary">
+                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container text-[11px] font-medium text-primary">
                         <Layers className="w-3 h-3 text-primary" />
-                        <span className="font-semibold">{folder.sub_album_count ?? 0}</span>
-                        <span className="text-on-surface-variant text-[11px]">
+                        <span className="font-semibold font-mono">{folder.sub_album_count ?? 0}</span>
+                        <span className="text-on-surface-variant">
                           {(folder.sub_album_count ?? 0) === 1 ? "album" : "albums"}
                         </span>
                       </div>
                     ) : (
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md neo-pressed bg-surface-container text-xs font-medium text-on-surface">
+                      <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container text-[11px] font-medium text-on-surface">
                         <Images className="w-3 h-3 text-primary" />
-                        <span className="font-semibold">{folder.item_count}</span>
-                        <span className="text-on-surface-variant text-[11px]">
+                        <span className="font-semibold font-mono">{folder.item_count}</span>
+                        <span className="text-on-surface-variant">
                           {folder.item_count === 1 ? "item" : "items"}
                         </span>
                       </div>
@@ -925,8 +925,8 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
       {/* Create Folder / Collection Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="max-w-md w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl p-6 neo-card shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="max-w-md w-full bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
               <h3 className="text-base font-bold text-on-surface flex items-center gap-2">
                 {createAsCollection ? (
@@ -941,7 +941,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   setShowCreateModal(false);
                   setCreateAsCollection(false);
                 }}
-                className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface neo-button"
+                className="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -959,7 +959,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   placeholder={createAsCollection ? "e.g., Vacation 2026, Work..." : "e.g., Summer Trip, Portraits..."}
                   autoFocus
                   required
-                  className="w-full px-3.5 py-2.5 rounded-neo-lg neo-pressed bg-surface-container/50 border border-outline-variant/20 text-on-surface text-sm placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full px-3.5 py-2 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/20 text-on-surface text-sm placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
                 />
               </div>
 
@@ -970,14 +970,14 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                     setShowCreateModal(false);
                     setCreateAsCollection(false);
                   }}
-                  className="px-4 py-2 neo-button rounded-neo text-xs font-semibold text-on-surface-variant hover:text-on-surface transition-all cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating || !newFolderName.trim()}
-                  className="flex items-center gap-1.5 px-4 py-2 neo-button-primary rounded-neo text-xs font-semibold disabled:opacity-50 transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-on-primary rounded-lg text-xs font-semibold hover:bg-primary/90 disabled:opacity-50 transition-all cursor-pointer shadow-sm"
                 >
                   {isCreating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   <span>{createAsCollection ? "Create Collection" : "Create Album"}</span>
@@ -990,8 +990,8 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
 
       {/* Bulk Move Modal */}
       {showBulkMoveModal && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="max-w-md w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl p-6 neo-card shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="max-w-md w-full bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
               <h3 className="text-base font-bold text-on-surface flex items-center gap-2">
                 <FolderInput className="w-5 h-5 text-primary" />
@@ -999,7 +999,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               </h3>
               <button
                 onClick={() => setShowBulkMoveModal(false)}
-                className="p-1 rounded-neo text-on-surface-variant hover:text-on-surface neo-button"
+                className="p-1 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1009,7 +1009,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
               <button
                 type="button"
                 onClick={() => handleBulkMoveToCollectionConfirm(null)}
-                className="w-full flex items-center justify-between p-3 rounded-neo-lg hover:bg-surface-container text-left transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-white/[0.06] text-left transition-colors cursor-pointer"
               >
                 <span className="text-xs font-semibold text-on-surface">Ungroup (Standalone Albums)</span>
               </button>
@@ -1018,7 +1018,7 @@ export const FolderGrid: React.FC<FolderGridProps> = ({
                   key={col.id}
                   type="button"
                   onClick={() => handleBulkMoveToCollectionConfirm(col.id)}
-                  className="w-full flex items-center gap-2.5 p-3 rounded-neo-lg hover:bg-surface-container text-left transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2.5 p-2.5 rounded-lg hover:bg-white/[0.06] text-left transition-colors cursor-pointer"
                 >
                   <FolderIcon name={col.icon || "Layers"} color={col.color || "var(--color-primary)"} className="w-4 h-4" />
                   <span className="text-xs font-semibold text-on-surface">{col.name}</span>

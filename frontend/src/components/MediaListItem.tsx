@@ -219,10 +219,10 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
       onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
-      className={`media-card-item group flex items-center justify-between px-3.5 py-2.5 neo-card rounded-neo-xl transition-all duration-150 cursor-pointer select-none border border-outline-variant/15 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
+      className={`media-card-item group flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-150 cursor-pointer select-none border border-outline-variant/15 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
         isSelected
-          ? "bg-surface-container-high ring-2 ring-primary shadow-sm"
-          : "bg-surface-base hover:bg-surface-container hover:border-outline-variant/30 hover:-translate-y-[1px]"
+          ? "bg-primary/10 border-primary/40 ring-1 ring-primary/30 shadow-sm"
+          : "bg-surface-container-lowest hover:bg-surface-container-low hover:border-outline-variant/30"
       }`}
     >
       {/* Left: Checkbox + Thumbnail + Filename & Details */}
@@ -232,7 +232,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
           type="button"
           onClick={handleCheckboxClick}
           aria-label={isSelected ? `Deselect ${item.file_name}` : `Select ${item.file_name}`}
-          className={`w-6 h-6 rounded-neo flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
+          className={`w-6 h-6 rounded-md flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
             isSelected
               ? "bg-primary text-on-primary shadow-sm"
               : isSelectionMode
@@ -246,7 +246,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
         </button>
 
         {/* Crisp Rounded Thumbnail / Constantly Playing GIF / Smooth Video Hover Preview */}
-        <div className="relative w-14 h-14 rounded-neo-lg overflow-hidden bg-surface-container shrink-0 neo-image-wrapper border border-outline-variant/20 shadow-sm">
+        <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-surface-container shrink-0 border border-outline-variant/20 shadow-sm">
           {!batterySaver && isAnimatedVideo ? (
             <video
               src={item.stream_url}
@@ -292,7 +292,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
             <span className="text-[15px] font-bold text-on-surface truncate group-hover:text-primary transition-colors tracking-tight">
               {item.file_name}
             </span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-neo uppercase shrink-0 font-mono ${fileBadge.pillClass}`}>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded uppercase shrink-0 font-mono ${fileBadge.pillClass}`}>
               {fileBadge.extension}
             </span>
           </div>
@@ -302,7 +302,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
             {item.folder_name && (
               <div className="flex items-center gap-1.5">
                 <Folder className="w-3.5 h-3.5 text-primary shrink-0" />
-                <span className="text-xs text-primary font-semibold truncate max-w-[180px] px-2 py-0.5 rounded-neo bg-primary/10 border border-primary/20">
+                <span className="text-xs text-primary font-semibold truncate max-w-[180px] px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20">
                   {item.folder_name}
                 </span>
               </div>
@@ -342,7 +342,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
               e.stopPropagation();
               onContextMenu(e, item);
             }}
-            className="p-1.5 rounded-neo text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
             title="More options"
           >
             <MoreVertical className="w-4 h-4" />

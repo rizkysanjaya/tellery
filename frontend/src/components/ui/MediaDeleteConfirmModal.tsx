@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/MediaDeleteConfirmModal.tsx
- * Purpose: Neomorphic confirmation dialog before deleting one or multiple media items.
+ * Purpose: Precision confirmation dialog before deleting one or multiple media items.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: MediaDeleteConfirmModal
@@ -49,18 +49,18 @@ export const MediaDeleteConfirmModal: React.FC<MediaDeleteConfirmModalProps> = (
 
   return (
     <div
-      className="fixed inset-0 bg-background/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-150"
       onClick={onCancel}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="neo-card bg-surface-base border border-outline-variant/30 rounded-neo-xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-150 relative select-none"
+        className="bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-150 relative select-none"
       >
         {/* Close Button */}
         <button
           type="button"
           onClick={onCancel}
-          className="absolute top-4 right-4 p-1 rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors cursor-pointer"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
           title="Close"
         >
           <X className="w-4 h-4" />
@@ -68,7 +68,7 @@ export const MediaDeleteConfirmModal: React.FC<MediaDeleteConfirmModalProps> = (
 
         {/* Title */}
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-neo bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 neo-pressed">
+          <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0">
             <Trash2 className="w-5 h-5" />
           </div>
           <div>
@@ -82,7 +82,7 @@ export const MediaDeleteConfirmModal: React.FC<MediaDeleteConfirmModalProps> = (
         </div>
 
         {/* Content Info */}
-        <div className="my-4 p-3 rounded-neo bg-surface-container/50 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed">
+        <div className="my-4 p-3.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 text-xs text-on-surface-variant leading-relaxed">
           {isSingle ? (
             <p>
               Are you sure you want to delete{" "}
@@ -105,14 +105,14 @@ export const MediaDeleteConfirmModal: React.FC<MediaDeleteConfirmModalProps> = (
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-neo-lg text-xs font-semibold transition-colors cursor-pointer"
+            className="px-3.5 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-500 active:scale-95 text-white rounded-neo-lg text-xs font-semibold shadow-[0_4px_12px_rgba(220,38,38,0.3)] transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Delete</span>

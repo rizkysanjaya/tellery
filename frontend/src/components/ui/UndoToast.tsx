@@ -3,6 +3,7 @@
  * Module: frontend/src/components/ui/UndoToast.tsx
  * Purpose: Floating 10-second real-time countdown notification toast providing an 'Undo'
  *          action for deleted files before permanent MTProto deletion is committed.
+ *          Pro-grade obsidian pill dialog with subtle hairline borders and liquid progress.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, framer-motion, lucide-react
  * Public Members: UndoToast
@@ -75,9 +76,9 @@ export const UndoToast: React.FC<UndoToastProps> = ({
           transition={{ duration: 0.2 }}
           className="fixed bottom-6 right-6 z-50 select-none"
         >
-          <div className="relative overflow-hidden bg-surface-base border border-outline-variant/30 rounded-neo-xl neo-card shadow-[0_20px_50px_rgba(0,0,0,0.7)] p-3.5 pr-4 flex items-center gap-3.5 min-w-[300px] max-w-md">
+          <div className="relative overflow-hidden bg-surface-container-low/95 backdrop-blur-xl border border-outline-variant/20 rounded-2xl shadow-2xl p-3.5 pr-4 flex items-center gap-3.5 min-w-[300px] max-w-md">
             {/* Trash icon indicator */}
-            <div className="w-9 h-9 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 neo-pressed">
+            <div className="w-9 h-9 rounded-full bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 border border-red-500/20">
               <Trash2 className="w-4 h-4" />
             </div>
 
@@ -98,7 +99,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
             {/* Undo Action Button */}
             <button
               onClick={onUndo}
-              className="px-3 py-1.5 rounded-neo bg-primary/10 hover:bg-primary/20 text-primary hover:scale-[1.02] text-xs font-bold transition-all flex items-center gap-1.5 neo-button cursor-pointer shrink-0"
+              className="px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-95"
               title="Undo Deletion"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -115,7 +116,7 @@ export const UndoToast: React.FC<UndoToastProps> = ({
             </button>
 
             {/* 10-second countdown liquid progress bar at bottom */}
-            <div className="absolute bottom-0 left-0 right-0 overflow-hidden rounded-b-neo-xl">
+            <div className="absolute bottom-0 left-0 right-0 overflow-hidden rounded-b-2xl">
               <LiquidProgressBar
                 progress={progress}
                 height="h-1.5"

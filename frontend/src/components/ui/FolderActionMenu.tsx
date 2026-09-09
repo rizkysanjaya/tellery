@@ -3,6 +3,7 @@
  * Module: frontend/src/components/ui/FolderActionMenu.tsx
  * Purpose: 3-dots context menu for albums and collections offering Customize Icon/Color,
  *          Change Cover Thumbnail, Rename, Move to Collection submenu, Favorite, Export as .ZIP, and Delete options.
+ *          Sleek Raycast-style floating menu with obsidian backdrop and hairline borders.
  *          Uses React Portal (document.body) for fixed positioning to prevent CSS transform displacement.
  * Used by: Sidebar.tsx, FolderGrid.tsx
  * Dependencies: React, react-dom, lucide-react, FolderItem
@@ -193,7 +194,7 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
               top: `${menuCoords.top}px`,
               left: `${menuCoords.left}px`,
             }}
-            className="w-56 py-1.5 rounded-2xl neo-card bg-surface-base border border-outline-variant/30 shadow-[0_16px_40px_rgba(0,0,0,0.45)] z-[99999] animate-in fade-in zoom-in-95 duration-150 text-xs select-none"
+            className="w-56 py-1.5 rounded-xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 shadow-2xl z-[99999] animate-in fade-in zoom-in-95 duration-150 text-xs select-none"
           >
             {/* Change Cover Thumbnail */}
             {onSelectCover && (
@@ -323,7 +324,7 @@ export const FolderActionMenu: React.FC<FolderActionMenuProps> = ({
                                 }}
                                 className={`w-full text-left px-2 py-1.5 text-[11px] rounded-md flex items-center justify-between transition-colors ${
                                   isCurrent
-                                    ? "neo-pressed bg-surface-container-high text-primary font-bold"
+                                    ? "bg-primary/10 text-primary font-semibold border border-primary/20"
                                     : "text-on-surface hover:bg-surface-container-high"
                                 }`}
                               >

@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Pro-grade flat obsidian sidebar with hairline dividers, compact telemetry widget,
- *          vault switcher, album tree, favorites, trash, and settings dialog triggers.
+ *          vault switcher, album tree, direct favorites navigation, trash, and settings dialog triggers.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu,
  *               FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
@@ -110,7 +110,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isSyncing = false,
 }) => {
   const [isAlbumsExpanded, setIsAlbumsExpanded] = useState(true);
-  const [isFavoritesExpanded, setIsFavoritesExpanded] = useState(true);
   const [showInlineNewAlbum, setShowInlineNewAlbum] = useState(false);
   const [newAlbumName, setNewAlbumName] = useState("");
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
@@ -399,120 +398,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {/* 2. Favorites (Google Drive style with expand caret) */}
-          <div>
-            <div
-              onClick={() => {
-                if (onSelectFavorites) {
-                  onSelectFavorites();
-                  onCloseMobile();
-                } else {
-                  setIsFavoritesExpanded((p) => !p);
-                }
-              }}
-              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                currentView === "favorites" && !activeFolder
-                  ? "bg-white/[0.08] text-primary font-semibold"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
-              }`}
-            >
-              <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsFavoritesExpanded((p) => !p);
-                  }}
-                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors cursor-pointer"
-                >
-                  {isFavoritesExpanded ? (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  )}
-                </button>
-                <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
-                <span className="truncate">Favorites</span>
-              </div>
-              <span className="text-[11px] px-1.5 py-0.5 rounded text-amber-400/90 font-mono">
-                {folders.filter((f) => f.is_favorite).length}
-              </span>
+          {/* 2. Favorites (Direct Navigation Link) */}
+          <div
+            onClick={() => {
+              onSelectFavorites?.();
+              onCloseMobile();
+            }}
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+              currentView === "favorites" && !activeFolder
+                ? "bg-white/[0.08] text-primary font-semibold"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="w-3.5" />
+              <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
+              <span>Favorites</span>
             </div>
-
-            {/* Expanded Favorites Sub-items */}
-            {isFavoritesExpanded && (
-              <div className="pl-6 pr-1 py-0.5 space-y-0.5">
-                {folders.filter((f) => f.is_favorite).length === 0 ? (
-                  <div className="px-2.5 py-1.5 rounded text-[11px] text-on-surface-variant/50 italic">
-                    Star albums to see them here
-                  </div>
-                ) : (
-                  folders
-                    .filter((f) => f.is_favorite)
-                    .map((folder) => {
-                      const isSelected = activeFolder?.id === folder.id;
-                      return (
-                        <div
-                          key={`fav-${folder.id}`}
-                          onClick={() => {
-                            onSelectFolder(folder);
-                            onCloseMobile();
-                          }}
-                          onContextMenu={(e) => {
-                            if (onFolderContextMenu) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              onFolderContextMenu(e, folder);
-                            }
-                          }}
-                          className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                            isSelected
-                              ? "bg-white/[0.08] text-primary font-semibold"
-                              : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 truncate pr-2">
-                            <FolderIcon
-                              name={folder.icon || "Folder"}
-                              color={folder.color || "var(--color-primary, #6366f1)"}
-                              className="w-3.5 h-3.5 shrink-0"
-                            />
-                            <span className="truncate">{folder.name}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[10px] px-1.5 py-0.5 rounded text-on-surface-variant/60 font-mono">
-                              {folder.item_count}
-                            </span>
-                            <FolderActionMenu
-                              folder={folder}
-                              collections={collections}
-                              placement="right"
-                              onCustomize={(f) => setFolderToCustomize(f)}
-                              onSelectCover={(f) => setFolderToCover(f)}
-                              onRename={(f) => setFolderToRename(f)}
-                              onOpenMoveModal={(f) => setFolderToMove(f)}
-                              onMoveToCollection={
-                                onMoveFolderToCollection
-                                  ? (f, colId) => onMoveFolderToCollection(f.id, colId)
-                                  : undefined
-                              }
-                              onToggleFavorite={(f) => {
-                                if (onToggleFavoriteFolder) {
-                                  onToggleFavoriteFolder(f.id, !f.is_favorite);
-                                }
-                              }}
-                              onExportZip={onExportFolderZip}
-                              onDelete={(f) => onDeleteFolder(f)}
-                              triggerClassName="opacity-0 group-hover:opacity-100"
-                            />
-                          </div>
-                        </div>
-                      );
-                    })
-                )}
-              </div>
-            )}
           </div>
 
           {/* 3. Albums (Google Drive style row with expand caret on left) */}

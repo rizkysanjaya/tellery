@@ -186,7 +186,7 @@ export const DragDropDock: React.FC<DragDropDockProps> = ({
                         scheduleCloseAlbum(350);
                       }
                     }}
-                    className="relative mb-3 w-[340px] sm:w-[420px] max-h-72 overflow-y-auto bg-surface-base/95 backdrop-blur-xl border border-outline-variant/30 rounded-neo-2xl p-3 shadow-2xl shadow-black/30 dark:shadow-black/70 flex flex-col gap-2 z-30 pointer-events-auto"
+                    className="relative mb-3 w-[340px] sm:w-[420px] max-h-72 overflow-y-auto bg-surface-container-low/95 backdrop-blur-xl border border-outline-variant/20 rounded-2xl p-3 shadow-2xl flex flex-col gap-2 z-30 pointer-events-auto"
                   >
                     {/* Invisible Drag Bridge connecting popup to dock */}
                     <div
@@ -238,13 +238,13 @@ export const DragDropDock: React.FC<DragDropDockProps> = ({
                               }
                             }}
                             onDrop={(e) => handleDropSpecificAlbum(e, album.id)}
-                            className={`flex items-center gap-2.5 p-2 rounded-neo transition-all duration-150 cursor-pointer border ${
+                            className={`flex items-center gap-2.5 p-2 rounded-xl transition-all duration-150 cursor-pointer border ${
                               isTarget
                                 ? "bg-primary/20 border-primary text-primary scale-[1.02] shadow-sm ring-2 ring-primary/40"
                                 : "bg-surface-container/60 hover:bg-surface-container border-outline-variant/20 text-on-surface"
                             }`}
                           >
-                            <div className="w-7 h-7 rounded-neo bg-surface-base flex items-center justify-center shrink-0 shadow-inner">
+                            <div className="w-7 h-7 rounded-lg bg-surface-container flex items-center justify-center shrink-0 border border-outline-variant/15">
                               <FolderIcon
                                 name={album.icon || "Folder"}
                                 color={album.color}

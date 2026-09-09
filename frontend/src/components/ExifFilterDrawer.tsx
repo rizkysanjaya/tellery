@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ExifFilterDrawer.tsx
- * Purpose: Neomorphic Silk Cloud slide-down/popover drawer for smart EXIF metadata filtering
+ * Purpose: Precision slide-down/popover drawer for smart EXIF metadata filtering
  *          (camera make/model, orientation, resolution, calendar periods).
  * Used by: frontend/src/components/Header.tsx, frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -83,20 +83,20 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
   const orientations = metadata?.orientations;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-background/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
       <div
         ref={drawerRef}
-        className="w-full max-w-2xl bg-surface-base border border-outline-variant/20 rounded-neo-xl shadow-2xl neo-card p-6 space-y-6 animate-in zoom-in-95 duration-150"
+        className="w-full max-w-2xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl shadow-2xl p-6 space-y-6 animate-in zoom-in-95 duration-150"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-outline-variant/15 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-neo bg-primary/10 text-primary flex items-center justify-center neo-pressed">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
               <Camera className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-headline-sm font-bold text-on-surface">Smart EXIF & Date Filters</h3>
-              <p className="text-body-sm text-on-surface-variant">
+              <h3 className="text-base font-bold text-on-surface">Smart EXIF & Date Filters</h3>
+              <p className="text-xs text-on-surface-variant">
                 Filter your archive by camera hardware, orientation, resolution, or date.
               </p>
             </div>
@@ -106,7 +106,7 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
             {hasActiveFilters && (
               <button
                 onClick={onResetFilters}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-neo text-label-md text-error hover:bg-error/10 transition-colors neo-button"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reset
@@ -114,7 +114,7 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
             )}
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -126,17 +126,17 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
           {/* 1. Camera / Device */}
           {cameras.length > 0 && (
             <div>
-              <label className="flex items-center gap-2 text-label-md font-bold text-on-surface mb-2.5">
+              <label className="flex items-center gap-2 text-xs font-semibold text-on-surface mb-2.5">
                 <Smartphone className="w-4 h-4 text-primary" />
                 Camera / Device
               </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => onFilterChange({ ...activeFilters, camera: null })}
-                  className={`px-3 py-1.5 rounded-neo text-label-md transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                     !activeFilters.camera
                       ? "bg-primary text-on-primary font-semibold shadow-xs"
-                      : "bg-surface-container text-on-surface-variant hover:text-on-surface neo-button"
+                      : "bg-surface-container-lowest/80 border border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                   }`}
                 >
                   All Devices
@@ -152,10 +152,10 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
                           camera: isSelected ? null : cam.model || cam.label,
                         })
                       }
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-neo text-label-md transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                         isSelected
                           ? "bg-primary text-on-primary font-semibold shadow-xs"
-                          : "bg-surface-container text-on-surface-variant hover:text-on-surface neo-button"
+                          : "bg-surface-container-lowest/80 border border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                       }`}
                     >
                       {isSelected && <Check className="w-3 h-3" />}
@@ -170,7 +170,7 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
 
           {/* 2. Orientation */}
           <div>
-            <label className="flex items-center gap-2 text-label-md font-bold text-on-surface mb-2.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-on-surface mb-2.5">
               <Compass className="w-4 h-4 text-primary" />
               Orientation
             </label>
@@ -191,13 +191,13 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
                         orientation: opt.id as any,
                       })
                     }
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-neo border text-center transition-all ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-primary/10 border-primary text-primary font-semibold shadow-xs neo-pressed"
-                        : "bg-surface-container border-outline-variant/10 text-on-surface-variant hover:text-on-surface neo-button"
+                        ? "bg-primary/10 border-primary/40 text-primary font-semibold shadow-xs"
+                        : "bg-surface-container-lowest/80 border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                     }`}
                   >
-                    <span className="text-label-md">{opt.label}</span>
+                    <span className="text-xs">{opt.label}</span>
                     {opt.count !== null && opt.count !== undefined && (
                       <span className="text-[10px] opacity-70 mt-0.5">{opt.count} items</span>
                     )}
@@ -209,7 +209,7 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
 
           {/* 3. Resolution */}
           <div>
-            <label className="flex items-center gap-2 text-label-md font-bold text-on-surface mb-2.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-on-surface mb-2.5">
               <Monitor className="w-4 h-4 text-primary" />
               Resolution
             </label>
@@ -229,13 +229,13 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
                         min_resolution: opt.id as any,
                       })
                     }
-                    className={`flex flex-col items-center justify-center p-2.5 rounded-neo border text-center transition-all ${
+                    className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                       isSelected
-                        ? "bg-primary/10 border-primary text-primary font-semibold shadow-xs neo-pressed"
-                        : "bg-surface-container border-outline-variant/10 text-on-surface-variant hover:text-on-surface neo-button"
+                        ? "bg-primary/10 border-primary/40 text-primary font-semibold shadow-xs"
+                        : "bg-surface-container-lowest/80 border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                     }`}
                   >
-                    <span className="text-label-md">{opt.label}</span>
+                    <span className="text-xs">{opt.label}</span>
                     {opt.count !== null && opt.count !== undefined && (
                       <span className="text-[10px] opacity-70 mt-0.5">{opt.count} items</span>
                     )}
@@ -248,17 +248,17 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
           {/* 4. Calendar Period / Month */}
           {periods.length > 0 && (
             <div>
-              <label className="flex items-center gap-2 text-label-md font-bold text-on-surface mb-2.5">
+              <label className="flex items-center gap-2 text-xs font-semibold text-on-surface mb-2.5">
                 <Calendar className="w-4 h-4 text-primary" />
                 Calendar Period
               </label>
               <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-1">
                 <button
                   onClick={() => onFilterChange({ ...activeFilters, month: null, year: null })}
-                  className={`px-3 py-1.5 rounded-neo text-label-md transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                     !activeFilters.month && !activeFilters.year
                       ? "bg-primary text-on-primary font-semibold shadow-xs"
-                      : "bg-surface-container text-on-surface-variant hover:text-on-surface neo-button"
+                      : "bg-surface-container-lowest/80 border border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                   }`}
                 >
                   All Dates
@@ -276,10 +276,10 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
                           month: null,
                         })
                       }
-                      className={`px-3 py-1.5 rounded-neo text-label-md transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                         isSelected
                           ? "bg-primary text-on-primary font-semibold shadow-xs"
-                          : "bg-surface-container text-on-surface-variant hover:text-on-surface neo-button"
+                          : "bg-surface-container-lowest/80 border border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                       }`}
                     >
                       Year {y.year} <span className="text-[10px] opacity-75">({y.count})</span>
@@ -299,10 +299,10 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
                           year: null,
                         })
                       }
-                      className={`px-3 py-1.5 rounded-neo text-label-md transition-all ${
+                      className={`px-3 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                         isSelected
                           ? "bg-primary text-on-primary font-semibold shadow-xs"
-                          : "bg-surface-container text-on-surface-variant hover:text-on-surface neo-button"
+                          : "bg-surface-container-lowest/80 border border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                       }`}
                     >
                       {p.label} <span className="text-[10px] opacity-75">({p.count})</span>
@@ -316,12 +316,12 @@ export const ExifFilterDrawer: React.FC<ExifFilterDrawerProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-outline-variant/15">
-          <span className="text-body-sm text-on-surface-variant">
+          <span className="text-xs text-on-surface-variant">
             {hasActiveFilters ? "Filters are actively narrowing your view" : "No filters applied"}
           </span>
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-neo bg-primary text-on-primary font-semibold text-label-md hover:bg-primary/90 transition-all shadow-sm"
+            className="px-4 py-2 rounded-lg bg-primary text-on-primary font-semibold text-xs hover:bg-primary/90 transition-all shadow-sm cursor-pointer"
           >
             Apply & Close
           </button>

@@ -1,8 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/FloatingDock.tsx
- * Purpose: 21st.dev / Apple macOS magnetic floating dock with proximity-based
- *          icon magnification curve, spring damping, and floating glass container.
+ * Purpose: Apple macOS magnetic floating dock with proximity-based
+ *          icon magnification curve, spring damping, and obsidian glass container.
  * Used by: frontend/src/components/SelectionToolbar.tsx, frontend/src/App.tsx
  * Dependencies: React, framer-motion, lucide-react
  * Public Members: FloatingDock, DockItem
@@ -60,14 +60,14 @@ function DockIcon({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={item.onClick}
-      className={`relative flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 neo-button bg-surface-base ${
+      className={`relative flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 border ${
         item.variant === "primary"
-          ? "neo-button-primary"
+          ? "bg-primary hover:bg-primary-hover text-on-primary border-primary/40 shadow-lg"
           : item.variant === "danger"
-            ? "text-error hover:bg-error-container/20"
+            ? "bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30"
             : item.active
-              ? "bg-surface-container-high text-primary"
-              : "text-on-surface-variant hover:text-glow-indigo hover:bg-surface-container"
+              ? "bg-primary/15 text-primary border-primary/40"
+              : "bg-surface-container-high/70 hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface border-outline-variant/15"
       }`}
     >
       <AnimatePresence>
@@ -76,7 +76,7 @@ function DockIcon({
             initial={{ opacity: 0, y: 10, x: "-50%" }}
             animate={{ opacity: 1, y: 0, x: "-50%" }}
             exit={{ opacity: 0, y: 5, x: "-50%" }}
-            className="absolute -top-9 left-1/2 px-2.5 py-1 neo-card bg-surface-base text-on-surface text-[11px] font-medium rounded-neo whitespace-nowrap pointer-events-none z-50"
+            className="absolute -top-9 left-1/2 px-2.5 py-1 rounded-md bg-surface-container-lowest/95 backdrop-blur-md border border-outline-variant/20 text-on-surface text-[11px] font-medium whitespace-nowrap shadow-xl pointer-events-none z-50"
           >
             {item.title}
           </motion.div>
@@ -105,7 +105,7 @@ export const FloatingDock: React.FC<FloatingDockProps> = ({ items, className = "
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ type: "spring", stiffness: 200, damping: 20 }}
-      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 neo-raised bg-surface-base rounded-neo-xl select-none transition-all duration-200 ${className}`}
+      className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-surface-container-low/90 backdrop-blur-xl border border-outline-variant/20 shadow-2xl select-none transition-all duration-200 ${className}`}
     >
       {items.map((item) => (
         <DockIcon key={item.id} mouseX={mouseX} item={item} />

@@ -451,7 +451,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             <button
               type="button"
               onClick={() => setShowStorageTooltip((prev) => !prev)}
-              className="w-7 h-7 rounded-full neo-button bg-surface-base/90 backdrop-blur-md text-primary border border-outline-variant/30 flex items-center justify-center text-xs font-bold shadow-lg hover:scale-110 active:scale-95 transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              className="w-7 h-7 rounded-full bg-surface-container-high/80 hover:bg-surface-container-highest border border-outline-variant/20 text-primary flex items-center justify-center text-xs font-semibold shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
               title="Why do files look raw in Telegram?"
               aria-label="Storage organization info"
             >
@@ -460,7 +460,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
             {/* Reassuring Tooltip (Hover on desktop, click on mobile) */}
             <div
-              className={`absolute bottom-full left-0 mb-2.5 w-72 sm:w-80 p-3.5 rounded-neo-lg neo-card bg-surface-base/95 backdrop-blur-md border border-outline-variant/25 shadow-2xl transition-all duration-200 text-left ${
+              className={`absolute bottom-full left-0 mb-2.5 w-72 sm:w-80 p-3.5 rounded-xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 shadow-2xl transition-all duration-200 text-left ${
                 showStorageTooltip
                   ? "opacity-100 visible translate-y-0 pointer-events-auto"
                   : "opacity-0 invisible translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:pointer-events-auto"
@@ -478,7 +478,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       </div>
 
       {/* Clean Technical Architecture Note */}
-      <div className="p-4 rounded-neo neo-card bg-surface-base border border-outline-variant/15 text-xs text-on-surface-variant space-y-1.5 leading-relaxed">
+      <div className="p-4 rounded-xl bg-surface-container-low/60 border border-outline-variant/15 text-xs text-on-surface-variant space-y-1.5 leading-relaxed">
         <div className="font-semibold text-on-surface text-xs">Private Broadcast Channel Storage</div>
         <p className="text-[11px] leading-relaxed">
           Tellery uploads photos and videos as raw uncompressed documents to this channel. Your files remain accessible in your Telegram apps at all times, with unlimited cloud capacity and zero third-party cloud hosting fees.
@@ -491,10 +491,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const renderAuthShowcase = () => (
     <div className="space-y-4">
       {/* Real Architecture / Security Overview */}
-      <div className="rounded-neo-xl overflow-hidden bg-surface-container-low border border-outline-variant/25 shadow-2xl p-6 space-y-5">
+      <div className="rounded-2xl overflow-hidden bg-surface-container-low/90 border border-outline-variant/20 shadow-2xl p-6 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-neo neo-pressed bg-surface-container flex items-center justify-center text-primary">
+            <div className="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/15 flex items-center justify-center text-primary">
               <Cloud className="w-4 h-4" />
             </div>
             <div>
@@ -502,7 +502,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               <span className="text-[11px] text-on-surface-variant font-mono">Client-to-cloud connection</span>
             </div>
           </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full neo-pressed bg-surface-container text-primary font-mono font-semibold">
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-mono font-semibold">
             Local Session
           </span>
         </div>
@@ -512,8 +512,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         </p>
 
         <div className="space-y-2.5 pt-1">
-          <div className="p-3 rounded-neo bg-surface-container-low border border-outline-variant/15 flex items-start gap-3">
-            <div className="p-1.5 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
+          <div className="p-3 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div className="text-xs space-y-0.5">
@@ -524,8 +524,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </div>
           </div>
 
-          <div className="p-3 rounded-neo bg-surface-container-low border border-outline-variant/15 flex items-start gap-3">
-            <div className="p-1.5 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
+          <div className="p-3 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
               <Database className="w-4 h-4" />
             </div>
             <div className="text-xs space-y-0.5">
@@ -536,8 +536,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </div>
           </div>
 
-          <div className="p-3 rounded-neo bg-surface-container-low border border-outline-variant/15 flex items-start gap-3">
-            <div className="p-1.5 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
+          <div className="p-3 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 flex items-start gap-3">
+            <div className="p-1.5 rounded-lg bg-primary/10 text-primary shrink-0 mt-0.5">
               <Cpu className="w-4 h-4" />
             </div>
             <div className="text-xs space-y-0.5">
@@ -557,7 +557,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       {/* Top Header / Brand Anchor */}
       <header className="w-full relative z-20 pt-6 px-6 sm:px-10 max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-neo neo-raised bg-surface-base flex items-center justify-center text-primary shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
             <Cloud className="w-5 h-5" />
           </div>
           <div>
@@ -568,7 +568,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
         <div className="flex items-center gap-3">
           {/* Quick Status Badge */}
-          <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium neo-card bg-surface-base text-on-surface-variant border border-outline-variant/15 shadow-sm">
+          <div className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-surface-container-lowest/80 text-on-surface-variant border border-outline-variant/15 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500" />
             <span>Telegram MTProto</span>
           </div>
@@ -578,7 +578,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             <button
               type="button"
               onClick={onToggleTheme}
-              className="w-9 h-9 min-w-[36px] min-h-[36px] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] transition-colors cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
               title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
               aria-label="Toggle theme"
             >
@@ -590,7 +590,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             <button
               type="button"
               onClick={onDismiss}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-neo-lg neo-button text-xs font-semibold text-on-surface hover:text-primary transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] border border-outline-variant/15 transition-colors cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
             >
               <X className="w-3.5 h-3.5" />
               <span>Back to Gallery</span>
@@ -669,7 +669,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6 }}
-                  className="p-3.5 rounded-neo bg-error-container/30 border border-error/40 text-error flex items-start gap-2.5 text-xs font-medium"
+                  className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-2.5 text-xs font-medium"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                   <div className="flex-1">{error}</div>
@@ -678,7 +678,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
             </AnimatePresence>
 
             {/* Dynamic Interactive Step Form Card */}
-            <div className="neo-card bg-surface-base rounded-neo-xl border border-outline-variant/20 shadow-xl p-5 sm:p-6 space-y-4">
+            <div className="bg-surface-container-low/90 backdrop-blur-md rounded-2xl border border-outline-variant/20 shadow-xl p-5 sm:p-6 space-y-4">
               <AnimatePresence mode="wait">
             {/* STEP 1: API CREDENTIALS */}
             {step === "need_credentials" && (
@@ -701,7 +701,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 </div>
 
                 {/* Clear Step-by-Step Guide Card */}
-                <div className="neo-card bg-surface-container-low rounded-neo p-4 space-y-2.5 border border-outline-variant/15">
+                <div className="bg-surface-container-lowest/80 rounded-xl p-4 space-y-2.5 border border-outline-variant/15">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-on-surface flex items-center gap-1.5">
                       <Key className="w-3.5 h-3.5 text-primary" />
@@ -730,7 +730,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                       Telegram App API ID
                     </label>
-                    <div className="neo-pressed bg-surface-container-lowest rounded-neo px-3.5 py-2.5 border border-outline-variant/15 focus-within:ring-2 focus-within:ring-primary focus-within:outline-none">
+                    <div className="bg-surface-container-lowest rounded-lg px-3.5 py-2.5 border border-outline-variant/20 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                       <input
                         type="number"
                         required
@@ -746,7 +746,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                       Telegram App API Hash
                     </label>
-                    <div className="neo-pressed bg-surface-container-lowest rounded-neo px-3.5 py-2.5 border border-outline-variant/15 focus-within:ring-2 focus-within:ring-primary focus-within:outline-none">
+                    <div className="bg-surface-container-lowest rounded-lg px-3.5 py-2.5 border border-outline-variant/20 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                       <input
                         type="text"
                         required
@@ -762,7 +762,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <button
                   type="submit"
                   disabled={loading || !apiId.trim() || !apiHash.trim()}
-                  className="w-full min-h-[44px] py-2.5 px-5 rounded-neo-lg text-sm font-bold neo-button-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                  className="w-full min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -804,12 +804,12 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </label>
 
                   {/* Tactile Input Container */}
-                  <div className="neo-pressed bg-surface-container-lowest rounded-neo px-3 py-2 border border-outline-variant/15 transition-all flex items-center gap-2.5 focus-within:ring-2 focus-within:ring-primary">
+                  <div className="bg-surface-container-lowest rounded-lg px-3 py-2 border border-outline-variant/20 transition-all flex items-center gap-2.5 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                     {/* Country Tag Selector / Flag */}
                     <button
                       type="button"
                       onClick={() => setShowCountryPicker(!showCountryPicker)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-neo text-xs font-semibold text-on-surface neo-button bg-surface-base transition-colors cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium text-on-surface bg-surface-container-low hover:bg-surface-container-high border border-outline-variant/15 transition-colors cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
                       title="Select Country"
                     >
                       <span className="text-sm">{currentCountry.flag}</span>
@@ -849,14 +849,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         initial={{ opacity: 0, y: -4 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -4 }}
-                        className="absolute left-0 top-full mt-1.5 w-72 max-h-56 overflow-y-auto neo-card bg-surface-base rounded-neo-lg p-1.5 shadow-2xl border border-outline-variant/20 z-50"
+                        className="absolute left-0 top-full mt-1.5 w-72 max-h-56 overflow-y-auto bg-surface-container-low/95 backdrop-blur-md rounded-xl p-1.5 shadow-2xl border border-outline-variant/20 z-50"
                       >
                         {COMMON_COUNTRIES.map((c) => (
                           <button
                             key={c.code}
                             type="button"
                             onClick={() => handleSelectCountry(c)}
-                            className="w-full px-3 py-2 rounded-neo text-left text-xs flex items-center justify-between hover:bg-surface-container transition-colors text-on-surface cursor-pointer"
+                            className="w-full px-3 py-2 rounded-lg text-left text-xs flex items-center justify-between hover:bg-white/[0.04] transition-colors text-on-surface cursor-pointer"
                           >
                             <span className="flex items-center gap-2">
                               <span>{c.flag}</span>
@@ -887,7 +887,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="p-3 rounded-neo neo-card bg-surface-container-low border border-outline-variant/15 text-[11px] text-on-surface-variant leading-relaxed"
+                      className="p-3 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 text-[11px] text-on-surface-variant leading-relaxed"
                     >
                       Tellery authenticates directly with Telegram's MTProto service over an encrypted connection. Session keys are stored locally on your machine.
                     </motion.div>
@@ -899,7 +899,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => setStep("need_credentials")}
-                    className="min-h-[44px] px-4 py-2 rounded-neo-lg text-sm font-semibold neo-button text-on-surface hover:text-primary transition-all flex items-center gap-1.5 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    className="min-h-[42px] px-4 py-2 rounded-lg text-xs font-medium text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] border border-outline-variant/15 transition-all flex items-center gap-1.5 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
                   >
                     <ChevronLeft className="w-4 h-4" />
                     <span>Back</span>
@@ -908,7 +908,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 min-h-[44px] py-2.5 px-5 rounded-neo-lg text-sm font-bold neo-button-primary disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                    className="flex-1 min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                   >
                     {loading ? (
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -957,7 +957,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                     5-Digit Verification Code
                   </label>
-                  <div className="neo-pressed bg-surface-container-lowest rounded-neo px-4 py-3 border border-outline-variant/15 focus-within:ring-2 focus-within:ring-primary">
+                  <div className="bg-surface-container-lowest rounded-lg px-4 py-3 border border-outline-variant/20 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                     <input
                       type="text"
                       maxLength={5}
@@ -994,7 +994,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <button
                   type="submit"
                   disabled={loading || phoneCode.length < 5}
-                  className="w-full min-h-[44px] py-2.5 px-5 rounded-neo-lg text-sm font-bold neo-button-primary disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                  className="w-full min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1032,7 +1032,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                     Telegram Cloud Password
                   </label>
-                  <div className="neo-pressed bg-surface-container-lowest rounded-neo px-3.5 py-2.5 border border-outline-variant/15 relative flex items-center focus-within:ring-2 focus-within:ring-primary">
+                  <div className="bg-surface-container-lowest rounded-lg px-3.5 py-2.5 border border-outline-variant/20 relative flex items-center focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                     <input
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your 2FA password"
@@ -1055,7 +1055,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <button
                   type="submit"
                   disabled={loading || !password}
-                  className="w-full min-h-[44px] py-2.5 px-5 rounded-neo-lg text-sm font-bold neo-button-primary disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                  className="w-full min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1094,14 +1094,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 </div>
 
                 {/* 2. Segmented Tab Switcher */}
-                <div className="p-1 rounded-neo-lg neo-pressed bg-surface-container-lowest flex gap-1 border border-outline-variant/10">
+                <div className="p-1 rounded-xl bg-surface-container-lowest border border-outline-variant/15 flex gap-1">
                   <button
                     type="button"
                     onClick={() => setVaultSetupTab("fresh")}
-                    className={`flex-1 py-2 px-3 rounded-neo text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none ${
                       vaultSetupTab === "fresh"
-                        ? "neo-pressed bg-surface-base text-primary font-bold shadow-sm"
-                        : "neo-button bg-surface-base text-on-surface-variant hover:text-on-surface"
+                        ? "bg-primary/15 text-primary border border-primary/30 font-semibold shadow-xs"
+                        : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                     }`}
                   >
                     <Plus className="w-3.5 h-3.5 text-primary" />
@@ -1110,10 +1110,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   <button
                     type="button"
                     onClick={() => setVaultSetupTab("existing")}
-                    className={`flex-1 py-2 px-3 rounded-neo text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none ${
                       vaultSetupTab === "existing"
-                        ? "neo-pressed bg-surface-base text-primary font-bold shadow-sm"
-                        : "neo-button bg-surface-base text-on-surface-variant hover:text-on-surface"
+                        ? "bg-primary/15 text-primary border border-primary/30 font-semibold shadow-xs"
+                        : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                     }`}
                   >
                     <FolderPlus className="w-3.5 h-3.5 text-on-surface-variant" />
@@ -1129,7 +1129,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                         Private Channel Title
                       </label>
-                      <div className="neo-pressed bg-surface-container-lowest rounded-neo px-3.5 py-2.5 border border-outline-variant/15 focus-within:ring-2 focus-within:ring-primary">
+                      <div className="bg-surface-container-lowest rounded-lg px-3.5 py-2.5 border border-outline-variant/20 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                         <input
                           type="text"
                           placeholder="e.g. Tellery Cloud Vault"
@@ -1147,7 +1147,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     <button
                       type="submit"
                       disabled={loading || !vaultTitle.trim()}
-                      className="w-full min-h-[44px] py-3 px-5 rounded-neo-lg text-sm font-bold neo-button-primary disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                      className="w-full min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                     >
                       {loading ? (
                         <div className="flex items-center gap-2">
@@ -1188,10 +1188,10 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                               type="button"
                               onClick={() => handleSelectExistingVault(vault)}
                               disabled={loading}
-                              className="w-full p-3 rounded-neo neo-card bg-surface-base hover:bg-surface-container border border-outline-variant/15 text-left flex items-center justify-between transition-all group cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                              className="w-full p-3 rounded-xl bg-surface-container-lowest/80 hover:bg-surface-container-lowest border border-outline-variant/15 text-left flex items-center justify-between transition-all group cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
                             >
                               <div className="min-w-0 flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-neo neo-pressed bg-surface-container flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-xs shrink-0">
                                   {vault.title ? vault.title.charAt(0).toUpperCase() : "C"}
                                 </div>
                                 <div className="min-w-0">
@@ -1203,14 +1203,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                                   </div>
                                 </div>
                               </div>
-                              <span className="text-xs px-3 py-1 rounded-neo neo-button text-primary font-bold shrink-0">
+                              <span className="text-xs px-3 py-1 rounded-lg bg-primary/10 text-primary font-semibold border border-primary/20 shrink-0">
                                 Connect →
                               </span>
                             </button>
                           ))}
                         </div>
                       ) : (
-                        <div className="p-4 rounded-neo neo-card bg-surface-base border border-outline-variant/15 text-center space-y-1.5">
+                        <div className="p-4 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 text-center space-y-1.5">
                           <p className="text-xs text-on-surface font-semibold">No owned broadcast channels detected</p>
                           <p className="text-[11px] text-on-surface-variant leading-relaxed">
                             Telegram broadcast channels are separate from private chat groups. We recommend switching to the fresh vault tab to create one in seconds.
@@ -1220,7 +1220,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     </div>
 
                     {/* Manual Channel ID Connection */}
-                    <form onSubmit={handleConnectManualChannel} className="p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 space-y-2.5">
+                    <form onSubmit={handleConnectManualChannel} className="p-3.5 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 space-y-2.5">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-on-surface">
                         <FolderPlus className="w-3.5 h-3.5 text-primary" />
                         <span>Or Connect by Channel ID</span>
@@ -1229,7 +1229,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         If your channel wasn't auto-detected, enter its Telegram ID (e.g. <span className="font-mono text-primary">-1001234567890</span>). Your account must have post permissions.
                       </p>
                       <div className="flex gap-2">
-                        <div className="flex-1 neo-pressed bg-surface-container-lowest rounded-neo px-3 py-2 border border-outline-variant/15 focus-within:ring-2 focus-within:ring-primary">
+                        <div className="flex-1 bg-surface-container-lowest rounded-lg px-3 py-2 border border-outline-variant/20 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
                           <input
                             type="text"
                             placeholder="-100..."
@@ -1241,7 +1241,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         <button
                           type="submit"
                           disabled={loading || !manualChannelId.trim()}
-                          className="py-2 px-4 rounded-neo text-xs font-bold neo-button-primary disabled:opacity-50 transition-all shrink-0 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                          className="py-2 px-4 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 transition-all shrink-0 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none"
                         >
                           {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Connect"}
                         </button>
@@ -1260,7 +1260,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center space-y-6 py-2"
               >
-                <div className="w-16 h-16 rounded-neo-xl neo-pressed bg-surface-base border border-emerald-500/30 mx-auto flex items-center justify-center text-emerald-500 shadow-inner">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 mx-auto flex items-center justify-center text-emerald-400 shadow-sm">
                   <CheckCircle2 className="w-8 h-8 text-emerald-500" />
                 </div>
 
@@ -1275,7 +1275,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </p>
                 </div>
 
-                <div className="neo-card bg-surface-container-low rounded-neo p-4 text-left text-xs space-y-2 border border-outline-variant/15">
+                <div className="bg-surface-container-lowest/80 rounded-xl p-4 text-left text-xs space-y-2 border border-outline-variant/15">
                   <div className="flex justify-between">
                     <span className="text-on-surface-variant">Authenticated User:</span>
                     <span className="text-on-surface font-medium">
@@ -1296,7 +1296,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   type="button"
                   onClick={handleFinishOnboarding}
                   disabled={loading}
-                  className="w-full min-h-[44px] py-3 px-5 rounded-neo-lg text-sm font-bold neo-button-primary disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+                  className="w-full min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                 >
                   {loading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
