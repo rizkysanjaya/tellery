@@ -1,7 +1,7 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/AnimatedTabs.tsx
- * Purpose: Neomorphic toggle pills/tabs supporting raised and pressed states,
+ * Purpose: Precision segmented control with hairline borders, active pill indicator,
  *          responsive text-to-icon collapsing (hideLabelBelow), and ARIA accessibility.
  * Used by: frontend/src/components/Header.tsx
  * Dependencies: React
@@ -49,7 +49,7 @@ export function AnimatedTabs<T extends string = string>({
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 p-1 bg-surface-base rounded-neo-xl neo-pressed ${className}`}
+      className={`inline-flex items-center gap-0.5 p-0.5 bg-surface-container-lowest/60 border border-outline-variant/15 rounded-lg ${className}`}
     >
       {tabs.map((tab) => {
         const isActive = activeId === tab.id;
@@ -59,19 +59,19 @@ export function AnimatedTabs<T extends string = string>({
             onClick={() => onChange(tab.id)}
             title={tab.label}
             aria-label={tab.label}
-            className={`relative flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm font-semibold rounded-neo transition-all duration-200 cursor-pointer select-none ${
+            className={`relative flex items-center justify-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150 cursor-pointer select-none ${
               isActive
-                ? "neo-raised bg-surface-container text-primary"
-                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                ? "bg-surface-container text-primary font-semibold border border-outline-variant/20 shadow-xs"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] border border-transparent"
             } ${tabClassName}`}
           >
             {/* Tab Icon and Label */}
             <span className="relative z-10 flex items-center gap-1.5">
-              {tab.icon && <span>{tab.icon}</span>}
+              {tab.icon && <span className="scale-90">{tab.icon}</span>}
               {tab.label && <span className={labelHideClass}>{tab.label}</span>}
               {tab.badge !== undefined && (
                 <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${
+                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-medium ${
                     isActive
                       ? "bg-primary/20 text-primary"
                       : "bg-surface-base text-on-surface-variant"

@@ -1,11 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Sidebar.tsx
- * Purpose: Silk Cloud neomorphic sidebar with streamlined cloud storage card,
- *          Preferences & Storage dialog trigger (SettingsModal), Multi-Vault Telegram switcher,
- *          permission gating (upload/delete), album drag & drop targets, keyboard shortcuts,
- *          Favorites section, Collections accordion, Trash recovery view navigation,
- *          session logout trigger, right-click context menu, and album management modals.
+ * Purpose: Pro-grade flat obsidian sidebar with hairline dividers, compact telemetry widget,
+ *          vault switcher, album tree, favorites, trash, and settings dialog triggers.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu,
  *               FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
@@ -241,9 +238,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between px-5 py-4 mb-1">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-outline-variant/10 mb-2">
           <div className="min-w-0 flex-1">
-            <h1 className="font-bold text-xl text-primary tracking-tight">Tellery</h1>
+            <h1 className="font-bold text-lg text-primary tracking-tight">Tellery</h1>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
@@ -252,10 +249,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 onClick={() => onSyncVault()}
                 disabled={isSyncing}
-                className={`px-3 py-1.5 rounded-neo text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer border ${
                   isSyncing
-                    ? "neo-pressed bg-surface-base text-primary cursor-wait"
-                    : "neo-button text-on-surface-variant hover:text-primary active:neo-pressed"
+                    ? "bg-primary/10 border-primary/20 text-primary cursor-wait"
+                    : "border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                 }`}
                 title={isSyncing ? "Syncing vault with Telegram..." : "Sync Vault (scan for new media)"}
               >
@@ -267,7 +264,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Mobile Close Button */}
             <button
               onClick={onCloseMobile}
-              className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-neo md:hidden neo-raised active:neo-pressed cursor-pointer transition-all"
+              className="p-1.5 text-on-surface-variant hover:text-on-surface rounded-md md:hidden hover:bg-white/[0.06] cursor-pointer transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -275,7 +272,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Connected To Vault Card (Clickable to switch Telegram Channel Vault) */}
-        <div className="px-4 mb-3">
+        <div className="px-3 mb-2.5">
           <div
             role="button"
             tabIndex={0}
@@ -286,22 +283,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onOpenVaultSwitcher?.();
               }
             }}
-            className="p-3 rounded-neo-xl neo-card bg-surface-container-low/70 border border-outline-variant/20 shadow-xs space-y-2 hover:bg-surface-container-high/40 hover:border-primary/30 transition-all cursor-pointer group select-none"
+            className="p-2.5 rounded-lg bg-surface-container-low/40 border border-outline-variant/15 space-y-2 hover:bg-surface-container-high/30 hover:border-outline-variant/30 transition-all cursor-pointer group select-none"
             title="Click to switch Telegram Storage Vault"
           >
             {/* Status indicator & Role Badge & Switcher Chevron */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
                 <span>Connected to</span>
               </div>
               <div className="flex items-center gap-1.5">
                 {activeVault && (
                   <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       activeVault.role === "owner"
-                        ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                        : "bg-surface-container text-amber-400 border border-amber-500/30"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                        : "bg-surface-container text-amber-400 border border-amber-500/20"
                     }`}
                   >
                     {activeVault.role === "owner" ? "Owner" : "Read-Only"}
@@ -317,15 +314,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <img
                   src={stats.channel_avatar_url}
                   alt={activeVault?.title || stats.channel_name || "Vault"}
-                  className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-primary/30 shadow-sm"
+                  className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-primary/30"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0 shadow-inner">
-                  <Cloud className="w-4 h-4 text-primary" />
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                  <Cloud className="w-3.5 h-3.5 text-primary" />
                 </div>
               )}
               <span
-                className="text-sm font-bold text-on-surface truncate tracking-tight group-hover:text-primary transition-colors"
+                className="text-xs font-semibold text-on-surface truncate tracking-tight group-hover:text-primary transition-colors"
                 title={activeVault?.title ? `${activeVault.title} Vault` : stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
               >
                 {activeVault?.title ? `${activeVault.title} Vault` : stats?.channel_name ? `${stats.channel_name} Vault` : "Telegram Vault"}
@@ -334,16 +331,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Media Breakdown Counters directly beneath Vault */}
             {stats && (
-              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-outline-variant/10 text-xs">
+              <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-outline-variant/10 text-xs">
                 <div
-                  className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
+                  className="flex items-center justify-center gap-1.5 text-on-surface bg-surface-container-lowest/50 border border-outline-variant/10 px-2 py-1 rounded text-[11px] font-medium"
                   title={`${stats.total_photos} Photos / Images`}
                 >
                   <Images className="w-3.5 h-3.5 text-primary shrink-0" />
                   <span className="font-mono">{stats.total_photos}</span>
                 </div>
                 <div
-                  className="flex items-center justify-center gap-2 text-on-surface neo-pressed bg-surface-base px-2.5 py-1.5 rounded-neo font-semibold"
+                  className="flex items-center justify-center gap-1.5 text-on-surface bg-surface-container-lowest/50 border border-outline-variant/10 px-2 py-1 rounded text-[11px] font-medium"
                   title={`${stats.total_videos} Videos`}
                 >
                   <Video className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -355,7 +352,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Primary New Upload Button */}
-        <div className="px-4 mb-4">
+        <div className="px-3 mb-3">
           <button
             onClick={() => {
               if (canUpload !== false) {
@@ -364,39 +361,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
               }
             }}
             disabled={canUpload === false}
-            className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-neo-lg text-sm font-bold transition-all duration-200 shadow-sm ${
+            className={`w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 shadow-sm ${
               canUpload === false
                 ? "opacity-60 cursor-not-allowed bg-surface-container text-on-surface-variant border border-outline-variant/20"
-                : "neo-button-primary cursor-pointer"
+                : "bg-primary text-on-primary hover:bg-primary/90 active:scale-[0.99] cursor-pointer"
             }`}
             title={canUpload === false ? "Active vault is Read-Only. Cannot upload to joined channels." : "Upload media to Telegram vault"}
           >
-            <Upload className="w-4 h-4" />
+            <Upload className="w-3.5 h-3.5" />
             <span>{canUpload === false ? "Read-Only Vault" : "Upload Media"}</span>
           </button>
         </div>
 
         {/* Navigation Section (Google Drive Style Hierarchical Tree) */}
-        <div className="flex-1 overflow-y-auto px-3 space-y-1">
+        <div className="flex-1 overflow-y-auto px-2 space-y-0.5">
           {/* 1. Timeline */}
           <div
             onClick={() => {
               onSelectTimeline();
               onCloseMobile();
             }}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               isTimelineActive
-                ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
-                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+                ? "bg-white/[0.08] text-primary font-semibold"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <div className="w-3.5" />
-              <Clock className={`w-4.5 h-4.5 ${isTimelineActive ? "text-primary" : "text-on-surface-variant"}`} />
+              <Clock className={`w-4 h-4 ${isTimelineActive ? "text-primary" : "text-on-surface-variant"}`} />
               <span>Timeline</span>
             </div>
             {stats && (
-              <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-on-surface-variant font-mono">
+              <span className="text-[11px] px-1.5 py-0.5 rounded text-on-surface-variant/70 font-mono">
                 {stats.total_items}
               </span>
             )}
@@ -413,13 +410,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   setIsFavoritesExpanded((p) => !p);
                 }
               }}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 currentView === "favorites" && !activeFolder
-                  ? "neo-pressed bg-surface-base text-primary shadow-inner"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+                  ? "bg-white/[0.08] text-primary font-semibold"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
               }`}
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 <button
                   type="button"
                   onClick={(e) => {
@@ -434,19 +431,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <ChevronRight className="w-3.5 h-3.5" />
                   )}
                 </button>
-                <Star className="w-4.5 h-4.5 text-amber-400 fill-amber-400 shrink-0" />
+                <Star className="w-4 h-4 text-amber-400 fill-amber-400 shrink-0" />
                 <span className="truncate">Favorites</span>
               </div>
-              <span className="text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base text-amber-400/90 font-mono">
+              <span className="text-[11px] px-1.5 py-0.5 rounded text-amber-400/90 font-mono">
                 {folders.filter((f) => f.is_favorite).length}
               </span>
             </div>
 
             {/* Expanded Favorites Sub-items */}
             {isFavoritesExpanded && (
-              <div className="pl-6 pr-1 py-1 space-y-1">
+              <div className="pl-6 pr-1 py-0.5 space-y-0.5">
                 {folders.filter((f) => f.is_favorite).length === 0 ? (
-                  <div className="px-3 py-2 rounded-neo neo-pressed bg-surface-container/20 text-xs text-on-surface-variant/60 italic">
+                  <div className="px-2.5 py-1.5 rounded text-[11px] text-on-surface-variant/50 italic">
                     Star albums to see them here
                   </div>
                 ) : (
@@ -468,23 +465,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               onFolderContextMenu(e, folder);
                             }
                           }}
-                          className={`group flex items-center justify-between px-3 py-2 rounded-neo text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                          className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                             isSelected
-                              ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
-                              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/40"
+                              ? "bg-white/[0.08] text-primary font-semibold"
+                              : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 truncate pr-2">
+                          <div className="flex items-center gap-2 truncate pr-2">
                             <FolderIcon
                               name={folder.icon || "Folder"}
                               color={folder.color || "var(--color-primary, #6366f1)"}
-                              className="w-4 h-4 shrink-0"
+                              className="w-3.5 h-3.5 shrink-0"
                             />
                             <span className="truncate">{folder.name}</span>
                           </div>
 
                           <div className="flex items-center gap-1 shrink-0">
-                            <span className="text-[11px] px-1.5 py-0.5 rounded neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                            <span className="text-[10px] px-1.5 py-0.5 rounded text-on-surface-variant/60 font-mono">
                               {folder.item_count}
                             </span>
                             <FolderActionMenu
@@ -525,20 +522,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onSelectAlbumsOverview();
                 onCloseMobile();
               }}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 isAlbumsOverviewActive
-                  ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
-                  : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+                  ? "bg-white/[0.08] text-primary font-semibold"
+                  : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
               }`}
             >
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsAlbumsExpanded((p) => !p);
                   }}
-                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors"
+                  className="p-1 -ml-1 text-on-surface-variant hover:text-on-surface rounded transition-colors cursor-pointer"
                 >
                   {isAlbumsExpanded ? (
                     <ChevronDown className="w-3.5 h-3.5" />
@@ -546,7 +543,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <ChevronRight className="w-3.5 h-3.5" />
                   )}
                 </button>
-                <FolderPlus className={`w-4.5 h-4.5 ${isAlbumsOverviewActive ? "text-primary" : "text-on-surface-variant"}`} />
+                <FolderPlus className={`w-4 h-4 ${isAlbumsOverviewActive ? "text-primary" : "text-on-surface-variant"}`} />
                 <span className="truncate">Albums</span>
               </div>
 
@@ -557,10 +554,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     setShowInlineNewAlbum(true);
                     setIsAlbumsExpanded(true);
                   }}
-                  className="p-1 rounded-md text-on-surface-variant hover:text-primary hover:bg-surface-container transition-colors cursor-pointer"
+                  className="p-1 rounded text-on-surface-variant hover:text-primary hover:bg-white/[0.04] transition-colors cursor-pointer"
                   title="Create New Album"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -569,7 +566,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {showInlineNewAlbum && (
               <form
                 onSubmit={handleCreateAlbumSubmit}
-                className="flex items-center gap-2 px-3 py-2 mt-1 mb-2 neo-pressed bg-surface-base rounded-neo-lg transition-all duration-200"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 mt-1 mb-2 bg-surface-container-lowest border border-outline-variant/20 rounded-md transition-all duration-150"
               >
                 <input
                   type="text"
@@ -577,12 +574,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onChange={(e) => setNewAlbumName(e.target.value)}
                   placeholder="Album name..."
                   autoFocus
-                  className="flex-1 px-1 bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant outline-none"
+                  className="flex-1 px-1 bg-transparent text-xs text-on-surface placeholder:text-on-surface-variant/50 outline-none"
                 />
                 <button
                   type="submit"
                   disabled={isCreatingAlbum || !newAlbumName.trim()}
-                  className="p-1.5 neo-raised active:neo-pressed disabled:opacity-50 text-primary rounded-md cursor-pointer transition-all"
+                  className="p-1 disabled:opacity-50 text-primary hover:bg-white/[0.06] rounded cursor-pointer transition-colors"
                 >
                   {isCreatingAlbum ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -593,7 +590,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowInlineNewAlbum(false)}
-                  className="p-1.5 neo-raised active:neo-pressed text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer transition-all"
+                  className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.06] rounded cursor-pointer transition-colors"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -602,9 +599,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Expanded Albums List */}
             {isAlbumsExpanded && (
-              <div className="pl-6 pr-1 py-1 space-y-1">
+              <div className="pl-6 pr-1 py-0.5 space-y-0.5">
                 {allAlbums.length === 0 && !showInlineNewAlbum ? (
-                  <div className="px-3 py-2 rounded-neo neo-pressed bg-surface-container/20 text-xs text-on-surface-variant/60 italic">
+                  <div className="px-2.5 py-1.5 rounded text-[11px] text-on-surface-variant/50 italic">
                     No albums created yet
                   </div>
                 ) : (
@@ -629,25 +626,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onFolderContextMenu(e, album);
                           }
                         }}
-                        className={`group flex items-center justify-between px-3 py-2 rounded-neo text-xs font-semibold transition-all duration-150 cursor-pointer ${
+                        className={`group flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                           isDragTarget
-                            ? "neo-pressed bg-surface-base text-primary ring-2 ring-primary"
+                            ? "bg-primary/20 text-primary ring-1 ring-primary"
                             : isSelected
-                              ? "bg-primary/15 text-primary shadow-xs ring-1 ring-primary/30"
-                              : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/40"
+                              ? "bg-white/[0.08] text-primary font-semibold"
+                              : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 truncate pr-2">
+                        <div className="flex items-center gap-2 truncate pr-2">
                           <FolderIcon
                             name={album.icon || "Folder"}
                             color={album.color || (isSelected ? "var(--color-primary, #6366f1)" : undefined)}
-                            className="w-4 h-4 shrink-0"
+                            className="w-3.5 h-3.5 shrink-0"
                           />
                           <span className="truncate">{album.name}</span>
                         </div>
 
                         <div className="flex items-center gap-1 shrink-0">
-                          <span className="text-[11px] px-1.5 py-0.5 rounded neo-pressed bg-surface-base text-on-surface-variant font-mono">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded text-on-surface-variant/60 font-mono">
                             {album.item_count}
                           </span>
                           <FolderActionMenu
@@ -689,19 +686,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onCloseMobile();
               }
             }}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo-lg text-sm font-semibold transition-all duration-150 cursor-pointer ${
+            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
               currentView === "trash" && !activeFolder
-                ? "neo-pressed bg-surface-base text-rose-400 shadow-inner"
-                : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container/50"
+                ? "bg-rose-500/10 text-rose-400 font-semibold"
+                : "text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
             }`}
           >
-            <div className="flex items-center gap-2.5 flex-1 min-w-0">
-              <Trash2 className="w-4.5 h-4.5 text-rose-400 shrink-0" />
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="w-1" />
+              <Trash2 className="w-4 h-4 text-rose-400 shrink-0" />
               <span className="truncate">Trash</span>
             </div>
             {typeof trashCount === "number" && (
               <span
-                className={`text-xs px-2 py-0.5 rounded-md neo-pressed bg-surface-base font-mono ${
+                className={`text-[11px] px-1.5 py-0.5 rounded font-mono ${
                   trashCount > 0 ? "text-rose-400 font-semibold" : "text-on-surface-variant/60"
                 }`}
               >
@@ -712,18 +710,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
-        {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
         {!isVaultCollapsed && stats && (
-          <div className="p-3.5 m-3 neo-card rounded-neo-xl space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200 border border-outline-variant/15">
+          <div className="p-3 m-3 rounded-lg border border-outline-variant/15 bg-surface-container-lowest/50 space-y-2.5 animate-in fade-in duration-200">
             {/* Storage archived & Unlimited badge */}
             <div className="flex items-baseline justify-between">
               <div>
-                <span className="text-lg font-bold font-mono text-on-surface tracking-tight drop-shadow-sm">
+                <span className="text-base font-bold font-mono text-on-surface tracking-tight">
                   {stats.total_size_formatted}
                 </span>
-                <span className="text-[11px] text-on-surface-variant block mt-0.5 font-medium">Archived in Cloud</span>
+                <span className="text-[10px] text-on-surface-variant/80 block mt-0.5 font-medium">Archived in Cloud</span>
               </div>
-              <div className="flex items-center justify-center px-2 py-0.5 rounded-lg neo-pressed bg-surface-base text-xs font-bold text-primary font-mono shadow-inner" title="Unlimited Telegram Storage">
+              <div className="flex items-center justify-center px-1.5 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[10px] font-semibold text-primary font-mono" title="Unlimited Telegram Storage">
                 <span>∞ UNLIMITED</span>
               </div>
             </div>
@@ -732,7 +729,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {onOpenSettings && (
               <button
                 onClick={onOpenSettings}
-                className="w-full py-2 px-3 rounded-neo-lg text-xs font-semibold flex items-center justify-center gap-2 neo-button bg-surface-base text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
+                className="w-full py-1.5 px-2.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 bg-surface-container hover:bg-surface-container-high border border-outline-variant/15 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
                 title="Manage local disk cache, connection telemetry, and app preferences"
               >
                 <Settings className="w-3.5 h-3.5 text-primary" />
@@ -744,7 +741,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* User Account Greeting Badge at Bottom */}
         {stats?.account_name && (
-          <div className="px-4 py-3 border-t border-outline-variant/10 flex items-center justify-between text-xs mt-auto bg-surface-container-lowest/40">
+          <div className="px-3 py-2.5 border-t border-outline-variant/10 flex items-center justify-between text-xs mt-auto bg-surface-container-lowest/30">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
               {/* Profile Avatar with Hover Eye Privacy Toggle */}
               <div
@@ -756,13 +753,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <img
                     src={stats.user_avatar_url}
                     alt={stats.account_name}
-                    className={`w-8 h-8 rounded-full object-cover ring-1 ring-primary/40 shadow-inner transition-all duration-200 ${
+                    className={`w-7 h-7 rounded-full object-cover ring-1 ring-primary/40 transition-all duration-200 ${
                       isIdentityHidden ? "filter blur-[4px] brightness-75 scale-95" : ""
                     }`}
                   />
                 ) : (
                   <div
-                    className={`w-8 h-8 rounded-full bg-primary/10 neo-pressed flex items-center justify-center text-primary font-bold text-xs shrink-0 shadow-inner transition-all duration-200 ${
+                    className={`w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-xs shrink-0 transition-all duration-200 ${
                       isIdentityHidden ? "filter blur-[4px]" : ""
                     }`}
                   >
@@ -771,11 +768,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 )}
 
                 {/* Hover Eye Overlay */}
-                <div className="absolute inset-0 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-150 shadow-md">
+                <div className="absolute inset-0 rounded-full bg-black/60 backdrop-blur-xs flex items-center justify-center text-white opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-150">
                   {isIdentityHidden ? (
-                    <Eye className="w-3.5 h-3.5 text-primary" />
+                    <Eye className="w-3 h-3 text-primary" />
                   ) : (
-                    <EyeOff className="w-3.5 h-3.5 text-on-surface" />
+                    <EyeOff className="w-3 h-3 text-on-surface" />
                   )}
                 </div>
               </div>
@@ -793,11 +790,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1 shrink-0">
               {onOpenSettings && (
                 <button
                   onClick={onOpenSettings}
-                  className="w-7 h-7 min-w-[28px] min-h-[28px] relative after:absolute after:-inset-2 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
+                  className="w-7 h-7 rounded-md hover:bg-white/[0.06] flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
                   title="Open Preferences & Settings"
                   aria-label="Preferences"
                 >
@@ -807,7 +804,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {onLogout && (
                 <button
                   onClick={onLogout}
-                  className="w-7 h-7 min-w-[28px] min-h-[28px] relative after:absolute after:-inset-2 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-error transition-all cursor-pointer touch-manipulation"
+                  className="w-7 h-7 rounded-md hover:bg-rose-500/10 flex items-center justify-center text-on-surface-variant hover:text-rose-400 transition-colors cursor-pointer"
                   title="Disconnect Telegram Session / Log Out"
                   aria-label="Log Out"
                 >
@@ -816,7 +813,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
               <button
                 onClick={toggleVaultCollapse}
-                className="w-7 h-7 min-w-[28px] min-h-[28px] relative after:absolute after:-inset-2 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
+                className="w-7 h-7 rounded-md hover:bg-white/[0.06] flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
                 title={isVaultCollapsed ? "Expand Vault Info" : "Collapse Vault Info"}
                 aria-label="Toggle Vault Info"
               >

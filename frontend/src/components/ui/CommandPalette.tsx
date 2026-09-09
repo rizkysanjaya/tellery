@@ -1,10 +1,10 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/CommandPalette.tsx
- * Purpose: 21st.dev / Raycast-style spotlight command palette dialog triggered by
- *          Ctrl+K or header search. Enables rapid keyboard navigation (Timeline, Favorites,
- *          Albums), view switching, sorting, album jumps, upload actions, and vault sync.
- * Used by: frontend/src/App.tsx
+ * Purpose: Precision spotlight command palette dialog triggered by Ctrl+K or header search.
+ *          Enables rapid keyboard navigation (Timeline, Favorites, Albums), view switching,
+ *          sorting, album jumps, upload actions, and vault sync.
+ * Used by: frontend/src/App.tsx, frontend/src/components/Header.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts
  * Public Members: CommandPalette
  * Side Effects: Listens for Ctrl+K keyboard shortcut, dispatches application state actions.
@@ -100,9 +100,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: "nav-timeline",
       category: "Navigation",
-      title: "Main Vault Timeline",
-      subtitle: "View all photos and videos chronologically",
-      icon: <Clock className="w-4 h-4 text-primary" />,
+      title: "Go to Timeline",
+      subtitle: "Chronological feed of all photos and videos",
+      icon: <Clock className="w-4 h-4" />,
       active: currentView === "timeline" && !activeFolder,
       action: () => {
         onSelectTimeline();
@@ -112,22 +112,22 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: "nav-favorites",
       category: "Navigation",
-      title: "Favorites",
-      subtitle: "View starred albums and favorited media items",
-      icon: <Star className="w-4 h-4 text-amber-400 fill-amber-400" />,
+      title: "Go to Favorites",
+      subtitle: "Quick access to starred photos, videos, and collections",
+      icon: <Star className="w-4 h-4" />,
       active: currentView === "favorites" && !activeFolder,
       action: () => {
-        if (onSelectFavorites) onSelectFavorites();
+        onSelectFavorites?.();
         onClose();
       },
     },
     {
       id: "nav-albums",
       category: "Navigation",
-      title: "Collections & Albums",
-      subtitle: "Browse custom collections and highlight folders",
-      icon: <Folder className="w-4 h-4 text-primary" />,
-      active: currentView === "albums",
+      title: "Go to Albums",
+      subtitle: "Browse all organized albums and smart folders",
+      icon: <Folder className="w-4 h-4" />,
+      active: currentView === "albums" && !activeFolder,
       action: () => {
         onSelectAlbumsOverview();
         onClose();
@@ -136,46 +136,54 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
     // Actions
     {
-      id: "action-theme",
-      category: "Actions",
-      title: theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode",
-      subtitle: `Toggle ${theme === "dark" ? "soft light" : "midnight dark"} neomorphic appearance`,
-      icon: theme === "dark" ? <Sun className="w-4 h-4 text-amber-300" /> : <Moon className="w-4 h-4 text-indigo-500" />,
-      action: () => {
-        if (onToggleTheme) onToggleTheme();
-        onClose();
-      },
-    },
-    {
-      id: "action-sync",
-      category: "Actions",
-      title: "Sync Vault from Telegram",
-      subtitle: "Scan Telegram storage channel for newly uploaded media",
-      icon: <RefreshCw className="w-4 h-4 text-primary" />,
-      action: () => {
-        if (onSyncVault) onSyncVault();
-        onClose();
-      },
-    },
-    {
       id: "action-upload",
       category: "Actions",
-      title: "Upload Photos & Videos",
-      subtitle: "Archive files into your private Telegram vault",
-      icon: <Upload className="w-4 h-4 text-tertiary" />,
+      title: "Upload Media",
+      subtitle: "Upload new photos or videos to current vault",
+      icon: <Upload className="w-4 h-4" />,
       action: () => {
         onTriggerUpload();
         onClose();
       },
     },
+    ...(onSyncVault
+      ? [
+          {
+            id: "action-sync",
+            category: "Actions" as const,
+            title: "Sync Vault",
+            subtitle: "Scan Telegram channel for new incoming files",
+            icon: <RefreshCw className="w-4 h-4" />,
+            action: () => {
+              onSyncVault();
+              onClose();
+            },
+          },
+        ]
+      : []),
+    ...(onToggleTheme
+      ? [
+          {
+            id: "action-theme",
+            category: "Actions" as const,
+            title: `Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`,
+            subtitle: "Toggle application color scheme",
+            icon: theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />,
+            action: () => {
+              onToggleTheme();
+              onClose();
+            },
+          },
+        ]
+      : []),
 
-    // Display Layouts
+    // Display Layout Switcher
     {
       id: "layout-grid",
       category: "Display Layout",
-      title: "Standard Grid View",
-      subtitle: "Balanced responsive square cards",
-      icon: <Grid className="w-4 h-4 text-primary" />,
+      title: "Grid View",
+      subtitle: "Balanced square grid preview layout",
+      icon: <LayoutGrid className="w-4 h-4" />,
       active: displayLayout === "grid",
       action: () => {
         onDisplayLayoutChange("grid");
@@ -185,9 +193,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: "layout-dense",
       category: "Display Layout",
-      title: "Compact Dense Grid",
-      subtitle: "High capacity preview grid",
-      icon: <LayoutGrid className="w-4 h-4 text-primary" />,
+      title: "Dense View",
+      subtitle: "Compact thumbnail view for high density scanning",
+      icon: <Grid className="w-4 h-4" />,
       active: displayLayout === "dense",
       action: () => {
         onDisplayLayoutChange("dense");
@@ -197,9 +205,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: "layout-masonry",
       category: "Display Layout",
-      title: "Natural Aspect Showcase",
-      subtitle: "Preserve portrait and widescreen dimensions without cropping",
-      icon: <Columns className="w-4 h-4 text-primary" />,
+      title: "Natural Aspect (Masonry)",
+      subtitle: "Preserves native photo and video aspect ratios",
+      icon: <Columns className="w-4 h-4" />,
       active: displayLayout === "masonry",
       action: () => {
         onDisplayLayoutChange("masonry");
@@ -209,9 +217,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: "layout-list",
       category: "Display Layout",
-      title: "Detailed Table List View",
-      subtitle: "Metadata columns with filename, folder tag, specs, size",
-      icon: <List className="w-4 h-4 text-primary" />,
+      title: "Detailed List",
+      subtitle: "Detailed table view with file sizes, dimensions, and dates",
+      icon: <List className="w-4 h-4" />,
       active: displayLayout === "list",
       action: () => {
         onDisplayLayoutChange("list");
@@ -219,12 +227,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
     },
 
-    // Sorting
+    // Sort Options
     {
-      id: "sort-date-desc",
+      id: "sort-newest",
       category: "Sort Order",
-      title: "Date: Newest First",
-      icon: <ArrowUpDown className="w-4 h-4 text-primary" />,
+      title: "Sort: Newest First",
+      icon: <ArrowUpDown className="w-4 h-4" />,
       active: sortBy === "date_desc",
       action: () => {
         onSortChange("date_desc");
@@ -232,10 +240,10 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
     },
     {
-      id: "sort-date-asc",
+      id: "sort-oldest",
       category: "Sort Order",
-      title: "Date: Oldest First",
-      icon: <ArrowUpDown className="w-4 h-4 text-primary" />,
+      title: "Sort: Oldest First",
+      icon: <ArrowUpDown className="w-4 h-4" />,
       active: sortBy === "date_asc",
       action: () => {
         onSortChange("date_asc");
@@ -245,8 +253,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     {
       id: "sort-name-asc",
       category: "Sort Order",
-      title: "Name: A → Z",
-      icon: <ArrowUpDown className="w-4 h-4 text-primary" />,
+      title: "Sort: Name (A → Z)",
+      icon: <ArrowUpDown className="w-4 h-4" />,
       active: sortBy === "name_asc",
       action: () => {
         onSortChange("name_asc");
@@ -254,24 +262,46 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       },
     },
     {
+      id: "sort-name-desc",
+      category: "Sort Order",
+      title: "Sort: Name (Z → A)",
+      icon: <ArrowUpDown className="w-4 h-4" />,
+      active: sortBy === "name_desc",
+      action: () => {
+        onSortChange("name_desc");
+        onClose();
+      },
+    },
+    {
       id: "sort-size-desc",
       category: "Sort Order",
-      title: "Size: Largest First",
-      icon: <ArrowUpDown className="w-4 h-4 text-primary" />,
+      title: "Sort: Size (Largest)",
+      icon: <ArrowUpDown className="w-4 h-4" />,
       active: sortBy === "size_desc",
       action: () => {
         onSortChange("size_desc");
         onClose();
       },
     },
+    {
+      id: "sort-size-asc",
+      category: "Sort Order",
+      title: "Sort: Size (Smallest)",
+      icon: <ArrowUpDown className="w-4 h-4" />,
+      active: sortBy === "size_asc",
+      action: () => {
+        onSortChange("size_asc");
+        onClose();
+      },
+    },
 
-    // Collections
+    // Collections (dynamic)
     ...folders.map((folder) => ({
       id: `folder-${folder.id}`,
       category: "Collections" as const,
       title: folder.name,
-      subtitle: `${folder.item_count} items in collection`,
-      icon: <Folder className="w-4 h-4 text-glow-indigo" />,
+      subtitle: `${folder.item_count} items`,
+      icon: <Folder className="w-4 h-4" />,
       active: activeFolder?.id === folder.id,
       action: () => {
         onSelectFolder(folder);
@@ -281,30 +311,34 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   ];
 
   // Filter commands by search query
-  const filteredCommands = query.trim()
-    ? commands.filter(
-        (c) =>
-          c.title.toLowerCase().includes(query.toLowerCase()) ||
-          c.category.toLowerCase().includes(query.toLowerCase()) ||
-          (c.subtitle && c.subtitle.toLowerCase().includes(query.toLowerCase()))
-      )
-    : commands;
+  const filteredCommands = commands.filter((cmd) => {
+    if (!query) return true;
+    const q = query.toLowerCase();
+    return (
+      cmd.title.toLowerCase().includes(q) ||
+      (cmd.subtitle && cmd.subtitle.toLowerCase().includes(q)) ||
+      cmd.category.toLowerCase().includes(q)
+    );
+  });
 
   // Handle keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % (filteredCommands.length || 1));
+      setSelectedIndex((prev) =>
+        prev < filteredCommands.length - 1 ? prev + 1 : 0
+      );
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSelectedIndex((prev) =>
-        prev <= 0 ? filteredCommands.length - 1 : prev - 1
+        prev > 0 ? prev - 1 : filteredCommands.length - 1
       );
-    } else if (e.key === "Enter" && filteredCommands[selectedIndex]) {
+    } else if (e.key === "Enter") {
       e.preventDefault();
-      filteredCommands[selectedIndex].action();
+      if (filteredCommands[selectedIndex]) {
+        filteredCommands[selectedIndex].action();
+      }
     } else if (e.key === "Escape") {
-      e.preventDefault();
       onClose();
     }
   };
@@ -319,7 +353,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-background/80"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
           />
 
           {/* Command Dialog */}
@@ -328,12 +362,12 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: "spring", stiffness: 350, damping: 28 }}
-            className="relative w-full max-w-xl neo-card rounded-neo-xl bg-surface-base overflow-hidden z-10"
+            className="relative w-full max-w-xl bg-surface-container-low/95 backdrop-blur-md border border-outline-variant/20 rounded-2xl shadow-2xl overflow-hidden z-10"
             onKeyDown={handleKeyDown}
           >
             {/* Search Input Bar */}
-            <div className="flex items-center gap-3 px-4 py-3.5 border-b border-surface-container-highest bg-surface-base">
-              <Search className="w-5 h-5 text-primary shrink-0" />
+            <div className="flex items-center gap-2.5 px-4 py-3 border-b border-outline-variant/15 bg-transparent">
+              <Search className="w-4 h-4 text-primary shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
@@ -343,20 +377,20 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                   setSelectedIndex(0);
                 }}
                 placeholder="Type a command, search collections, or switch layouts..."
-                className="w-full bg-surface-container-lowest text-on-surface neo-pressed rounded-neo-lg text-sm placeholder-on-surface-variant outline-none px-3 py-2"
+                className="w-full bg-surface-container-lowest/60 border border-outline-variant/15 text-on-surface rounded-lg text-xs placeholder-on-surface-variant/50 outline-none px-3 py-1.5 focus:border-primary/40 focus:ring-1 focus:ring-primary/20"
               />
               <button
                 onClick={onClose}
-                className="p-1 rounded-neo hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface cursor-pointer"
+                className="p-1 rounded-md hover:bg-white/[0.06] text-on-surface-variant hover:text-on-surface cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Command List Body */}
-            <div className="max-h-96 overflow-y-auto p-2 space-y-1">
+            <div className="max-h-96 overflow-y-auto p-2 space-y-0.5">
               {filteredCommands.length === 0 ? (
-                <div className="py-12 text-center text-on-surface-variant text-xs">
+                <div className="py-12 text-center text-on-surface-variant/60 text-xs">
                   No matching commands found.
                 </div>
               ) : (
@@ -367,18 +401,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       key={command.id}
                       onClick={command.action}
                       onMouseEnter={() => setSelectedIndex(idx)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-neo cursor-pointer transition-all duration-200 ${
+                      className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors duration-150 ${
                         isSelected
-                          ? "bg-surface-container-high text-primary"
-                          : "bg-surface-base hover:bg-surface-container-high text-on-surface"
+                          ? "bg-white/[0.08] text-primary"
+                          : "hover:bg-white/[0.04] text-on-surface"
                       }`}
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <div
-                          className={`p-2 rounded-neo shrink-0 ${
+                          className={`p-1.5 rounded-md shrink-0 ${
                             isSelected
                               ? "text-primary"
-                              : "text-on-surface-variant"
+                              : "text-on-surface-variant/70"
                           }`}
                         >
                           {command.icon}
@@ -389,13 +423,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                               {command.title}
                             </span>
                             {command.active && (
-                              <span className="px-1.5 py-0.2 rounded bg-surface-container text-primary text-[10px] font-mono">
+                              <span className="px-1.5 py-0.2 rounded bg-surface-container border border-outline-variant/15 text-primary text-[10px] font-mono">
                                 Active
                               </span>
                             )}
                           </div>
                           {command.subtitle && (
-                            <p className={`text-[11px] truncate ${isSelected ? "text-primary/70" : "text-on-surface-variant"}`}>
+                            <p className={`text-[11px] truncate ${isSelected ? "text-primary/70" : "text-on-surface-variant/60"}`}>
                               {command.subtitle}
                             </p>
                           )}
@@ -403,7 +437,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] text-label-md text-on-surface-variant uppercase px-2 py-0.5 rounded bg-surface-container">
+                        <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-surface-container border border-outline-variant/10 text-on-surface-variant/70">
                           {command.category}
                         </span>
                         {command.active && (
@@ -417,17 +451,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             </div>
 
             {/* Footer Shortcut Bar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-surface-container border-t border-surface-container-highest text-[11px] text-on-surface-variant">
+            <div className="flex items-center justify-between px-4 py-2 bg-surface-container-lowest/60 border-t border-outline-variant/10 text-[11px] text-on-surface-variant/70">
               <div className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 rounded bg-surface-container-highest text-[9px] font-mono">↑↓</kbd> to navigate
+                  <kbd className="px-1 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[9px] font-mono">↑↓</kbd> to navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-1 py-0.5 rounded bg-surface-container-highest text-[9px] font-mono">↵</kbd> to select
+                  <kbd className="px-1 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[9px] font-mono">↵</kbd> to select
                 </span>
               </div>
               <span className="flex items-center gap-1">
-                <kbd className="px-1 py-0.5 rounded bg-surface-container-highest text-[9px] font-mono">Esc</kbd> to close
+                <kbd className="px-1 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[9px] font-mono">Esc</kbd> to close
               </span>
             </div>
           </motion.div>

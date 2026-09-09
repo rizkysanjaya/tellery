@@ -15,10 +15,7 @@
 
 import React, { useEffect, useState } from "react";
 import {
-  Calendar,
   Image as ImageIcon,
-  CheckSquare,
-  Square,
   ArrowUp,
   ArrowDown,
   Search,
@@ -212,21 +209,16 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
             id={`timeline-group-${group.period_key}`}
             className="space-y-3.5 scroll-mt-24"
           >
-            {/* Floating Rounded Month/Year Header Card */}
-            <div className="sticky top-[68px] z-30 py-2">
-              <div className="flex items-center justify-between w-full bg-surface-base border border-outline-variant/15 rounded-neo-xl px-5 py-3 neo-card shadow-[0_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.35)] group/header">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 rounded-neo bg-primary/10 neo-pressed flex items-center justify-center text-primary shrink-0 shadow-xs">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div className="flex items-center gap-3 min-w-0">
-                    <h2 className="text-xl font-bold text-on-surface tracking-tight truncate">
-                      {group.period || group.period_title || "Unknown Date"}
-                    </h2>
-                    <span className="text-base font-semibold text-on-surface-variant shrink-0">
-                      • {group.items.length} {group.items.length === 1 ? "item" : "items"}
-                    </span>
-                  </div>
+            {/* Sleek Apple Pro Sticky Date Header */}
+            <div className="sticky top-[60px] sm:top-[64px] z-20 py-2 bg-background/90 backdrop-blur-md">
+              <div className="flex items-center justify-between w-full px-1 group/header">
+                <div className="flex items-baseline gap-2.5 min-w-0">
+                  <h2 className="text-sm sm:text-base font-bold text-on-surface tracking-tight truncate">
+                    {group.period || group.period_title || "Unknown Date"}
+                  </h2>
+                  <span className="text-xs text-on-surface-variant font-medium shrink-0">
+                    {group.items.length} {group.items.length === 1 ? "item" : "items"}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -239,10 +231,10 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                         onSelectAllInGroup(groupItemIds);
                       }
                     }}
-                    className={`neo-button flex items-center gap-2 px-3.5 py-1.5 rounded-neo text-sm font-semibold transition-all cursor-pointer ${
+                    className={`text-xs font-semibold px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                       allSelected
-                        ? "text-primary bg-surface-container-high"
-                        : "text-on-surface-variant opacity-0 group-hover/header:opacity-100 hover:text-on-surface"
+                        ? "text-primary bg-primary/10"
+                        : "text-on-surface-variant opacity-0 group-hover/header:opacity-100 hover:text-on-surface hover:bg-white/[0.04]"
                     } ${isSelectionMode || someSelected ? "!opacity-100" : ""}`}
                     title={
                       allSelected
@@ -250,12 +242,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                         : "Select all in this section"
                     }
                   >
-                    {allSelected ? (
-                      <CheckSquare className="w-4 h-4 text-primary" />
-                    ) : (
-                      <Square className="w-4 h-4 text-on-surface-variant" />
-                    )}
-                    <span>{allSelected ? "Deselect" : "Select"}</span>
+                    <span>{allSelected ? "Deselect All" : "Select All"}</span>
                   </button>
                 </div>
               </div>
@@ -332,7 +319,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
               </div>
             ) : layout === "dense" ? (
               /* Dense High-Capacity Grid */
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1.5 sm:gap-2">
                 {group.items.map((item) => (
                   <MediaCard
                     key={item.id}
@@ -383,7 +370,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
               })()
             ) : (
               /* Standard Square Responsive Grid */
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-2.5">
                 {group.items.map((item) => (
                   <MediaCard
                     key={item.id}

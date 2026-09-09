@@ -1,11 +1,11 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/OnboardingWizard.tsx
- * Purpose: Fullscreen Silk Cloud neomorphic split-screen onboarding wizard for user-supplied Telegram API login,
+ * Purpose: Pro-grade obsidian split-screen onboarding wizard for user-supplied Telegram API login,
  *          OTP verification, 2FA cloud password management, and Welcome & Vault Strategy Hub (Step 5).
- *          Utilizes full viewport space with an expansive 2-column layout: left column dedicated to
- *          authentication and configuration forms, right column featuring a real-time reactive macOS Telegram
- *          preview window and architectural strategy showcase cards.
+ *          Utilizes an expansive 2-column layout: left column dedicated to authentication and configuration
+ *          forms, right column featuring a real-time reactive macOS Telegram preview window and architectural
+ *          showcase cards with hairline borders.
  *          Supports dual Light & Dark theme modes, visible focus rings, and on-demand modal dismissal.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, frontend/src/api.ts
@@ -491,7 +491,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const renderAuthShowcase = () => (
     <div className="space-y-4">
       {/* Real Architecture / Security Overview */}
-      <div className="rounded-neo-xl overflow-hidden neo-frame bg-surface-base border border-outline-variant/25 shadow-2xl p-6 space-y-5">
+      <div className="rounded-neo-xl overflow-hidden bg-surface-container-low border border-outline-variant/25 shadow-2xl p-6 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-neo neo-pressed bg-surface-container flex items-center justify-center text-primary">

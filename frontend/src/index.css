@@ -1,11 +1,10 @@
 /**
  * =============================================================================
  * Module: frontend/src/index.css
- * Purpose: Global styling, Silk Cloud dynamic Light & Dark neomorphic theme variables,
+ * Purpose: Global styling, pro obsidian dark palette and hairline border tokens,
  *          WCAG 2.2 AA accessible visible focus rings (:focus-visible),
  *          high-performance GPU-composited shadow tokens, responsive scrollbars,
- *          Vanguard Modern Gallery glassmorphic auth utilities, and
- *          hardware-composited liquid droplet dock keyframe animations.
+ *          and hardware-composited liquid droplet dock keyframe animations.
  * Used by: frontend/src/main.tsx, frontend/src/components/ui/DragDropDock.tsx, frontend/src/components/OnboardingWizard.tsx
  * Dependencies: tailwindcss
  * Public Members: .neo-raised, .neo-pressed, .neo-card, .neo-frame, .neo-image-wrapper,
@@ -171,94 +170,108 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   Silk Cloud — Neomorphic Utility Classes (High-Performance GPU)
+   Precision Pro Utility Classes (Linear / Apple Pro Craft)
    ═══════════════════════════════════════════════════════════════════ */
 
 @layer components {
-  /* Raised surface */
-  .neo-raised {
-    box-shadow: var(--neo-raised-shadow);
-    border-top: var(--neo-raised-border-top);
-    border-left: var(--neo-raised-border-left);
+  /* Raised / Elevated surface */
+  .neo-raised,
+  .app-raised {
+    background-color: rgb(var(--color-surface-container));
+    border: 1px solid rgb(var(--color-outline-variant) / 0.25);
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
   }
 
-  /* Pressed / Inset surface */
-  .neo-pressed {
-    box-shadow: var(--neo-pressed-shadow);
+  /* Inset / Well surface */
+  .neo-pressed,
+  .app-pressed,
+  .app-input-well {
+    background-color: rgb(var(--color-surface-container-lowest));
+    border: 1px solid rgb(var(--color-outline-variant) / 0.25);
+    box-shadow: inset 0 1px 2px 0 rgba(0, 0, 0, 0.5);
   }
 
   /* Card surface */
-  .neo-card {
-    box-shadow: var(--neo-card-shadow);
-    border-top: var(--neo-card-border-top);
-    border-left: var(--neo-card-border-left);
+  .neo-card,
+  .app-card {
     background-color: rgb(var(--color-surface-base));
+    border: 1px solid rgb(var(--color-outline-variant) / 0.2);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
   }
 
-  /* Frame bezel for media cards */
-  .neo-frame {
-    padding: 8px;
-    border-radius: 1rem;
-    background: rgb(var(--color-surface-base));
-    box-shadow: var(--neo-frame-shadow);
+  /* Flush container - strips legacy picture frame padding around thumbnails */
+  .neo-frame,
+  .app-frame {
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 
-  /* Outer shadow for image wrappers */
-  .neo-image-wrapper {
+  /* Clean image wrapper */
+  .neo-image-wrapper,
+  .app-image-wrapper {
     position: relative;
-    border-radius: 0.75rem;
+    border-radius: 0.5rem;
     overflow: hidden;
-    box-shadow: var(--neo-image-shadow);
   }
 
-  /* Interactive button */
-  .neo-button {
-    box-shadow: var(--neo-button-shadow);
-    border-top: var(--neo-raised-border-top);
-    border-left: var(--neo-raised-border-left);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  /* Tactile pro button */
+  .neo-button,
+  .app-button {
+    background-color: rgb(var(--color-surface-base));
+    border: 1px solid rgb(var(--color-outline-variant) / 0.25);
+    color: rgb(var(--color-on-surface));
+    transition: all 0.15s ease;
   }
 
-  .neo-button:hover {
-    box-shadow: var(--neo-button-hover-shadow);
-    transform: translateY(-1px);
+  .neo-button:hover,
+  .app-button:hover {
+    background-color: rgb(var(--color-surface-container-high));
+    border-color: rgb(var(--color-outline-variant) / 0.45);
+    transform: translateY(-0.5px);
   }
 
-  .neo-button:active {
-    box-shadow: var(--neo-pressed-shadow);
-    transform: translateY(0);
-    border-top-color: transparent;
-    border-left-color: transparent;
+  .neo-button:active,
+  .app-button:active {
+    transform: scale(0.98);
+    background-color: rgb(var(--color-surface-container));
   }
 
   /* Accessible keyboard focus visible state (WCAG 2.2 AA) */
-  .neo-button:focus-visible {
+  .neo-button:focus-visible,
+  .app-button:focus-visible {
     outline: none;
-    box-shadow: var(--neo-button-shadow), 0 0 0 2px rgb(var(--color-background)), 0 0 0 4px rgb(var(--color-primary));
+    box-shadow: 0 0 0 2px rgb(var(--color-background)), 0 0 0 4px rgb(var(--color-primary));
   }
 
   /* Primary accent button */
-  .neo-button-primary {
-    background: var(--neo-button-primary-bg);
-    box-shadow: var(--neo-button-primary-shadow);
-    color: var(--neo-button-primary-color);
-    border-top: var(--neo-raised-border-top);
-    border-left: var(--neo-raised-border-left);
-    transition: transform 0.15s ease, filter 0.15s ease;
+  .neo-button-primary,
+  .app-button-primary {
+    background: rgb(var(--color-primary-container));
+    color: rgb(var(--color-on-primary));
+    font-weight: 600;
+    border: 1px solid transparent;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    transition: all 0.15s ease;
   }
 
-  .neo-button-primary:hover {
-    transform: translateY(-1px);
-    filter: brightness(1.05);
+  .neo-button-primary:hover,
+  .app-button-primary:hover {
+    filter: brightness(1.08);
+    transform: translateY(-0.5px);
+    box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.35);
   }
 
-  .neo-button-primary:active {
-    transform: translateY(0);
+  .neo-button-primary:active,
+  .app-button-primary:active {
+    transform: scale(0.98);
   }
 
-  .neo-button-primary:focus-visible {
+  .neo-button-primary:focus-visible,
+  .app-button-primary:focus-visible {
     outline: none;
-    box-shadow: var(--neo-button-primary-shadow), 0 0 0 2px rgb(var(--color-background)), 0 0 0 4px rgb(var(--color-primary));
+    box-shadow: 0 0 0 2px rgb(var(--color-background)), 0 0 0 4px rgb(var(--color-primary));
   }
 
   /* Vanguard Modern Gallery Glassmorphism */

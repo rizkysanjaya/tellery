@@ -200,25 +200,25 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         onContextMenu={(e) => onContextMenu(e, item)}
         style={aspectRatioStyle}
         className={`media-card-item relative overflow-hidden bg-surface-container ${
-          isDense ? "rounded-lg" : "rounded-xl"
-        } h-full w-full cursor-pointer transition-all duration-200 shadow-md hover:shadow-xl active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
-          isSelected ? "ring-2 ring-primary shadow-primary/30" : ""
+          isDense ? "rounded-md" : "rounded-lg"
+        } h-full w-full cursor-pointer transition-all duration-150 border border-white/[0.06] hover:border-white/20 active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
+          isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""
         }`}
       >
         <div className="relative w-full h-full overflow-hidden bg-surface-container">
-          {/* Top-Left: Selection Checkbox (Clean Neomorphic, Hover-revealed like Favorite, Solid Accent Active) */}
+          {/* Top-Left: Selection Checkbox (Clean Frosted Glass Disc, High-Contrast Active Accent) */}
           <button
             type="button"
             onClick={handleCheckboxClick}
             aria-label={isSelected ? `Deselect ${item.file_name}` : `Select ${item.file_name}`}
-            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
-              isDense ? "top-1.5 left-1.5 w-5 h-5" : "top-2.5 left-2.5 w-6 h-6"
+            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
+              isDense ? "top-1.5 left-1.5 w-5 h-5" : "top-2 left-2 w-6 h-6"
             } ${
               isSelected
-                ? "bg-primary text-on-primary border border-primary scale-105 opacity-100 shadow-md shadow-primary/30"
+                ? "bg-primary text-on-primary scale-105 opacity-100 shadow-md"
                 : isSelectionMode
-                  ? "bg-surface-base/90 border border-outline-variant/60 hover:border-primary hover:scale-110 opacity-70 group-hover:opacity-100 text-transparent hover:text-primary/40"
-                  : "bg-surface-base/90 border border-outline-variant/50 hover:border-primary hover:scale-110 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-transparent hover:text-primary/40"
+                  ? "bg-black/50 backdrop-blur-md border border-white/25 hover:border-white/50 hover:scale-105 opacity-80 group-hover:opacity-100 text-transparent"
+                  : "bg-black/50 backdrop-blur-md border border-white/25 hover:border-white/50 hover:scale-105 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-transparent"
             }`}
             title={isSelected ? "Deselect item" : "Select item"}
           >
@@ -231,7 +231,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
           {/* Selected Dimming Overlay */}
           {isSelected && (
-            <div className="absolute inset-0 bg-primary/10 z-[1] pointer-events-none" />
+            <div className="absolute inset-0 bg-primary/15 z-[1] pointer-events-none" />
           )}
 
           {/* Constantly Playing Animated Loop (GIF or Telegram .gif.mp4) or Low-Power Static Thumbnail */}
@@ -276,8 +276,8 @@ export const MediaCard: React.FC<MediaCardProps> = ({
 
           {/* Battery Saver Mode: Animation Indicator Badge */}
           {batterySaver && (isAnimatedVideo || isGif) && (
-            <div className={`absolute z-[2] pointer-events-none ${isDense ? "bottom-1.5 left-1.5" : "bottom-2.5 left-2.5"}`}>
-              <div className="bg-surface-base/90 backdrop-blur-xs text-primary font-mono font-bold px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] shadow-sm border border-primary/20">
+            <div className={`absolute z-[2] pointer-events-none ${isDense ? "bottom-1.5 left-1.5" : "bottom-2 left-2"}`}>
+              <div className="bg-black/60 backdrop-blur-md text-primary font-mono font-bold px-1.5 py-0.5 rounded text-[8px] sm:text-[9px] border border-primary/30">
                 GIF
               </div>
             </div>
@@ -294,12 +294,12 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             }}
             aria-label={item.is_favorite ? `Remove ${item.file_name} from Favorites` : `Add ${item.file_name} to Favorites`}
             title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
-            className={`absolute z-[3] rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
-              isDense ? "top-1.5 right-1.5 w-5 h-5 flex items-center justify-center p-0" : "top-2.5 right-2.5 p-1.5"
+            className={`absolute z-[3] rounded-full transition-all duration-150 pointer-events-auto cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
+              isDense ? "top-1.5 right-1.5 w-5 h-5 flex items-center justify-center p-0" : "top-2 right-2 w-6 h-6 flex items-center justify-center p-0"
             } ${
               item.is_favorite
-                ? "bg-amber-500/25 text-amber-400 border border-amber-500/40 opacity-100 scale-100"
-                : "bg-surface-base/90 text-on-surface-variant hover:text-amber-400 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 border border-outline-variant/30 hover:scale-110"
+                ? "bg-black/60 backdrop-blur-md text-amber-400 border border-amber-400/40 opacity-100"
+                : "bg-black/40 backdrop-blur-md text-white/70 hover:text-amber-400 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 border border-white/20 hover:scale-105"
             }`}
           >
             <Star
@@ -311,47 +311,39 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           {/* Bottom-Left: Video Duration Pill Badge (only for regular videos) */}
           {isVideo && !isAnimatedVideo && (
             <div className={`absolute z-[2] pointer-events-none group-hover:opacity-0 transition-opacity duration-150 ${
-              isDense ? "bottom-1.5 left-1.5" : "bottom-2.5 left-2.5"
+              isDense ? "bottom-1.5 left-1.5" : "bottom-2 left-2"
             }`}>
-              <div className={`bg-surface-base/85 backdrop-blur-xs text-on-surface rounded-full flex items-center shadow-sm ${
-                isDense ? "px-1.5 py-0.5 text-[9px] gap-0.5" : "px-2 py-0.5 text-label-md gap-1"
-              }`}>
-                <Play className={`${isDense ? "w-2 h-2" : "w-2.5 h-2.5"} fill-current shrink-0 text-primary`} />
-                <span className="font-mono">
-                  {item.duration_seconds ? formatDuration(item.duration_seconds) : "Video"}
-                </span>
+              <div className="bg-black/60 backdrop-blur-md text-white font-mono rounded px-1.5 py-0.5 text-[10px] flex items-center gap-1 border border-white/10">
+                <Play className="w-2.5 h-2.5 fill-current shrink-0 text-white" />
+                <span>{item.duration_seconds ? formatDuration(item.duration_seconds) : "Video"}</span>
               </div>
             </div>
           )}
 
-          {/* Bottom-Right: Color-Coded File Format Badge */}
+          {/* Bottom-Right: Clean File Format Badge */}
           <div
             className={`absolute z-[2] pointer-events-none transition-opacity duration-150 ${
               isDense
                 ? "bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100"
-                : "bottom-2.5 right-2.5 opacity-90 group-hover:opacity-0"
+                : "bottom-2 right-2 opacity-90 group-hover:opacity-0"
             }`}
           >
-            <div
-              className={`rounded-full font-bold tracking-wider uppercase flex items-center shadow-sm ${
-                isDense ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[10px]"
-              } ${fileBadge.badgeClass}`}
-            >
+            <div className="bg-black/60 backdrop-blur-md text-white/90 font-mono text-[9px] rounded px-1.5 py-0.5 border border-white/10 tracking-wider uppercase font-semibold">
               <span>{fileBadge.extension}</span>
             </div>
           </div>
 
           {/* Overlay details on hover */}
           <div
-            className={`absolute inset-0 z-[1] bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end pointer-events-none ${
-              isDense ? "p-1.5" : "p-3"
+            className={`absolute inset-0 z-[1] bg-gradient-to-t from-black/85 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex flex-col justify-end pointer-events-none ${
+              isDense ? "p-1.5" : "p-2.5"
             }`}
           >
-            <span className={`font-semibold text-on-surface truncate ${isDense ? "text-[10px]" : "text-xs"}`}>
+            <span className={`font-semibold text-white truncate ${isDense ? "text-[10px]" : "text-xs"}`}>
               {item.file_name}
             </span>
             {!isDense && (
-              <div className="flex items-center gap-2 text-[10px] text-on-surface-variant mt-0.5">
+              <div className="flex items-center gap-2 text-[10px] text-zinc-300 mt-0.5">
                 {item.camera_model && (
                   <span className="flex items-center gap-1 font-sans">
                     <Camera className="w-3 h-3 text-primary" />
