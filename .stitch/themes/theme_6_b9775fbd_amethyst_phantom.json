@@ -1,0 +1,192 @@
+{
+  "name": "assets/b9775fbde59a4468a93774db27f9aa39",
+  "designSystem": {
+    "displayName": "Amethyst Phantom",
+    "styleGuidelines": "## Brand & Style\n\nThis design system delivers an ethereal, atmospheric dark-mode aesthetic rooted in high-end creative computing, gaming platforms, and luxury digital media. The visual tone is mysterious, immersive, and razor-sharp, pairing velvet shadows with striking violet luminescence.\n\nThe stylistic identity synthesizes **Glassmorphism** and **Tonal Layering**:\n- Deep void-like canvas layers evoke depth and infinity.\n- Subsurface scattering and diffuse chromatic luminescence suggest inner light refracting through cut amethyst.\n- Strict visual hierarchy ensures that bright neon accents command instant cognitive focus without generating ocular fatigue.\n\n## Layout & Spacing\n\nThe layout is built on a responsive 12-column dynamic fluid grid governed by an **8pt rhythm base** (`0.5rem = 8px`).\n\n### Breakpoints & Geometry\n- **Desktop (\u2265 1280px):** 12 columns, 32px (`2rem`) gutters, 48px (`3rem`) page margins, max container width 1440px centered.\n- **Tablet (768px \u2013 1279px):** 8 columns, 24px (`1.5rem`) gutters, 32px (`2rem`) page margins. Sidebars collapse to rail navigation or drawers.\n- **Mobile (< 768px):** 4 columns, 16px (`1rem`) gutters, 16px (`1rem`) page margins. Complex card arrays stack into single-column vertical flows.\n\n### Spacing Philosophy\nNegative space is deliberately generous to maintain the velvet atmosphere and avoid spatial claustrophobia. Padding within container modules should always follow the internal scale: `16px` for small components, `24px` for structural cards, and `32px` to `48px` for major section hubs.\n\n## Elevation & Depth\n\nVisual hierarchy combines **stacked tonal surfaces**, **frosted backdrops**, and **amethyst edge lighting**:\n\n1. **Ground Plane (Level 0):** Pure obsidian `#0d0b14` without elevation or borders.\n2. **Structural Tier (Level 1):** Solid `#14101e` with hairline outline `1px solid rgba(192, 132, 252, 0.06)`. No shadow.\n3. **Card Tier (Level 2):** `#1c162b` coupled with `1px solid rgba(192, 132, 252, 0.12)` and a deep diffused drop shadow: `0 12px 32px -4px rgba(5, 3, 10, 0.7)`.\n4. **Interactive Hover & Overlay Tier (Level 3):** `#28203d` backdrop blur (`backdrop-filter: blur(16px)`), rim border `1px solid rgba(192, 132, 252, 0.28)`, and layered lilac glow:\n   `0 16px 40px -8px rgba(0, 0, 0, 0.8), 0 0 24px 0 rgba(192, 132, 252, 0.15)`.\n5. **Focal Interactive Tier (Level 4 - CTAs & Highlights):** Solid `#c084fc` base with intense aura:\n   `0 0 20px 2px rgba(192, 132, 252, 0.45), 0 8px 24px -2px rgba(168, 85, 247, 0.35)`.\n\n## Components\n\n### Buttons\n- **Primary:** Background `#c084fc`, text `#0d0b14` (weight 700), radius `8px`. Hover: Background `#d8b4fe`, shadow `0 0 24px rgba(192, 132, 252, 0.5)`. Active: Scale to `0.98`.\n- **Secondary:** Background `#1c162b`, text `#f5f3ff`, border `1px solid rgba(192, 132, 252, 0.24)`. Hover: Background `#28203d`, border `1px solid rgba(192, 132, 252, 0.45)`.\n- **Ghost / Tertiary:** Background transparent, text `#b8b0cf`. Hover: Background `rgba(192, 132, 252, 0.08)`, text `#c084fc`.\n\n### Chips & Badges\n- **Status Badges:** Compact height (`24px`), fully rounded (`9999px`), padding `2px 10px`. Background `rgba(40, 32, 61, 0.8)`, border `1px solid rgba(192, 132, 252, 0.2)`, text `#c084fc` in `label-sm`.\n- **Active Filter Chip:** Solid border `1px solid #c084fc`, glow `0 0 8px rgba(192, 132, 252, 0.3)`, text `#f5f3ff`.\n\n### Inputs & Form Fields\n- Surface `#14101e`, border `1px solid rgba(192, 132, 252, 0.16)`, radius `8px`, text `#f5f3ff`, placeholder `#655c7a`.\n- **Focus State:** Border `1px solid #c084fc`, outer focus ring `0 0 0 3px rgba(192, 132, 252, 0.25)`.\n\n### Checkboxes & Radio Buttons\n- Unchecked: `#1c162b` box/circle with `1.5px solid rgba(192, 132, 252, 0.3)`.\n- Checked: `#c084fc` fill with `#0d0b14` checkmark icon or center dot, accompanied by subtle lilac aura `0 0 10px rgba(192, 132, 252, 0.4)`.\n\n### Cards & Modular Tiles\n- Background `#1c162b`, radius `16px`, padding `24px`, border `1px solid rgba(192, 132, 252, 0.1)`.\n- Hover transition: Translate `translateY(-2px)`, border shifts to `rgba(192, 132, 252, 0.3)`, shadow elevates to Level 3.\n\n### Lists & Row Items\n- Divided by transparent horizontal lines `1px solid rgba(192, 132, 252, 0.06)`.\n- Hover background overlay `rgba(192, 132, 252, 0.04)` across the full row with `4px` left indicator bar transitioning to `#c084fc`.",
+    "theme": {
+      "colorMode": "DARK",
+      "font": "PLUS_JAKARTA_SANS",
+      "roundness": "ROUND_EIGHT",
+      "customColor": "#c084fc",
+      "headlineFont": "PLUS_JAKARTA_SANS",
+      "bodyFont": "PLUS_JAKARTA_SANS",
+      "labelFont": "PLUS_JAKARTA_SANS",
+      "namedColors": {
+        "on_secondary_container": "#d6a9ff",
+        "surface_tint": "#ddb8ff",
+        "surface_container_high": "#2b2933",
+        "surface_container": "#211e28",
+        "surface_container_lowest": "#0f0d16",
+        "inverse_on_surface": "#322f39",
+        "error_container": "#93000a",
+        "surface_bright": "#3b3842",
+        "surface_dim": "#14121b",
+        "inverse_primary": "#7b41b4",
+        "primary_fixed_dim": "#ddb8ff",
+        "on_tertiary_fixed": "#1f1733",
+        "on_surface": "#e6e0ee",
+        "on_tertiary_fixed_variant": "#4b4261",
+        "primary_container": "#c084fc",
+        "on_tertiary": "#342c49",
+        "primary_fixed": "#f0dbff",
+        "secondary_fixed": "#f0dbff",
+        "on_secondary_fixed": "#2c0051",
+        "tertiary_fixed": "#e9ddff",
+        "on_tertiary_container": "#3a3250",
+        "background": "#14121b",
+        "surface_container_highest": "#36333e",
+        "surface_variant": "#36333e",
+        "on_error_container": "#ffdad6",
+        "surface": "#14121b",
+        "on_secondary": "#490080",
+        "on_primary_container": "#500989",
+        "inverse_surface": "#e6e0ee",
+        "tertiary": "#cdc1e6",
+        "surface_container_low": "#1c1a24",
+        "secondary_container": "#6f00be",
+        "primary": "#ddb8ff",
+        "on_primary_fixed": "#2c0051",
+        "on_surface_variant": "#cec3d3",
+        "secondary_fixed_dim": "#ddb7ff",
+        "secondary": "#ddb7ff",
+        "on_error": "#690005",
+        "outline": "#978d9d",
+        "outline_variant": "#4c4452",
+        "error": "#ffb4ab",
+        "tertiary_fixed_dim": "#cdc1e6",
+        "tertiary_container": "#a59abe",
+        "on_background": "#e6e0ee",
+        "on_primary_fixed_variant": "#62259b",
+        "on_secondary_fixed_variant": "#6900b3",
+        "on_primary": "#490081"
+      },
+      "designMd": "---\nname: Amethyst Phantom\ncolors:\n  surface: '#14121b'\n  surface-dim: '#14121b'\n  surface-bright: '#3b3842'\n  surface-container-lowest: '#0f0d16'\n  surface-container-low: '#1c1a24'\n  surface-container: '#211e28'\n  surface-container-high: '#2b2933'\n  surface-container-highest: '#36333e'\n  on-surface: '#e6e0ee'\n  on-surface-variant: '#cec3d3'\n  inverse-surface: '#e6e0ee'\n  inverse-on-surface: '#322f39'\n  outline: '#978d9d'\n  outline-variant: '#4c4452'\n  surface-tint: '#ddb8ff'\n  primary: '#ddb8ff'\n  on-primary: '#490081'\n  primary-container: '#c084fc'\n  on-primary-container: '#500989'\n  inverse-primary: '#7b41b4'\n  secondary: '#ddb7ff'\n  on-secondary: '#490080'\n  secondary-container: '#6f00be'\n  on-secondary-container: '#d6a9ff'\n  tertiary: '#cdc1e6'\n  on-tertiary: '#342c49'\n  tertiary-container: '#a59abe'\n  on-tertiary-container: '#3a3250'\n  error: '#ffb4ab'\n  on-error: '#690005'\n  error-container: '#93000a'\n  on-error-container: '#ffdad6'\n  primary-fixed: '#f0dbff'\n  primary-fixed-dim: '#ddb8ff'\n  on-primary-fixed: '#2c0051'\n  on-primary-fixed-variant: '#62259b'\n  secondary-fixed: '#f0dbff'\n  secondary-fixed-dim: '#ddb7ff'\n  on-secondary-fixed: '#2c0051'\n  on-secondary-fixed-variant: '#6900b3'\n  tertiary-fixed: '#e9ddff'\n  tertiary-fixed-dim: '#cdc1e6'\n  on-tertiary-fixed: '#1f1733'\n  on-tertiary-fixed-variant: '#4b4261'\n  background: '#14121b'\n  on-background: '#e6e0ee'\n  surface-variant: '#36333e'\ntypography:\n  display-hero:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 56px\n    fontWeight: '800'\n    lineHeight: 64px\n    letterSpacing: -0.03em\n  display-hero-mobile:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 38px\n    fontWeight: '800'\n    lineHeight: 46px\n    letterSpacing: -0.025em\n  headline-lg:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 36px\n    fontWeight: '700'\n    lineHeight: 44px\n    letterSpacing: -0.02em\n  headline-lg-mobile:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 28px\n    fontWeight: '700'\n    lineHeight: 36px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 24px\n    fontWeight: '700'\n    lineHeight: 32px\n    letterSpacing: -0.015em\n  headline-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 20px\n    fontWeight: '600'\n    lineHeight: 28px\n    letterSpacing: -0.01em\n  title-lg:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 18px\n    fontWeight: '600'\n    lineHeight: 26px\n    letterSpacing: 0em\n  title-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 16px\n    fontWeight: '600'\n    lineHeight: 24px\n    letterSpacing: 0em\n  body-lg:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 26px\n    letterSpacing: 0.01em\n  body-md:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 22px\n    letterSpacing: 0.01em\n  body-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 18px\n    letterSpacing: 0.02em\n  label-lg:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 14px\n    fontWeight: '600'\n    lineHeight: 20px\n    letterSpacing: 0.02em\n  label-md:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.04em\n  label-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 10px\n    fontWeight: '700'\n    lineHeight: 14px\n    letterSpacing: 0.08em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  space-2xs: 0.25rem\n  space-xs: 0.5rem\n  space-sm: 0.75rem\n  space-md: 1rem\n  space-lg: 1.5rem\n  space-xl: 2rem\n  space-2xl: 3rem\n  space-3xl: 4rem\n  gutter-mobile: 1rem\n  gutter-tablet: 1.5rem\n  gutter-desktop: 2rem\n  margin-mobile: 1rem\n  margin-tablet: 2rem\n  margin-desktop: 3rem\n---\n\n## Brand & Style\n\nThis design system delivers an ethereal, atmospheric dark-mode aesthetic rooted in high-end creative computing, gaming platforms, and luxury digital media. The visual tone is mysterious, immersive, and razor-sharp, pairing velvet shadows with striking violet luminescence.\n\nThe stylistic identity synthesizes **Glassmorphism** and **Tonal Layering**:\n- Deep void-like canvas layers evoke depth and infinity.\n- Subsurface scattering and diffuse chromatic luminescence suggest inner light refracting through cut amethyst.\n- Strict visual hierarchy ensures that bright neon accents command instant cognitive focus without generating ocular fatigue.\n\n## Colors\n\nThe system adheres strictly to the **60-30-10 color balance rule**:\n\n- **60% Dominant Base:** Deep obsidian velvet (`#0d0b14`). Applied to root backgrounds, underlays, and canvas bodies to ground the entire viewport in near-black plum depth.\n- **30% Structural Architecture:** Muted royal plum (`#1c162b`) and twilight slate (`#28203d`). Utilized for surface containers, sidebars, navigation panels, cards, and resting interactive component envelopes.\n- **10% Accent Radiance:** Electric lilac (`#c084fc`) complemented by neon violet (`#a855f7`). Reserved solely for primary calls-to-action, high-priority status indicators, active tabs, progress tracks, and primary focus rings.\n\n### Functional Roles\n- **Canvas Base:** `#0d0b14`\n- **Surface Level 1 (Panels & Shelves):** `#14101e`\n- **Surface Level 2 (Cards & Modules):** `#1c162b`\n- **Surface Level 3 (Elevated Floating Containers & Popovers):** `#28203d`\n- **Subtle Stroke & Hairline Border:** `rgba(192, 132, 252, 0.12)`\n- **Text High-Emphasis:** `#f5f3ff`\n- **Text Mid-Emphasis:** `#b8b0cf`\n- **Text Low-Emphasis (Muted/Disabled):** `#655c7a`\n- **Primary Accent / Glow Focus:** `#c084fc`\n\n## Typography\n\nThe type system relies completely on **Plus Jakarta Sans**, utilizing its geometric clarity, modern proportions, and friendly subtle apertures to balance the dark, futuristic theme.\n\n- **Headings & Display:** Rendered with tight negative tracking (`-0.03em` to `-0.015em`) and heavier weights (700 to 800) to create solid visual anchors across obsidian backgrounds.\n- **Body:** Rendered in weight 400 with loosened leading to ensure legibility against deep dark surfaces without producing optical glare.\n- **Labels & Overlines:** Rendered in uppercase weight 700 with widened letter-spacing (`0.04em` to `0.08em`) to demarcate sections and functional metadata tags.\n\n## Layout & Spacing\n\nThe layout is built on a responsive 12-column dynamic fluid grid governed by an **8pt rhythm base** (`0.5rem = 8px`).\n\n### Breakpoints & Geometry\n- **Desktop (\u2265 1280px):** 12 columns, 32px (`2rem`) gutters, 48px (`3rem`) page margins, max container width 1440px centered.\n- **Tablet (768px \u2013 1279px):** 8 columns, 24px (`1.5rem`) gutters, 32px (`2rem`) page margins. Sidebars collapse to rail navigation or drawers.\n- **Mobile (< 768px):** 4 columns, 16px (`1rem`) gutters, 16px (`1rem`) page margins. Complex card arrays stack into single-column vertical flows.\n\n### Spacing Philosophy\nNegative space is deliberately generous to maintain the velvet atmosphere and avoid spatial claustrophobia. Padding within container modules should always follow the internal scale: `16px` for small components, `24px` for structural cards, and `32px` to `48px` for major section hubs.\n\n## Elevation & Depth\n\nVisual hierarchy combines **stacked tonal surfaces**, **frosted backdrops**, and **amethyst edge lighting**:\n\n1. **Ground Plane (Level 0):** Pure obsidian `#0d0b14` without elevation or borders.\n2. **Structural Tier (Level 1):** Solid `#14101e` with hairline outline `1px solid rgba(192, 132, 252, 0.06)`. No shadow.\n3. **Card Tier (Level 2):** `#1c162b` coupled with `1px solid rgba(192, 132, 252, 0.12)` and a deep diffused drop shadow: `0 12px 32px -4px rgba(5, 3, 10, 0.7)`.\n4. **Interactive Hover & Overlay Tier (Level 3):** `#28203d` backdrop blur (`backdrop-filter: blur(16px)`), rim border `1px solid rgba(192, 132, 252, 0.28)`, and layered lilac glow:\n   `0 16px 40px -8px rgba(0, 0, 0, 0.8), 0 0 24px 0 rgba(192, 132, 252, 0.15)`.\n5. **Focal Interactive Tier (Level 4 - CTAs & Highlights):** Solid `#c084fc` base with intense aura:\n   `0 0 20px 2px rgba(192, 132, 252, 0.45), 0 8px 24px -2px rgba(168, 85, 247, 0.35)`.\n\n## Shapes\n\nThe design system employs a **Rounded** (Level 2) shape standard. This creates a refined balance between high-tech precision and ergonomic softness:\n\n- **Base elements (Inputs, Buttons, Chips, Tooltips):** `0.5rem` (8px) radius.\n- **Containers & Content Cards:** `rounded-lg` at `1rem` (16px) radius.\n- **Large Modals & Feature Panels:** `rounded-xl` at `1.5rem` (24px) radius.\n- **Pills / Status Dots:** Fully rounded (`9999px`) for contextual badges and floating filter tags.\n\n## Components\n\n### Buttons\n- **Primary:** Background `#c084fc`, text `#0d0b14` (weight 700), radius `8px`. Hover: Background `#d8b4fe`, shadow `0 0 24px rgba(192, 132, 252, 0.5)`. Active: Scale to `0.98`.\n- **Secondary:** Background `#1c162b`, text `#f5f3ff`, border `1px solid rgba(192, 132, 252, 0.24)`. Hover: Background `#28203d`, border `1px solid rgba(192, 132, 252, 0.45)`.\n- **Ghost / Tertiary:** Background transparent, text `#b8b0cf`. Hover: Background `rgba(192, 132, 252, 0.08)`, text `#c084fc`.\n\n### Chips & Badges\n- **Status Badges:** Compact height (`24px`), fully rounded (`9999px`), padding `2px 10px`. Background `rgba(40, 32, 61, 0.8)`, border `1px solid rgba(192, 132, 252, 0.2)`, text `#c084fc` in `label-sm`.\n- **Active Filter Chip:** Solid border `1px solid #c084fc`, glow `0 0 8px rgba(192, 132, 252, 0.3)`, text `#f5f3ff`.\n\n### Inputs & Form Fields\n- Surface `#14101e`, border `1px solid rgba(192, 132, 252, 0.16)`, radius `8px`, text `#f5f3ff`, placeholder `#655c7a`.\n- **Focus State:** Border `1px solid #c084fc`, outer focus ring `0 0 0 3px rgba(192, 132, 252, 0.25)`.\n\n### Checkboxes & Radio Buttons\n- Unchecked: `#1c162b` box/circle with `1.5px solid rgba(192, 132, 252, 0.3)`.\n- Checked: `#c084fc` fill with `#0d0b14` checkmark icon or center dot, accompanied by subtle lilac aura `0 0 10px rgba(192, 132, 252, 0.4)`.\n\n### Cards & Modular Tiles\n- Background `#1c162b`, radius `16px`, padding `24px`, border `1px solid rgba(192, 132, 252, 0.1)`.\n- Hover transition: Translate `translateY(-2px)`, border shifts to `rgba(192, 132, 252, 0.3)`, shadow elevates to Level 3.\n\n### Lists & Row Items\n- Divided by transparent horizontal lines `1px solid rgba(192, 132, 252, 0.06)`.\n- Hover background overlay `rgba(192, 132, 252, 0.04)` across the full row with `4px` left indicator bar transitioning to `#c084fc`.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#c084fc",
+      "overrideSecondaryColor": "#a855f7",
+      "overrideTertiaryColor": "#28203d",
+      "overrideNeutralColor": "#0d0b14",
+      "spacingScale": 2,
+      "typography": {
+        "display-hero": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "56px",
+          "fontWeight": "800",
+          "lineHeight": "64px",
+          "letterSpacing": "-0.03em"
+        },
+        "title-lg": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "18px",
+          "fontWeight": "600",
+          "lineHeight": "26px",
+          "letterSpacing": "0em"
+        },
+        "headline-md": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "24px",
+          "fontWeight": "700",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.015em"
+        },
+        "headline-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "20px",
+          "fontWeight": "600",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.01em"
+        },
+        "label-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "10px",
+          "fontWeight": "700",
+          "lineHeight": "14px",
+          "letterSpacing": "0.08em"
+        },
+        "display-hero-mobile": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "38px",
+          "fontWeight": "800",
+          "lineHeight": "46px",
+          "letterSpacing": "-0.025em"
+        },
+        "body-lg": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "26px",
+          "letterSpacing": "0.01em"
+        },
+        "title-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "16px",
+          "fontWeight": "600",
+          "lineHeight": "24px",
+          "letterSpacing": "0em"
+        },
+        "label-lg": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "14px",
+          "fontWeight": "600",
+          "lineHeight": "20px",
+          "letterSpacing": "0.02em"
+        },
+        "label-md": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "lineHeight": "16px",
+          "letterSpacing": "0.04em"
+        },
+        "body-md": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "22px",
+          "letterSpacing": "0.01em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "28px",
+          "fontWeight": "700",
+          "lineHeight": "36px",
+          "letterSpacing": "-0.02em"
+        },
+        "headline-lg": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "36px",
+          "fontWeight": "700",
+          "lineHeight": "44px",
+          "letterSpacing": "-0.02em"
+        },
+        "body-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "18px",
+          "letterSpacing": "0.02em"
+        }
+      },
+      "spacing": {
+        "margin-desktop": "3rem",
+        "gutter-desktop": "2rem",
+        "space-md": "1rem",
+        "space-sm": "0.75rem",
+        "space-3xl": "4rem",
+        "space-2xl": "3rem",
+        "margin-tablet": "2rem",
+        "space-lg": "1.5rem",
+        "space-xs": "0.5rem",
+        "space-2xs": "0.25rem",
+        "gutter-tablet": "1.5rem",
+        "space-xl": "2rem",
+        "gutter-mobile": "1rem",
+        "margin-mobile": "1rem"
+      },
+      "headlineFontFamily": "Plus Jakarta Sans",
+      "bodyFontFamily": "Plus Jakarta Sans",
+      "labelFontFamily": "Plus Jakarta Sans"
+    }
+  },
+  "version": "1"
+}

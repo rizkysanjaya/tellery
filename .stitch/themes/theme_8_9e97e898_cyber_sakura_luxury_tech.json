@@ -1,0 +1,191 @@
+{
+  "name": "assets/9e97e898b36f4f6cb144f24dfc236162",
+  "designSystem": {
+    "displayName": "Cyber Sakura Luxury Tech",
+    "styleGuidelines": "## Brand & Style\n\nThis design system blends futuristic Japanese cyber-aesthetic with the precision, quiet restraint, and tactile richness of luxury consumer technology. It deliberately rejects the bubblegum triviality often associated with pink palettes by enforcing a rigorous 60/30/10 tonal balance: deep, light-absorbing plum-obsidian serves as the architectural void (60%), structural planes of smoky amethyst and titanium rose-graphite form the analytical body (30%), and singular, laser-sharp shocks of electric neon sakura provide intense cognitive focus (10%).\n\nThe aesthetic mood is atmospheric, nocturnal, and surgical. Interfaces feel like a high-grade orbital flight console rendered in black cherry lacquer, carbon fiber, and illuminated neon phosphor. It serves discerning power users who require technical density without sensory fatigue, evoking a distinct sense of hyper-modern elegance, subcultural rebellion, and calibrated technical precision.\n\n## Layout & Spacing\n\nThe layout is built on an exact 8pt spatial cadence (with 4pt half-steps for compact UI modules). Surfaces are engineered using an adaptive fluid grid:\n\n- **Mobile (Viewport &lt; 768px)**: 4-column system with `1rem` margins and `0.75rem` internal gutters. Navigation compresses into an elevated bottom floating dock or an edge-anchored glass drawer.\n- **Tablet (Viewport 768px \u2013 1024px)**: 8-column layout with `1.5rem` margins and `1rem` gutters. Side rails collapse into icon-only vertical tracks.\n- **Desktop (Viewport &gt; 1024px)**: 12-column dynamic framework with `2.5rem` outer margins and `1.5rem` column gutters. Maximum application canvas tops out at `1440px` with ambient margin bleeds.\n\nContent densities must honor structural groupings: tightly coupled operational units (e.g., input field clusters, metric blocks) maintain dense padding (`space-xs` through `space-md`), while global layout modules sit in breathable containment islands separated by generous structural chasms (`space-xl` through `space-3xl`).\n\n## Elevation & Depth\n\nVisual depth is achieved through translucent planar layering, hairline specular rims, and directional colored luminescence rather than generic neutral drop shadows.\n\n- **Surface Tiers**:\n  - **Base Canvas (Elevation 0)**: Void plum `#140f17`. Absorbs light; houses canvas grid overlays and subtle atmospheric radial glow fields.\n  - **Container Level 1 (Elevation 1)**: `#1c1522` at 90% opacity with `16px` backdrop-filter blur and a 1px border stroke of `rgba(255, 42, 122, 0.08)`.\n  - **Raised Modules & Flyouts (Elevation 2)**: `#251c2e` with `24px` backdrop blur, anchored by a dual border: a top rim highlight of `rgba(255, 133, 161, 0.2)` and side/bottom bounding strokes of `rgba(255, 255, 255, 0.04)`.\n  - **Floating Overlays & Modals (Elevation 3)**: `#2e2238` with `32px` backdrop blur and an ambient downward cast shadow: `0 20px 48px -12px rgba(8, 4, 12, 0.8), 0 0 32px 0 rgba(255, 42, 122, 0.06)`.\n- **Specular Edge Rims**: Surface edges are carved using sharp `1px` inside border gradients running from subtle rose-quartz highlight at the upper edge to transparent black-cherry at the base, creating a polished obsidian and titanium bevel aesthetic.\n- **Sakura Glow Field**: Interactive active states cast an electric neon aura (`box-shadow: 0 0 24px -4px rgba(255, 42, 122, 0.45)`), conveying hot-wire excitation under user input.\n\n## Components\n\n### Buttons\n- **Primary Cyber-Sakura Action**: Background in solid electric magenta `#ff2a7a` with typography set in `#140f17` Space Grotesk Bold. Features a subtle inner glow `inset 0 1px 0 rgba(255, 255, 255, 0.35)` and an external aura `0 4px 16px rgba(255, 42, 122, 0.35)`. Hover intensifies the glow to `0 6px 24px rgba(255, 42, 122, 0.55)` with an upward translate of `1px`.\n- **Secondary (Obsidian Glass)**: Background set to `rgba(37, 28, 46, 0.7)` with a `1px` border of `rgba(255, 42, 122, 0.2)`. Text in `#fbeff3`. On hover, the border brightens to `rgba(255, 42, 122, 0.6)` with a soft plum-lit backdrop.\n- **Ghost / Utility**: No initial border or fill. Rose titanium typography (`#9d82a5`) turning into glowing `#ff2a7a` on cursor proximity.\n\n### Input Fields\n- Enclosed within dark plum basins (`#1a1320`) with inset shadow `inset 0 2px 4px rgba(0,0,0,0.5)` and a discreet border stroke `rgba(157, 130, 165, 0.2)`.\n- Text color is `#fbeff3`; placeholder text is muted mauve `#635069`.\n- **Focus State**: Activates an uninterrupted `1px` border of `#ff2a7a` accompanied by a localized neon halo (`box-shadow: 0 0 12px rgba(255, 42, 122, 0.25)`).\n\n### Cards & Analytical Panels\n- Composed of Container Level 1 surfaces with `1rem` corner rounding.\n- Headers are marked by an ultra-thin horizontal divider in `rgba(157, 130, 165, 0.12)`.\n- Critical card states (selected, active, or triggered) display an upper edge highlight band (2px) in vibrant `#ff2a7a`.\n\n### Chips, Pills & Badges\n- **Status Pills**: Pill-shaped geometry. Default neutral variant runs on `rgba(157, 130, 165, 0.12)` fill with titanium text (`#bda6c3`).\n- **Active / Filtered**: Glowing neon border `rgba(255, 42, 122, 0.5)` with deep translucent magenta background `rgba(255, 42, 122, 0.12)` and high-contrast `#ff85a1` label text.\n\n### Selection Controls (Checkboxes & Radios)\n- Checkboxes feature an 8px radius or squircle shell (`#1c1522`) bordered by `rgba(157, 130, 165, 0.3)`. When checked, the box transitions instantly to glowing `#ff2a7a` with a deep obsidian check icon (`#140f17`).\n- Radio toggles follow identical color logic with an elevated inner phosphor dot.\n\n### Lists & Data Grids\n- Data rows sit on transparent planes separated by hairline borders `rgba(157, 130, 165, 0.08)`.\n- Hover triggers an instantaneous glide transition to `rgba(255, 42, 122, 0.04)` fill with a luminous 2px left border accent in `#ff2a7a`.\n\n### Specialized Luxury-Tech Elements\n- **HUD Telemetry Chips**: Monospace Space Grotesk data badges with an integrated pulsing cyber-sakura LED indicator dot.\n- **Neon Scrim Overlays**: Modal backdrops leverage deep obsidian plum `#0d0910` at 85% opacity paired with a heavy optical blur (`20px`), directing high-contrast focus to foreground interactive dialogue modules.",
+    "theme": {
+      "colorMode": "DARK",
+      "font": "SPACE_GROTESK",
+      "roundness": "ROUND_EIGHT",
+      "customColor": "#ff2a7a",
+      "headlineFont": "SPACE_GROTESK",
+      "bodyFont": "PLUS_JAKARTA_SANS",
+      "labelFont": "SPACE_GROTESK",
+      "namedColors": {
+        "on_tertiary_fixed": "#3f0016",
+        "on_secondary_container": "#c9abd0",
+        "primary_fixed_dim": "#ffb1c1",
+        "surface_container_high": "#2e2831",
+        "tertiary_fixed": "#ffd9df",
+        "primary_container": "#ff4c85",
+        "primary": "#ffb1c1",
+        "outline_variant": "#5b3f45",
+        "on_secondary": "#3e2846",
+        "on_tertiary_container": "#5a0023",
+        "on_primary_fixed": "#3f0017",
+        "on_primary_container": "#590024",
+        "outline": "#ab888e",
+        "inverse_on_surface": "#342e37",
+        "secondary_fixed_dim": "#dbbce2",
+        "surface_container": "#231e26",
+        "on_secondary_fixed": "#271330",
+        "secondary_container": "#553e5e",
+        "inverse_surface": "#eadfeb",
+        "on_secondary_fixed_variant": "#553e5e",
+        "surface_variant": "#39333c",
+        "surface_container_low": "#1f1a22",
+        "on_primary_fixed_variant": "#90003e",
+        "secondary": "#dbbce2",
+        "on_tertiary_fixed_variant": "#81233f",
+        "on_surface": "#eadfeb",
+        "primary_fixed": "#ffd9df",
+        "surface": "#17111a",
+        "secondary_fixed": "#f8d8ff",
+        "surface_tint": "#ffb1c1",
+        "surface_container_lowest": "#110c14",
+        "surface_dim": "#17111a",
+        "surface_bright": "#3d3740",
+        "error": "#ffb4ab",
+        "background": "#17111a",
+        "on_error": "#690005",
+        "surface_container_highest": "#39333c",
+        "on_error_container": "#ffdad6",
+        "tertiary_container": "#df6c87",
+        "on_primary": "#66002a",
+        "tertiary": "#ffb1c0",
+        "inverse_primary": "#bb0054",
+        "error_container": "#93000a",
+        "on_background": "#eadfeb",
+        "on_tertiary": "#630829",
+        "on_surface_variant": "#e4bdc3",
+        "tertiary_fixed_dim": "#ffb1c0"
+      },
+      "designMd": "---\nname: Cyber Sakura Luxury Tech\ncolors:\n  surface: '#17111a'\n  surface-dim: '#17111a'\n  surface-bright: '#3d3740'\n  surface-container-lowest: '#110c14'\n  surface-container-low: '#1f1a22'\n  surface-container: '#231e26'\n  surface-container-high: '#2e2831'\n  surface-container-highest: '#39333c'\n  on-surface: '#eadfeb'\n  on-surface-variant: '#e4bdc3'\n  inverse-surface: '#eadfeb'\n  inverse-on-surface: '#342e37'\n  outline: '#ab888e'\n  outline-variant: '#5b3f45'\n  surface-tint: '#ffb1c1'\n  primary: '#ffb1c1'\n  on-primary: '#66002a'\n  primary-container: '#ff4c85'\n  on-primary-container: '#590024'\n  inverse-primary: '#bb0054'\n  secondary: '#dbbce2'\n  on-secondary: '#3e2846'\n  secondary-container: '#553e5e'\n  on-secondary-container: '#c9abd0'\n  tertiary: '#ffb1c0'\n  on-tertiary: '#630829'\n  tertiary-container: '#df6c87'\n  on-tertiary-container: '#5a0023'\n  error: '#ffb4ab'\n  on-error: '#690005'\n  error-container: '#93000a'\n  on-error-container: '#ffdad6'\n  primary-fixed: '#ffd9df'\n  primary-fixed-dim: '#ffb1c1'\n  on-primary-fixed: '#3f0017'\n  on-primary-fixed-variant: '#90003e'\n  secondary-fixed: '#f8d8ff'\n  secondary-fixed-dim: '#dbbce2'\n  on-secondary-fixed: '#271330'\n  on-secondary-fixed-variant: '#553e5e'\n  tertiary-fixed: '#ffd9df'\n  tertiary-fixed-dim: '#ffb1c0'\n  on-tertiary-fixed: '#3f0016'\n  on-tertiary-fixed-variant: '#81233f'\n  background: '#17111a'\n  on-background: '#eadfeb'\n  surface-variant: '#39333c'\ntypography:\n  display-lg:\n    fontFamily: Space Grotesk\n    fontSize: 56px\n    fontWeight: '700'\n    lineHeight: 64px\n    letterSpacing: -0.03em\n  display-lg-mobile:\n    fontFamily: Space Grotesk\n    fontSize: 38px\n    fontWeight: '700'\n    lineHeight: 44px\n    letterSpacing: -0.02em\n  headline-xl:\n    fontFamily: Space Grotesk\n    fontSize: 40px\n    fontWeight: '600'\n    lineHeight: 48px\n    letterSpacing: -0.025em\n  headline-xl-mobile:\n    fontFamily: Space Grotesk\n    fontSize: 30px\n    fontWeight: '600'\n    lineHeight: 36px\n    letterSpacing: -0.02em\n  headline-lg:\n    fontFamily: Space Grotesk\n    fontSize: 32px\n    fontWeight: '600'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Space Grotesk\n    fontSize: 24px\n    fontWeight: '600'\n    lineHeight: 32px\n    letterSpacing: -0.015em\n  headline-sm:\n    fontFamily: Space Grotesk\n    fontSize: 20px\n    fontWeight: '500'\n    lineHeight: 28px\n    letterSpacing: -0.01em\n  body-xl:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 18px\n    fontWeight: '400'\n    lineHeight: 28px\n    letterSpacing: -0.005em\n  body-lg:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n    letterSpacing: 0em\n  body-md:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n    letterSpacing: 0em\n  body-sm:\n    fontFamily: Plus Jakarta Sans\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 16px\n    letterSpacing: 0.01em\n  label-lg:\n    fontFamily: Space Grotesk\n    fontSize: 14px\n    fontWeight: '600'\n    lineHeight: 20px\n    letterSpacing: 0.04em\n  label-md:\n    fontFamily: Space Grotesk\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.05em\n  label-sm:\n    fontFamily: Space Grotesk\n    fontSize: 10px\n    fontWeight: '700'\n    lineHeight: 14px\n    letterSpacing: 0.08em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  space-2xs: 0.125rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 0.75rem\n  space-base: 1rem\n  space-lg: 1.5rem\n  space-xl: 2rem\n  space-2xl: 3rem\n  space-3xl: 4rem\n  layout-margin-mobile: 1rem\n  layout-margin-tablet: 1.5rem\n  layout-margin-desktop: 2.5rem\n  layout-gutter: 1.5rem\n---\n\n## Brand & Style\n\nThis design system blends futuristic Japanese cyber-aesthetic with the precision, quiet restraint, and tactile richness of luxury consumer technology. It deliberately rejects the bubblegum triviality often associated with pink palettes by enforcing a rigorous 60/30/10 tonal balance: deep, light-absorbing plum-obsidian serves as the architectural void (60%), structural planes of smoky amethyst and titanium rose-graphite form the analytical body (30%), and singular, laser-sharp shocks of electric neon sakura provide intense cognitive focus (10%).\n\nThe aesthetic mood is atmospheric, nocturnal, and surgical. Interfaces feel like a high-grade orbital flight console rendered in black cherry lacquer, carbon fiber, and illuminated neon phosphor. It serves discerning power users who require technical density without sensory fatigue, evoking a distinct sense of hyper-modern elegance, subcultural rebellion, and calibrated technical precision.\n\n## Colors\n\nThe palette operates under a strict architectural distribution to maintain visual hierarchy, spatial depth, and high signal-to-noise ratio:\n\n- **60% Canvas & Atmospheric Foundations (`#140f17` to `#1e1623`)**: Deep black-cherry obsidian and night-plum tones form the primary viewing plane. These shades absorb glare and prevent eye strain, acting as an atmospheric void rather than a flat black screen.\n- **30% Structural Hierarchy & Secondary Surfaces (`#291f30`, `#3c2c47`, `#9d82a5`)**: Dusky amethyst, graphite mauve, and muted titanium rose define card boundaries, modular sidebars, table headers, and passive indicators. Secondary text and structural framing live strictly within these mid-density frequencies.\n- **10% High-Voltage Focal Accents (`#ff2a7a`, `#ff85a1`)**: Laser-bright neon sakura and cyber-magenta. These are reserved exclusively for critical interactive drivers: affirmative actions, active states, active tab pill indicators, real-time telemetry markers, and focused input boundaries. They are never diluted into broad background washes.\n- **Micro-functional Accents**: Success states lean into vibrant electric emerald-cyan (`#00f5a0`), warnings adopt hot neon amber (`#ffb703`), and critical errors utilize razor crimson (`#ff1744`), each calibrated to match the luminescent intensity of the primary sakura accent.\n\n## Typography\n\nThe typographic hierarchy implements a high-tension dual-pairing:\n\n- **Display, Headlines, and Interface Labels (`Space Grotesk`)**: Provides an engineered, tech-forward, futuristic cadence. Structural numbers, metric readouts, tags, badges, and primary section headers rely on its geometric cut and distinctive technical quirks. Uppercase applications for small labels (`label-sm`, `label-md`) must always carry open tracking (`0.05em` to `0.08em`) to mimic instrumentation panels.\n- **Reading Typography and Extended Body (`Plus Jakarta Sans`)**: Neutralizes the cold mechanical feel of the headline face with balanced geometric humanities, wide apertures, and legible letterforms. It ensures long-form documentation, logs, tables, and settings menus remain effortless to read against deep obsidian backgrounds.\n\nAll text elements set on dark surfaces utilize tinted white (`#fbeff3`) for primary content and titanium mauve (`#bda6c3`) for secondary descriptions, avoiding harsh optical vibration caused by raw, uncalibrated white (`#ffffff`).\n\n## Layout & Spacing\n\nThe layout is built on an exact 8pt spatial cadence (with 4pt half-steps for compact UI modules). Surfaces are engineered using an adaptive fluid grid:\n\n- **Mobile (Viewport &lt; 768px)**: 4-column system with `1rem` margins and `0.75rem` internal gutters. Navigation compresses into an elevated bottom floating dock or an edge-anchored glass drawer.\n- **Tablet (Viewport 768px \u2013 1024px)**: 8-column layout with `1.5rem` margins and `1rem` gutters. Side rails collapse into icon-only vertical tracks.\n- **Desktop (Viewport &gt; 1024px)**: 12-column dynamic framework with `2.5rem` outer margins and `1.5rem` column gutters. Maximum application canvas tops out at `1440px` with ambient margin bleeds.\n\nContent densities must honor structural groupings: tightly coupled operational units (e.g., input field clusters, metric blocks) maintain dense padding (`space-xs` through `space-md`), while global layout modules sit in breathable containment islands separated by generous structural chasms (`space-xl` through `space-3xl`).\n\n## Elevation & Depth\n\nVisual depth is achieved through translucent planar layering, hairline specular rims, and directional colored luminescence rather than generic neutral drop shadows.\n\n- **Surface Tiers**:\n  - **Base Canvas (Elevation 0)**: Void plum `#140f17`. Absorbs light; houses canvas grid overlays and subtle atmospheric radial glow fields.\n  - **Container Level 1 (Elevation 1)**: `#1c1522` at 90% opacity with `16px` backdrop-filter blur and a 1px border stroke of `rgba(255, 42, 122, 0.08)`.\n  - **Raised Modules & Flyouts (Elevation 2)**: `#251c2e` with `24px` backdrop blur, anchored by a dual border: a top rim highlight of `rgba(255, 133, 161, 0.2)` and side/bottom bounding strokes of `rgba(255, 255, 255, 0.04)`.\n  - **Floating Overlays & Modals (Elevation 3)**: `#2e2238` with `32px` backdrop blur and an ambient downward cast shadow: `0 20px 48px -12px rgba(8, 4, 12, 0.8), 0 0 32px 0 rgba(255, 42, 122, 0.06)`.\n- **Specular Edge Rims**: Surface edges are carved using sharp `1px` inside border gradients running from subtle rose-quartz highlight at the upper edge to transparent black-cherry at the base, creating a polished obsidian and titanium bevel aesthetic.\n- **Sakura Glow Field**: Interactive active states cast an electric neon aura (`box-shadow: 0 0 24px -4px rgba(255, 42, 122, 0.45)`), conveying hot-wire excitation under user input.\n\n## Shapes\n\nCorner radii adopt a calibrated, refined curve language: standard components utilize `0.5rem` (8px), intermediate cards and content viewports leverage `1rem` (16px), and larger structural master panels scale to `1.5rem` (24px).\n\nThis curvature strikes a balance between hyper-industrial sci-fi brutalism and tailored luxury ergonomics. Sharp 90-degree corners are reserved strictly for technical data splitters, metric dividers, and micro-terminal callouts. Floating indicators, action tags, and utility status pills use full capsule (pill) geometry to create distinct visual contrast against rectangular architectural panels.\n\n## Components\n\n### Buttons\n- **Primary Cyber-Sakura Action**: Background in solid electric magenta `#ff2a7a` with typography set in `#140f17` Space Grotesk Bold. Features a subtle inner glow `inset 0 1px 0 rgba(255, 255, 255, 0.35)` and an external aura `0 4px 16px rgba(255, 42, 122, 0.35)`. Hover intensifies the glow to `0 6px 24px rgba(255, 42, 122, 0.55)` with an upward translate of `1px`.\n- **Secondary (Obsidian Glass)**: Background set to `rgba(37, 28, 46, 0.7)` with a `1px` border of `rgba(255, 42, 122, 0.2)`. Text in `#fbeff3`. On hover, the border brightens to `rgba(255, 42, 122, 0.6)` with a soft plum-lit backdrop.\n- **Ghost / Utility**: No initial border or fill. Rose titanium typography (`#9d82a5`) turning into glowing `#ff2a7a` on cursor proximity.\n\n### Input Fields\n- Enclosed within dark plum basins (`#1a1320`) with inset shadow `inset 0 2px 4px rgba(0,0,0,0.5)` and a discreet border stroke `rgba(157, 130, 165, 0.2)`.\n- Text color is `#fbeff3`; placeholder text is muted mauve `#635069`.\n- **Focus State**: Activates an uninterrupted `1px` border of `#ff2a7a` accompanied by a localized neon halo (`box-shadow: 0 0 12px rgba(255, 42, 122, 0.25)`).\n\n### Cards & Analytical Panels\n- Composed of Container Level 1 surfaces with `1rem` corner rounding.\n- Headers are marked by an ultra-thin horizontal divider in `rgba(157, 130, 165, 0.12)`.\n- Critical card states (selected, active, or triggered) display an upper edge highlight band (2px) in vibrant `#ff2a7a`.\n\n### Chips, Pills & Badges\n- **Status Pills**: Pill-shaped geometry. Default neutral variant runs on `rgba(157, 130, 165, 0.12)` fill with titanium text (`#bda6c3`).\n- **Active / Filtered**: Glowing neon border `rgba(255, 42, 122, 0.5)` with deep translucent magenta background `rgba(255, 42, 122, 0.12)` and high-contrast `#ff85a1` label text.\n\n### Selection Controls (Checkboxes & Radios)\n- Checkboxes feature an 8px radius or squircle shell (`#1c1522`) bordered by `rgba(157, 130, 165, 0.3)`. When checked, the box transitions instantly to glowing `#ff2a7a` with a deep obsidian check icon (`#140f17`).\n- Radio toggles follow identical color logic with an elevated inner phosphor dot.\n\n### Lists & Data Grids\n- Data rows sit on transparent planes separated by hairline borders `rgba(157, 130, 165, 0.08)`.\n- Hover triggers an instantaneous glide transition to `rgba(255, 42, 122, 0.04)` fill with a luminous 2px left border accent in `#ff2a7a`.\n\n### Specialized Luxury-Tech Elements\n- **HUD Telemetry Chips**: Monospace Space Grotesk data badges with an integrated pulsing cyber-sakura LED indicator dot.\n- **Neon Scrim Overlays**: Modal backdrops leverage deep obsidian plum `#0d0910` at 85% opacity paired with a heavy optical blur (`20px`), directing high-contrast focus to foreground interactive dialogue modules.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#ff2a7a",
+      "overrideSecondaryColor": "#9d82a5",
+      "overrideTertiaryColor": "#ff85a1",
+      "overrideNeutralColor": "#140f17",
+      "spacingScale": 2,
+      "typography": {
+        "label-sm": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "10px",
+          "fontWeight": "700",
+          "lineHeight": "14px",
+          "letterSpacing": "0.08em"
+        },
+        "headline-md": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "24px",
+          "fontWeight": "600",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.015em"
+        },
+        "body-lg": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "24px",
+          "letterSpacing": "0em"
+        },
+        "headline-sm": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "20px",
+          "fontWeight": "500",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.01em"
+        },
+        "body-xl": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.005em"
+        },
+        "display-lg-mobile": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "38px",
+          "fontWeight": "700",
+          "lineHeight": "44px",
+          "letterSpacing": "-0.02em"
+        },
+        "body-sm": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "16px",
+          "letterSpacing": "0.01em"
+        },
+        "body-md": {
+          "fontFamily": "Plus Jakarta Sans",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "20px",
+          "letterSpacing": "0em"
+        },
+        "headline-lg": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "32px",
+          "fontWeight": "600",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.02em"
+        },
+        "label-md": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "lineHeight": "16px",
+          "letterSpacing": "0.05em"
+        },
+        "headline-xl-mobile": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "30px",
+          "fontWeight": "600",
+          "lineHeight": "36px",
+          "letterSpacing": "-0.02em"
+        },
+        "label-lg": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "14px",
+          "fontWeight": "600",
+          "lineHeight": "20px",
+          "letterSpacing": "0.04em"
+        },
+        "headline-xl": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "40px",
+          "fontWeight": "600",
+          "lineHeight": "48px",
+          "letterSpacing": "-0.025em"
+        },
+        "display-lg": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "56px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "-0.03em"
+        }
+      },
+      "spacing": {
+        "space-2xs": "0.125rem",
+        "layout-margin-tablet": "1.5rem",
+        "space-sm": "0.5rem",
+        "space-md": "0.75rem",
+        "layout-gutter": "1.5rem",
+        "space-base": "1rem",
+        "space-lg": "1.5rem",
+        "space-xs": "0.25rem",
+        "space-xl": "2rem",
+        "layout-margin-mobile": "1rem",
+        "space-2xl": "3rem",
+        "space-3xl": "4rem",
+        "layout-margin-desktop": "2.5rem"
+      },
+      "headlineFontFamily": "Space Grotesk",
+      "bodyFontFamily": "Plus Jakarta Sans",
+      "labelFontFamily": "Space Grotesk"
+    }
+  },
+  "version": "1"
+}

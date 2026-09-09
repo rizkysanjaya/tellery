@@ -3,11 +3,11 @@
  * Module: frontend/src/components/SettingsModal.tsx
  * Purpose: Precision pro-grade settings dialog providing local disk cache metering,
  *          cache limit configuration, 1-click cache purge, MTProto vault telemetry,
- *          Battery Saver mode toggle, theme switcher, and session disconnect.
+ *          Battery Saver mode toggle, VS Code-style 10-theme gallery switcher, and session disconnect.
  *          Supports WCAG 2.2 AA visible focus rings and keyboard Escape key modal dismissal.
  * Used by: frontend/src/App.tsx, frontend/src/components/Sidebar.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, frontend/src/api.ts,
- *               frontend/src/components/ui/LiquidProgressBar.tsx
+ *               frontend/src/components/ui/LiquidProgressBar.tsx, frontend/src/config/themes.ts
  * Public Members: SettingsModal, SettingsModalProps
  * Side Effects: Fetches cache statistics over HTTP, dispatches cache clearing & limit updates,
  *                toggles theme and battery saver preferences in localStorage.
@@ -30,10 +30,13 @@ import {
   RefreshCw,
   Loader2,
   Sliders,
+  Check,
+  Palette,
 } from "lucide-react";
 import { CacheStats, StatsResponse, VaultItem } from "../types";
 import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
 import { LiquidProgressBar } from "./ui/LiquidProgressBar";
+import { THEMES, ThemeId, getThemeById } from "../config/themes";
 
 export interface SettingsModalProps {
   isOpen: boolean;
@@ -41,6 +44,8 @@ export interface SettingsModalProps {
   stats: StatsResponse | null;
   activeVault?: VaultItem | null;
   theme?: "dark" | "light";
+  currentTheme?: ThemeId;
+  onSelectTheme?: (themeId: ThemeId) => void;
   onToggleTheme?: () => void;
   batterySaver?: boolean;
   onToggleBatterySaver?: () => void;
@@ -54,12 +59,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   stats,
   activeVault,
   theme = "dark",
+  currentTheme = "obsidian",
+  onSelectTheme,
   onToggleTheme,
   batterySaver = false,
   onToggleBatterySaver,
   onLogout,
   onOpenVaultSwitcher,
 }) => {
+  const [themeFilter, setThemeFilter] = useState<"all" | "dark" | "light">("all");
   const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
   const [loadingCache, setLoadingCache] = useState(false);
   const [isClearingCache, setIsClearingCache] = useState(false);
@@ -410,31 +418,133 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               )}
 
-              {/* Theme Switcher */}
-              {onToggleTheme && (
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface-container-lowest/60 border border-outline-variant/10">
+              {/* VS Code-Style Visual Theme Gallery */}
+              <div className="p-3 rounded-xl bg-surface-container-lowest/60 border border-outline-variant/15 space-y-3">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    {theme === "dark" ? (
-                      <Moon className="w-4 h-4 text-indigo-400 shrink-0" />
-                    ) : (
-                      <Sun className="w-4 h-4 text-amber-500 shrink-0" />
-                    )}
+                    <Palette className="w-4 h-4 text-primary shrink-0" />
                     <div>
                       <span className="text-xs font-semibold text-on-surface block">Visual Theme</span>
-                      <p className="text-[11px] text-on-surface-variant/70">
-                        {theme === "dark" ? "Dark Mode (OLED Pure Black)" : "Light Mode"}
+                      <p className="text-[11px] text-on-surface-variant/80">
+                        Active: <strong className="text-on-surface font-medium">{getThemeById(currentTheme).name}</strong> ({getThemeById(currentTheme).mode === "dark" ? "Dark mode" : "Light mode"})
                       </p>
                     </div>
                   </div>
+
+                  {/* Quick Toggle Light / Dark */}
+                  {onToggleTheme && (
+                    <button
+                      onClick={onToggleTheme}
+                      className="min-h-[28px] px-2.5 py-1 rounded-md text-xs font-medium bg-surface-container hover:bg-surface-container-high border border-outline-variant/15 text-on-surface hover:text-primary transition-colors cursor-pointer touch-manipulation flex items-center gap-1.5 focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none"
+                      title="Quick toggle between Dark and Light mode"
+                    >
+                      {theme === "dark" ? <Sun className="w-3 h-3 text-amber-400" /> : <Moon className="w-3 h-3 text-indigo-400" />}
+                      <span>{theme === "dark" ? "Light" : "Dark"}</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-1.5 border-t border-outline-variant/10 pt-2.5">
                   <button
-                    onClick={onToggleTheme}
-                    className="min-h-[30px] px-2.5 py-1 rounded-md text-xs font-medium bg-surface-container hover:bg-surface-container-high border border-outline-variant/15 text-on-surface hover:text-primary transition-colors cursor-pointer touch-manipulation flex items-center gap-1 focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none"
+                    type="button"
+                    onClick={() => setThemeFilter("all")}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer touch-manipulation ${
+                      themeFilter === "all"
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container/60 text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                    }`}
                   >
-                    {theme === "dark" ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
-                    <span>Switch to {theme === "dark" ? "Light" : "Dark"}</span>
+                    All ({THEMES.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setThemeFilter("dark")}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer touch-manipulation ${
+                      themeFilter === "dark"
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container/60 text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                    }`}
+                  >
+                    Dark ({THEMES.filter((t) => t.mode === "dark").length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setThemeFilter("light")}
+                    className={`px-2 py-0.5 rounded text-[11px] font-medium transition-colors cursor-pointer touch-manipulation ${
+                      themeFilter === "light"
+                        ? "bg-primary text-on-primary"
+                        : "bg-surface-container/60 text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
+                    }`}
+                  >
+                    Light ({THEMES.filter((t) => t.mode === "light").length})
                   </button>
                 </div>
-              )}
+
+                {/* Theme Cards Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 max-h-[320px] overflow-y-auto pr-1">
+                  {THEMES.filter((t) => (themeFilter === "all" ? true : t.mode === themeFilter)).map((t) => {
+                    const isSelected = currentTheme === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => onSelectTheme?.(t.id)}
+                        className={`relative flex flex-col p-2.5 rounded-xl text-left transition-all border cursor-pointer touch-manipulation group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                          isSelected
+                            ? "bg-surface-container border-primary shadow-xs ring-1 ring-primary/40"
+                            : "bg-surface-container-lowest/60 border-outline-variant/15 hover:border-outline-variant/35 hover:bg-surface-container-low"
+                        }`}
+                      >
+                        {/* Swatches bar */}
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/25 shadow-xs shrink-0"
+                            style={{ backgroundColor: t.bgHex }}
+                            title="Canvas Background"
+                          />
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/25 shadow-xs shrink-0"
+                            style={{ backgroundColor: t.surfaceHex }}
+                            title="Surface Panel"
+                          />
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/25 shadow-xs shrink-0"
+                            style={{ backgroundColor: t.primaryHex }}
+                            title="Primary Accent"
+                          />
+                          <span
+                            className="w-3.5 h-3.5 rounded-full border border-black/25 shadow-xs shrink-0"
+                            style={{ backgroundColor: t.accentHex }}
+                            title="Secondary Accent"
+                          />
+                          {t.badge && (
+                            <span className="ml-auto text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.2 rounded bg-primary/15 text-primary border border-primary/20">
+                              {t.badge}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between w-full">
+                          <span className="text-xs font-semibold text-on-surface group-hover:text-primary transition-colors">
+                            {t.name}
+                          </span>
+                          {isSelected ? (
+                            <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                          ) : (
+                            <span className="text-[10px] text-on-surface-variant/60 capitalize">
+                              {t.mode}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-on-surface-variant/75 mt-0.5 line-clamp-1">
+                          {t.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
 

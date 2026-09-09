@@ -5,7 +5,7 @@
  *          precision spotlight search, segmented filter pills, smart EXIF & date filter trigger,
  *          sort popover menu, universal theme toggle, battery saver toggle, and layout switchers.
  * Used by: frontend/src/App.tsx
- * Dependencies: lucide-react, frontend/src/types.ts, AnimatedTabs
+ * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/config/themes.ts, AnimatedTabs
  * Public Members: Header
  * Side Effects: Dispatches search, filter, EXIF drawer toggle, sort, theme, battery saver, and layout change events.
  * =============================================================================
@@ -34,6 +34,7 @@ import {
   ZapOff,
 } from "lucide-react";
 import { DisplayLayout, FilterType, FolderItem, MainView, SortOption } from "../types";
+import { ThemeId, getThemeById } from "../config/themes";
 import { AnimatedTabs, TabItem } from "./ui/AnimatedTabs";
 
 interface HeaderProps {
@@ -50,6 +51,7 @@ interface HeaderProps {
   onOpenCommandPalette?: () => void;
   onToggleMobileSidebar: () => void;
   theme?: "dark" | "light";
+  currentTheme?: ThemeId;
   onToggleTheme?: () => void;
   batterySaver?: boolean;
   onToggleBatterySaver?: () => void;
@@ -80,6 +82,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCommandPalette,
   onToggleMobileSidebar,
   theme = "dark",
+  currentTheme = "obsidian",
   onToggleTheme,
   batterySaver = false,
   onToggleBatterySaver,
@@ -346,8 +349,8 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               onClick={onToggleTheme}
               className="w-8 h-8 flex items-center justify-center rounded-lg border border-outline-variant/15 bg-surface-container-lowest/60 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04] transition-colors cursor-pointer shrink-0 touch-manipulation"
-              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
-              aria-label={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+              title={`Switch Mode (Active: ${getThemeById(currentTheme).name})`}
+              aria-label={`Switch Mode (Active: ${getThemeById(currentTheme).name})`}
             >
               {theme === "dark" ? (
                 <Sun className="w-3.5 h-3.5 text-amber-300" />

@@ -1,0 +1,162 @@
+{
+  "name": "assets/a150a030309c44889c9538f5e82b60f1",
+  "designSystem": {
+    "displayName": "Solar Flare Obsidian",
+    "styleGuidelines": "## Brand & Style\n\nThis design system expresses a fusion of high-density industrial utility and explosive chromatic energy. Designed for a personal media vault, it conveys uncompromising data sovereignty, permanence, and high-performance throughput. \n\n### Aesthetic Direction\n- **Industrial Modern & High-Contrast Precision**: Drawing from avionics HUDs, modular flight cases, and precision hardware interfaces.\n- **Atmosphere**: Deep, cavernous obsidian voids punctuated by surgical laser-sharp graphite modules, brought alive by the kinetic intensity of molten solar radiation.\n- **Emotional Resonance**: Authoritative, impervious, calibrated, and visually electrifying. It treats personal media curation not as casual storage, but as an encrypted tactical archive.\n\n## Layout & Spacing\n\nThis design system uses a strict 8pt base grid with a 4pt sub-grid for dense micro-controls. Content follows an adaptable modular canvas model that optimizes high-density media grids alongside persistent utility drawers.\n\n### Breakpoints & Layout Rules\n- **Desktop (>= 1280px)**: 12-column dynamic grid with a fixed 280px navigation rail, 1.5rem (`24px`) gutters, and 2.5rem (`40px`) outer page margins. Media inspector pane docks persistently to the right (360px).\n- **Tablet (768px - 1279px)**: 8-column layout with 1rem (`16px`) gutters. Sidebars collapse to icon-only rails (72px); metadata drawer converts into an overlay sheet.\n- **Mobile (< 768px)**: 4-column fluid layout with 0.75rem (`12px`) gutters and 1rem (`16px`) screen margins. Bottom navigation replaces structural rails; media matrices adjust to 1- or 2-column stacked configurations.\n\n## Elevation & Depth\n\nVisual hierarchy abandons traditional skeuomorphic dropshadows in favor of **Tonal Layering** combined with **Solar Flare Radiance** and **Chiseled Borders**.\n\n1. **Substrate (Z-0)**: `#121214` \u2014 Absolute canvas floor.\n2. **Surface Low (Z-1)**: `#1a1a1e` with a 1px border of `#2a2b33`. Used for inactive media cards and list rows.\n3. **Surface Mid (Z-2)**: `#23242a` with a 1px border of `#373842`. Structural modules, modal dialogs, and elevated headers.\n4. **Surface Solar (Z-3 Active / Focus)**: Container boundary switches to `#ff5722` paired with an ambient perimeter glow: `0 0 24px -4px rgba(255, 87, 34, 0.25)`.\n5. **Dividers & Seams**: Fine 1px hairline rules using `#2f3139` preserve clean modular divisions without visual weight.\n\n## Components\n\n### Buttons\n- **Primary (Solar Flare)**: Background `#ff5722`, text `#121214` (ultra-bold `Space Grotesk`), 4px radius. Hover shifts to `#ff8a50` with an outer glow of `0 0 16px rgba(255, 87, 34, 0.4)`.\n- **Secondary (Graphite Tactical)**: Background `#23242a`, border 1px solid `#373842`, text `#f5f5f7`. Hover creates an inset accent border of `#ff5722`.\n- **Ghost**: Transparent fill, text `#a0a1a8`. Hover triggers text `#ff5722` with a subtle `#23242a` backdrop.\n\n### Media Asset Cards\n- Encased in a 1px `#2f3139` frame over `#1a1a1e`.\n- Aspect ratios are locked (16:9, 1:1, or 4:5) with zero padding around the media preview.\n- Asset metadata panel sits flush beneath the thumbnail on `#23242a`, rendering file extension and size in `JetBrains Mono` at `label-sm`.\n- Selection state activates a 1px solid `#ff5722` boundary and displays a glowing corner tag.\n\n### Input Fields & Search Bars\n- Background `#18191d`, inset 1px border `#2f3139`. Text rendered in `Hanken Grotesk` (`#f5f5f7`).\n- Placeholder text in `#5a5c66`.\n- Active focus state: border transitions immediately to `#ff5722` with a subtle interior flare glow (`0 0 0 1px #ff5722`).\n\n### Checkboxes & Radio Controls\n- Geometric square (checkbox) and diamond/square-in-box (radio) controls with 2px corner radii.\n- Unchecked: 1px border `#373842` against a `#18191d` core.\n- Checked: `#ff5722` fill featuring obsidian-black iconography, reinforced by a micro solar glow.\n\n### Chips & Badges\n- Encapsulated data pills with 2px radius. Background `#23242a`, border 1px solid `#373842`.\n- Text in `JetBrains Mono` (`label-sm`).\n- Dynamic Status: Ingestion/Uploading chips pulse with an inline 6px `#ff5722` beacon. Encrypted/Locked chips display high-contrast graphite indicators.\n\n### Additional Specialty Component: Media Bitrate & Storage Gauge\n- Segmented bar graph inspired by hardware rack meters.\n- Inactive blocks: `#23242a`. Allocated space: `#f5f5f7`. Active streaming or write operations: blazing `#ff5722` blocks that illuminate from left to right.",
+    "theme": {
+      "colorMode": "DARK",
+      "font": "SPACE_GROTESK",
+      "roundness": "ROUND_FOUR",
+      "customColor": "#ff5722",
+      "headlineFont": "SPACE_GROTESK",
+      "bodyFont": "HANKEN_GROTESK",
+      "labelFont": "JETBRAINS_MONO",
+      "namedColors": {
+        "on_secondary_fixed": "#1a1b21",
+        "on_primary_fixed": "#3b0900",
+        "on_error": "#690005",
+        "inverse_surface": "#e5e1e4",
+        "on_surface": "#e5e1e4",
+        "surface_variant": "#353437",
+        "surface_tint": "#ffb5a0",
+        "surface_bright": "#39393b",
+        "on_tertiary_container": "#4c1a00",
+        "surface_container_high": "#2a2a2c",
+        "on_secondary_container": "#b5b4bc",
+        "inverse_on_surface": "#303032",
+        "outline_variant": "#5b4039",
+        "surface_container_highest": "#353437",
+        "on_primary_container": "#541200",
+        "surface_container_lowest": "#0e0e10",
+        "on_background": "#e5e1e4",
+        "surface_container_low": "#1b1b1d",
+        "tertiary": "#ffb694",
+        "on_secondary": "#2f3036",
+        "on_primary_fixed_variant": "#862200",
+        "primary": "#ffb5a0",
+        "inverse_primary": "#b02f00",
+        "outline": "#ab8980",
+        "tertiary_container": "#e0723a",
+        "tertiary_fixed": "#ffdbcc",
+        "on_tertiary_fixed": "#351000",
+        "secondary_container": "#46464d",
+        "error": "#ffb4ab",
+        "tertiary_fixed_dim": "#ffb694",
+        "surface_dim": "#131315",
+        "on_primary": "#5f1500",
+        "primary_fixed_dim": "#ffb5a0",
+        "error_container": "#93000a",
+        "on_surface_variant": "#e4beb4",
+        "on_tertiary_fixed_variant": "#7b2f00",
+        "secondary_fixed_dim": "#c6c6ce",
+        "primary_container": "#ff5722",
+        "background": "#131315",
+        "secondary_fixed": "#e3e1ea",
+        "on_tertiary": "#571f00",
+        "secondary": "#c6c6ce",
+        "surface": "#131315",
+        "on_secondary_fixed_variant": "#46464d",
+        "on_error_container": "#ffdad6",
+        "surface_container": "#201f21",
+        "primary_fixed": "#ffdbd1"
+      },
+      "designMd": "---\nname: Solar Flare Obsidian\ncolors:\n  surface: '#131315'\n  surface-dim: '#131315'\n  surface-bright: '#39393b'\n  surface-container-lowest: '#0e0e10'\n  surface-container-low: '#1b1b1d'\n  surface-container: '#201f21'\n  surface-container-high: '#2a2a2c'\n  surface-container-highest: '#353437'\n  on-surface: '#e5e1e4'\n  on-surface-variant: '#e4beb4'\n  inverse-surface: '#e5e1e4'\n  inverse-on-surface: '#303032'\n  outline: '#ab8980'\n  outline-variant: '#5b4039'\n  surface-tint: '#ffb5a0'\n  primary: '#ffb5a0'\n  on-primary: '#5f1500'\n  primary-container: '#ff5722'\n  on-primary-container: '#541200'\n  inverse-primary: '#b02f00'\n  secondary: '#c6c6ce'\n  on-secondary: '#2f3036'\n  secondary-container: '#46464d'\n  on-secondary-container: '#b5b4bc'\n  tertiary: '#ffb694'\n  on-tertiary: '#571f00'\n  tertiary-container: '#e0723a'\n  on-tertiary-container: '#4c1a00'\n  error: '#ffb4ab'\n  on-error: '#690005'\n  error-container: '#93000a'\n  on-error-container: '#ffdad6'\n  primary-fixed: '#ffdbd1'\n  primary-fixed-dim: '#ffb5a0'\n  on-primary-fixed: '#3b0900'\n  on-primary-fixed-variant: '#862200'\n  secondary-fixed: '#e3e1ea'\n  secondary-fixed-dim: '#c6c6ce'\n  on-secondary-fixed: '#1a1b21'\n  on-secondary-fixed-variant: '#46464d'\n  tertiary-fixed: '#ffdbcc'\n  tertiary-fixed-dim: '#ffb694'\n  on-tertiary-fixed: '#351000'\n  on-tertiary-fixed-variant: '#7b2f00'\n  background: '#131315'\n  on-background: '#e5e1e4'\n  surface-variant: '#353437'\ntypography:\n  display-lg:\n    fontFamily: Space Grotesk\n    fontSize: 56px\n    fontWeight: '700'\n    lineHeight: 64px\n    letterSpacing: -0.03em\n  display-lg-mobile:\n    fontFamily: Space Grotesk\n    fontSize: 36px\n    fontWeight: '700'\n    lineHeight: 44px\n    letterSpacing: -0.02em\n  headline-lg:\n    fontFamily: Space Grotesk\n    fontSize: 32px\n    fontWeight: '600'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-lg-mobile:\n    fontFamily: Space Grotesk\n    fontSize: 26px\n    fontWeight: '600'\n    lineHeight: 32px\n    letterSpacing: -0.01em\n  headline-sm:\n    fontFamily: Space Grotesk\n    fontSize: 20px\n    fontWeight: '600'\n    lineHeight: 28px\n    letterSpacing: -0.01em\n  body-lg:\n    fontFamily: Hanken Grotesk\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 26px\n    letterSpacing: 0em\n  body-md:\n    fontFamily: Hanken Grotesk\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 22px\n    letterSpacing: 0em\n  body-sm:\n    fontFamily: Hanken Grotesk\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 18px\n    letterSpacing: 0.01em\n  label-md:\n    fontFamily: JetBrains Mono\n    fontSize: 12px\n    fontWeight: '500'\n    lineHeight: 16px\n    letterSpacing: 0.05em\n  label-sm:\n    fontFamily: JetBrains Mono\n    fontSize: 10px\n    fontWeight: '500'\n    lineHeight: 14px\n    letterSpacing: 0.08em\nrounded:\n  sm: 0.125rem\n  DEFAULT: 0.25rem\n  md: 0.375rem\n  lg: 0.5rem\n  xl: 0.75rem\n  full: 9999px\nspacing:\n  space-2xs: 0.25rem\n  space-xs: 0.5rem\n  space-sm: 0.75rem\n  space-md: 1rem\n  space-lg: 1.5rem\n  space-xl: 2rem\n  space-2xl: 3rem\n  space-3xl: 4rem\n  gutter-mobile: 0.75rem\n  gutter-desktop: 1.5rem\n  margin-mobile: 1rem\n  margin-desktop: 2.5rem\n---\n\n## Brand & Style\n\nThis design system expresses a fusion of high-density industrial utility and explosive chromatic energy. Designed for a personal media vault, it conveys uncompromising data sovereignty, permanence, and high-performance throughput. \n\n### Aesthetic Direction\n- **Industrial Modern & High-Contrast Precision**: Drawing from avionics HUDs, modular flight cases, and precision hardware interfaces.\n- **Atmosphere**: Deep, cavernous obsidian voids punctuated by surgical laser-sharp graphite modules, brought alive by the kinetic intensity of molten solar radiation.\n- **Emotional Resonance**: Authoritative, impervious, calibrated, and visually electrifying. It treats personal media curation not as casual storage, but as an encrypted tactical archive.\n\n## Colors\n\nThe palette operates under a strict 60-30-10 distribution model, engineered to maintain readability and eliminate visual fatigue in dark environments while maximizing the visceral impact of solar accents.\n\n- **60% Obsidian Core (`#121214`)**: Deep, low-reflectance structural substrate. Used for application backdrops, primary viewports, and subterranean canvases.\n- **30% Industrial Graphite (`#23242a`)**: Functional structural tier. Powers container surfaces, navigation sidebars, inspect panes, and metadata tables. Mid-tone borders and dividers leverage a desaturated step (`#2f3139`) to delineate modular boundaries.\n- **10% Molten Solar Flare (`#ff5722`)**: Pure kinetic energy. Strictly reserved for active states, key data metrics, upload/encryption status, primary CTA nodes, and radiant focus indicators.\n- **Tertiary Corona (`#ff8a50`)**: Secondary illumination for gradient edges, focus flares, and interactive hover shifts.\n\n## Typography\n\nThe typographic hierarchy reinforces the industrial character through contrasting geometric forms with technical precision.\n\n- **Display & Headlines (`Space Grotesk`)**: Provides an angular, technological cadence suitable for media titling, structural headers, and primary vault metrics.\n- **Body & Continuous Copy (`Hanken Grotesk`)**: Selected for high-density legibility, neutral geometry, and zero-distortion reading across long asset logs and descriptions.\n- **Technical & Metadata Roles (`JetBrains Mono`)**: Strict tabular alignment for timestamps, file sizes, codec information, bitrate monitors, and cryptographic checksums. All labels and metadata badges enforce uppercase capitalization.\n\n## Layout & Spacing\n\nThis design system uses a strict 8pt base grid with a 4pt sub-grid for dense micro-controls. Content follows an adaptable modular canvas model that optimizes high-density media grids alongside persistent utility drawers.\n\n### Breakpoints & Layout Rules\n- **Desktop (>= 1280px)**: 12-column dynamic grid with a fixed 280px navigation rail, 1.5rem (`24px`) gutters, and 2.5rem (`40px`) outer page margins. Media inspector pane docks persistently to the right (360px).\n- **Tablet (768px - 1279px)**: 8-column layout with 1rem (`16px`) gutters. Sidebars collapse to icon-only rails (72px); metadata drawer converts into an overlay sheet.\n- **Mobile (< 768px)**: 4-column fluid layout with 0.75rem (`12px`) gutters and 1rem (`16px`) screen margins. Bottom navigation replaces structural rails; media matrices adjust to 1- or 2-column stacked configurations.\n\n## Elevation & Depth\n\nVisual hierarchy abandons traditional skeuomorphic dropshadows in favor of **Tonal Layering** combined with **Solar Flare Radiance** and **Chiseled Borders**.\n\n1. **Substrate (Z-0)**: `#121214` \u2014 Absolute canvas floor.\n2. **Surface Low (Z-1)**: `#1a1a1e` with a 1px border of `#2a2b33`. Used for inactive media cards and list rows.\n3. **Surface Mid (Z-2)**: `#23242a` with a 1px border of `#373842`. Structural modules, modal dialogs, and elevated headers.\n4. **Surface Solar (Z-3 Active / Focus)**: Container boundary switches to `#ff5722` paired with an ambient perimeter glow: `0 0 24px -4px rgba(255, 87, 34, 0.25)`.\n5. **Dividers & Seams**: Fine 1px hairline rules using `#2f3139` preserve clean modular divisions without visual weight.\n\n## Shapes\n\nThe interface embraces an architectural, chamfered-adjacent compactness. All components default to a tight **Soft (`0.25rem` / `4px`)** radius, avoiding rounded or organic aesthetics to honor the industrial design narrative.\n\n- **Base Controls (`rounded`)**: 4px radius across buttons, inputs, chips, and thumbnails.\n- **Structural Containers (`rounded-lg`)**: 8px radius on large media preview viewports, dialog sheets, and floating toolbars.\n- **Internal Micro-elements**: Segmented indicators, progress tracks, and status dots utilize crisp 2px corners or strict squares to echo hardware readouts.\n\n## Components\n\n### Buttons\n- **Primary (Solar Flare)**: Background `#ff5722`, text `#121214` (ultra-bold `Space Grotesk`), 4px radius. Hover shifts to `#ff8a50` with an outer glow of `0 0 16px rgba(255, 87, 34, 0.4)`.\n- **Secondary (Graphite Tactical)**: Background `#23242a`, border 1px solid `#373842`, text `#f5f5f7`. Hover creates an inset accent border of `#ff5722`.\n- **Ghost**: Transparent fill, text `#a0a1a8`. Hover triggers text `#ff5722` with a subtle `#23242a` backdrop.\n\n### Media Asset Cards\n- Encased in a 1px `#2f3139` frame over `#1a1a1e`.\n- Aspect ratios are locked (16:9, 1:1, or 4:5) with zero padding around the media preview.\n- Asset metadata panel sits flush beneath the thumbnail on `#23242a`, rendering file extension and size in `JetBrains Mono` at `label-sm`.\n- Selection state activates a 1px solid `#ff5722` boundary and displays a glowing corner tag.\n\n### Input Fields & Search Bars\n- Background `#18191d`, inset 1px border `#2f3139`. Text rendered in `Hanken Grotesk` (`#f5f5f7`).\n- Placeholder text in `#5a5c66`.\n- Active focus state: border transitions immediately to `#ff5722` with a subtle interior flare glow (`0 0 0 1px #ff5722`).\n\n### Checkboxes & Radio Controls\n- Geometric square (checkbox) and diamond/square-in-box (radio) controls with 2px corner radii.\n- Unchecked: 1px border `#373842` against a `#18191d` core.\n- Checked: `#ff5722` fill featuring obsidian-black iconography, reinforced by a micro solar glow.\n\n### Chips & Badges\n- Encapsulated data pills with 2px radius. Background `#23242a`, border 1px solid `#373842`.\n- Text in `JetBrains Mono` (`label-sm`).\n- Dynamic Status: Ingestion/Uploading chips pulse with an inline 6px `#ff5722` beacon. Encrypted/Locked chips display high-contrast graphite indicators.\n\n### Additional Specialty Component: Media Bitrate & Storage Gauge\n- Segmented bar graph inspired by hardware rack meters.\n- Inactive blocks: `#23242a`. Allocated space: `#f5f5f7`. Active streaming or write operations: blazing `#ff5722` blocks that illuminate from left to right.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#ff5722",
+      "overrideSecondaryColor": "#23242a",
+      "overrideTertiaryColor": "#ff8a50",
+      "overrideNeutralColor": "#121214",
+      "spacingScale": 2,
+      "typography": {
+        "label-sm": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "10px",
+          "fontWeight": "500",
+          "lineHeight": "14px",
+          "letterSpacing": "0.08em"
+        },
+        "body-lg": {
+          "fontFamily": "Hanken Grotesk",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "26px",
+          "letterSpacing": "0em"
+        },
+        "label-md": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "12px",
+          "fontWeight": "500",
+          "lineHeight": "16px",
+          "letterSpacing": "0.05em"
+        },
+        "headline-lg": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "32px",
+          "fontWeight": "600",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.02em"
+        },
+        "body-md": {
+          "fontFamily": "Hanken Grotesk",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "22px",
+          "letterSpacing": "0em"
+        },
+        "display-lg-mobile": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "36px",
+          "fontWeight": "700",
+          "lineHeight": "44px",
+          "letterSpacing": "-0.02em"
+        },
+        "body-sm": {
+          "fontFamily": "Hanken Grotesk",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "18px",
+          "letterSpacing": "0.01em"
+        },
+        "display-lg": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "56px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "-0.03em"
+        },
+        "headline-sm": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "20px",
+          "fontWeight": "600",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.01em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "26px",
+          "fontWeight": "600",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.01em"
+        }
+      },
+      "spacing": {
+        "gutter-desktop": "1.5rem",
+        "space-2xl": "3rem",
+        "space-3xl": "4rem",
+        "space-xs": "0.5rem",
+        "space-lg": "1.5rem",
+        "space-xl": "2rem",
+        "margin-desktop": "2.5rem",
+        "space-2xs": "0.25rem",
+        "space-md": "1rem",
+        "space-sm": "0.75rem",
+        "margin-mobile": "1rem",
+        "gutter-mobile": "0.75rem"
+      },
+      "headlineFontFamily": "Space Grotesk",
+      "bodyFontFamily": "Hanken Grotesk",
+      "labelFontFamily": "JetBrains Mono"
+    }
+  },
+  "version": "1"
+}

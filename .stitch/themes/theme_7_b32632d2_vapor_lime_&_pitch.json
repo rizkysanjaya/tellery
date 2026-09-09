@@ -1,0 +1,182 @@
+{
+  "name": "assets/b32632d230554c598ffe12cee7eb8d61",
+  "designSystem": {
+    "displayName": "Vapor Lime & Pitch",
+    "styleGuidelines": "## Brand & Style\n\nThis design system embodies a High-Contrast Tech Minimalist aesthetic, built around tactical clarity, ruthless hierarchy, and laser-precise execution. It is tailored for high-performance developer tools, quantitative command centers, high-frequency interfaces, and next-generation security platforms where visual noise is unacceptable and signal fidelity is paramount.\n\nThe visual direction merges the engineering precision of brutalist interface architecture with the razor-sharp refinement of hyper-modern dark interfaces. By anchoring the interface in deep pitch-black depths and architecturally tiered graphites, content remains quiet and hyper-legible until an actionable state triggers an electric, radioactive spark. The emotional tone is authoritative, kinetic, ultra-focused, and unapologetically technical.\n\n## Layout & Spacing\n\nThe layout is constructed on a rigorous, math-driven 4px baseline sub-grid with an 8px primary module. Structure follows an institutional fluid grid architecture that maximizes screen real estate while enforcing sharp divisional hygiene.\n\n- **Desktop (1024px+):** 12-column dynamic fluid layout with `2rem` outer margins and `1rem` gutters. Sidebars, command docks, and inspectors lock into explicit fixed widths (`240px` / `320px`), while internal metric dashboards fluidly adapt.\n- **Tablet (768px - 1023px):** 8-column layout with `1.5rem` margins and `1rem` gutters. Auxiliary docks collapse into drawer overlays or secondary bottom sheets.\n- **Mobile (< 768px):** 4-column layout with `1rem` edge margins and `0.75rem` gutters. Multi-column data panels collapse sequentially into singular vertical stacks, with primary CTAs pinned sticky to the bottom viewport.\n\n## Elevation & Depth\n\nThis design system rejects muddy skeuomorphic drop shadows and excessive diffuse glows. Elevation is established strictly through **Tonal Layering** and **Precision Razor Borders**.\n\n1. **Surface 0 (Base Canvas):** `#0a0a0c` \u2014 Infinite background substrate.\n2. **Surface 1 (Structural Modules & Cards):** `#18181b` \u2014 Primary resting state for panels, data grids, and cards, delineated by a razor-thin 1px border of `#27272a`.\n3. **Surface 2 (Elevated Overlays, Flyouts & Menus):** `#27272a` \u2014 Distinctly separated from Surface 1 with an external 1px perimeter outline of `#3f3f46` and a crisp, tight occlusion shadow: `0 8px 24px -4px rgba(0, 0, 0, 0.8)`.\n4. **Vapor Glow (Micro Focus & Critical State):** Reserved purely for focused interactive elements and active status highlights. Formed by a hyper-subtle localized bloom: `0 0 12px 1px rgba(163, 230, 53, 0.25)`. Large or muddy glows are strictly forbidden.\n\n## Components\n\n### Buttons\n- **Primary:** Solid vapor lime (`#a3e635`) background with rich pitch black (`#0a0a0c`) text, `font-weight: 600`, 4px radius. Hover: `#bef264` with a sharp focus ring of `0 0 0 2px #0a0a0c, 0 0 0 4px #a3e635`. Active: `#84cc16`.\n- **Secondary:** Surface titanium (`#18181b`) background, 1px border in `#27272a`, text in `#f4f4f5`. Hover: background shifts to `#27272a` with border transitioning to `#3f3f46`.\n- **Ghost:** Transparent background, text in `#a1a1aa`. Hover: background `#18181b`, text `#f4f4f5`.\n\n### Chips & Badges\n- **Status Badges:** Subtle `#18181b` background encased with a 1px border (`#27272a`). Displays a 6px circular dot filled with Vapor Lime (`#a3e635`) for live/active signals or `#71717a` for idle.\n- **Filter Chips:** 4px radius, `#18181b` surface. When selected, border transitions directly to `#a3e635` with text illuminated in `#f4f4f5`.\n\n### Form Controls (Inputs, Checkboxes, Radios)\n- **Input Fields:** Recessed `#0a0a0c` or `#18181b` fill with a crisp 1px stroke in `#27272a`. Placeholder text in `#71717a`. Focused state activates a 1px solid border in `#a3e635` paired with a precise ambient halo `0 0 0 1px #a3e635`.\n- **Checkboxes & Radios:** Base state is an empty 16x16 box with a 1px stroke of `#3f3f46`. Checked state fills the box with `#a3e635` and renders a `#0a0a0c` checkmark icon or center dot.\n\n### Cards & Panels\n- Constructed on `#18181b` with an enclosing 1px stroke of `#27272a`. Headers within cards use bottom border dividers in `#27272a` with uppercase `label-sm` text in `#71717a`. Hoverable cards shift border color to `#3f3f46` with zero scale shifts.\n\n### Lists & Data Tables\n- Row dividers set to 1px hairline `#18181b`. Alternate zebra-striping is prohibited. Selected row highlights utilize a 5% opacity tint of Vapor Lime (`rgba(163, 230, 53, 0.05)`) complemented by a 2px solid left accent bar in `#a3e635`.",
+    "theme": {
+      "colorMode": "DARK",
+      "font": "SORA",
+      "roundness": "ROUND_FOUR",
+      "customColor": "#a3e635",
+      "headlineFont": "SORA",
+      "bodyFont": "SORA",
+      "labelFont": "SORA",
+      "namedColors": {
+        "tertiary_fixed": "#e4e1e6",
+        "inverse_surface": "#e5e1e4",
+        "secondary_fixed_dim": "#c8c6c9",
+        "on_background": "#e5e1e4",
+        "surface_variant": "#353437",
+        "secondary_container": "#47464a",
+        "tertiary": "#f0edf1",
+        "on_secondary_fixed": "#1b1b1e",
+        "on_tertiary_container": "#5a595d",
+        "error": "#ffb4ab",
+        "inverse_on_surface": "#313032",
+        "on_secondary": "#303033",
+        "on_error": "#690005",
+        "surface_container_lowest": "#0e0e10",
+        "on_primary_container": "#416400",
+        "surface_container_low": "#1c1b1d",
+        "on_surface": "#e5e1e4",
+        "surface_container_highest": "#353437",
+        "outline_variant": "#424936",
+        "surface_container": "#201f21",
+        "tertiary_fixed_dim": "#c8c5ca",
+        "on_primary_fixed_variant": "#334f00",
+        "inverse_primary": "#446900",
+        "on_surface_variant": "#c2cab0",
+        "primary_fixed": "#b2f746",
+        "secondary": "#c8c6c9",
+        "outline": "#8c947c",
+        "on_tertiary_fixed_variant": "#47464a",
+        "background": "#131315",
+        "tertiary_container": "#d4d1d5",
+        "surface_bright": "#39393b",
+        "on_tertiary": "#303033",
+        "error_container": "#93000a",
+        "primary": "#ccff80",
+        "surface_dim": "#131315",
+        "primary_container": "#a3e635",
+        "on_primary": "#213600",
+        "surface_container_high": "#2a2a2c",
+        "secondary_fixed": "#e4e1e5",
+        "on_tertiary_fixed": "#1b1b1e",
+        "on_error_container": "#ffdad6",
+        "on_secondary_container": "#b6b4b8",
+        "primary_fixed_dim": "#98da27",
+        "on_secondary_fixed_variant": "#47464a",
+        "surface": "#131315",
+        "surface_tint": "#98da27",
+        "on_primary_fixed": "#121f00"
+      },
+      "designMd": "---\nname: Vapor Lime & Pitch\ncolors:\n  surface: '#131315'\n  surface-dim: '#131315'\n  surface-bright: '#39393b'\n  surface-container-lowest: '#0e0e10'\n  surface-container-low: '#1c1b1d'\n  surface-container: '#201f21'\n  surface-container-high: '#2a2a2c'\n  surface-container-highest: '#353437'\n  on-surface: '#e5e1e4'\n  on-surface-variant: '#c2cab0'\n  inverse-surface: '#e5e1e4'\n  inverse-on-surface: '#313032'\n  outline: '#8c947c'\n  outline-variant: '#424936'\n  surface-tint: '#98da27'\n  primary: '#ccff80'\n  on-primary: '#213600'\n  primary-container: '#a3e635'\n  on-primary-container: '#416400'\n  inverse-primary: '#446900'\n  secondary: '#c8c6c9'\n  on-secondary: '#303033'\n  secondary-container: '#47464a'\n  on-secondary-container: '#b6b4b8'\n  tertiary: '#f0edf1'\n  on-tertiary: '#303033'\n  tertiary-container: '#d4d1d5'\n  on-tertiary-container: '#5a595d'\n  error: '#ffb4ab'\n  on-error: '#690005'\n  error-container: '#93000a'\n  on-error-container: '#ffdad6'\n  primary-fixed: '#b2f746'\n  primary-fixed-dim: '#98da27'\n  on-primary-fixed: '#121f00'\n  on-primary-fixed-variant: '#334f00'\n  secondary-fixed: '#e4e1e5'\n  secondary-fixed-dim: '#c8c6c9'\n  on-secondary-fixed: '#1b1b1e'\n  on-secondary-fixed-variant: '#47464a'\n  tertiary-fixed: '#e4e1e6'\n  tertiary-fixed-dim: '#c8c5ca'\n  on-tertiary-fixed: '#1b1b1e'\n  on-tertiary-fixed-variant: '#47464a'\n  background: '#131315'\n  on-background: '#e5e1e4'\n  surface-variant: '#353437'\ntypography:\n  display-lg:\n    fontFamily: Sora\n    fontSize: 48px\n    fontWeight: '700'\n    lineHeight: 56px\n    letterSpacing: -0.03em\n  display-lg-mobile:\n    fontFamily: Sora\n    fontSize: 32px\n    fontWeight: '700'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-lg:\n    fontFamily: Sora\n    fontSize: 32px\n    fontWeight: '600'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-lg-mobile:\n    fontFamily: Sora\n    fontSize: 24px\n    fontWeight: '600'\n    lineHeight: 32px\n    letterSpacing: -0.015em\n  headline-md:\n    fontFamily: Sora\n    fontSize: 24px\n    fontWeight: '600'\n    lineHeight: 32px\n    letterSpacing: -0.015em\n  headline-sm:\n    fontFamily: Sora\n    fontSize: 20px\n    fontWeight: '600'\n    lineHeight: 28px\n    letterSpacing: -0.01em\n  title-md:\n    fontFamily: Sora\n    fontSize: 16px\n    fontWeight: '600'\n    lineHeight: 24px\n    letterSpacing: -0.005em\n  body-lg:\n    fontFamily: Sora\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 26px\n    letterSpacing: 0em\n  body-md:\n    fontFamily: Sora\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 22px\n    letterSpacing: 0em\n  body-sm:\n    fontFamily: Sora\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 18px\n    letterSpacing: 0.005em\n  label-md:\n    fontFamily: Sora\n    fontSize: 13px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.02em\n  label-sm:\n    fontFamily: Sora\n    fontSize: 11px\n    fontWeight: '600'\n    lineHeight: 14px\n    letterSpacing: 0.05em\n  code-sm:\n    fontFamily: Sora\n    fontSize: 12px\n    fontWeight: '500'\n    lineHeight: 18px\n    letterSpacing: 0em\nrounded:\n  sm: 0.125rem\n  DEFAULT: 0.25rem\n  md: 0.375rem\n  lg: 0.5rem\n  xl: 0.75rem\n  full: 9999px\nspacing:\n  space-2xs: 0.125rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 1rem\n  space-lg: 1.5rem\n  space-xl: 2rem\n  space-2xl: 3rem\n  space-3xl: 4rem\n  layout-margin-mobile: 1rem\n  layout-margin-desktop: 2rem\n  layout-gutter: 1rem\n---\n\n## Brand & Style\n\nThis design system embodies a High-Contrast Tech Minimalist aesthetic, built around tactical clarity, ruthless hierarchy, and laser-precise execution. It is tailored for high-performance developer tools, quantitative command centers, high-frequency interfaces, and next-generation security platforms where visual noise is unacceptable and signal fidelity is paramount.\n\nThe visual direction merges the engineering precision of brutalist interface architecture with the razor-sharp refinement of hyper-modern dark interfaces. By anchoring the interface in deep pitch-black depths and architecturally tiered graphites, content remains quiet and hyper-legible until an actionable state triggers an electric, radioactive spark. The emotional tone is authoritative, kinetic, ultra-focused, and unapologetically technical.\n\n## Colors\n\nThe system adheres strictly to the 60-30-10 distribution principle to maintain extreme focus and visual discipline:\n\n- **60% Dominant Canvas (`#0a0a0c` - True Pitch Carbon Black):** Forms the foundational environment. It is void-deep, dead neutral-cool, and absorbs light to maximize contrast without introducing muddy tones.\n- **30% Structural Architecture (`#18181b` Cool Graphite & `#27272a` Architectural Titanium):** Governs structural layout containers, interactive card planes, toolbars, sidebars, borders, and recessed inputs.\n  - `#18181b` serves as the primary elevated surface plane (cards, panels, modals).\n  - `#27272a` acts as secondary element fills, hovered interactive zones, and crisp bounding strokes (`border-subtle`).\n  - `#3f3f46` is reserved exclusively for high-visibility dividing hairpins and muted glyphs.\n- **10% Micro-Accents & Focal Triggers (`#a3e635` - Hyper-Acid Vapor Lime):** Deliberately restricted to crucial high-priority touchpoints. Used for primary CTAs, active telemetry indicators, selected toggles, critical badges, focus rings, and high-signal data viz spikes. Never applied to large background fields or non-interactive decorative blocks.\n\nText colors prioritize high-clarity legibility against dark grounds:\n- Primary Text: `#f4f4f5` (Zinc 100)\n- Secondary Text: `#a1a1aa` (Zinc 400)\n- Muted / Placeholder Text: `#71717a` (Zinc 500)\n\n## Typography\n\nSora acts as the unified geometric foundation across all structural, reading, and micro-label hierarchies. Its wide counterforms, sharp apertures, and tech-forward architecture project mechanical precision while ensuring supreme legibility on deep black screens.\n\nKey rules:\n- **Headlines & Displays:** Utilize tighter negative letter spacing (`-0.01em` to `-0.03em`) and medium-to-bold weights to convey solid mechanical permanence.\n- **Labels & Micro-data:** Micro-labels utilize semi-bold styling with widened letter-spacing (`0.02em` to `0.05em`) and uppercase transformation for status pings, metrics, and terminal key-value indicators.\n- **Line Heights:** Body text maintains balanced proportions to prevent eye fatigue against high-contrast pitch-black backgrounds.\n\n## Layout & Spacing\n\nThe layout is constructed on a rigorous, math-driven 4px baseline sub-grid with an 8px primary module. Structure follows an institutional fluid grid architecture that maximizes screen real estate while enforcing sharp divisional hygiene.\n\n- **Desktop (1024px+):** 12-column dynamic fluid layout with `2rem` outer margins and `1rem` gutters. Sidebars, command docks, and inspectors lock into explicit fixed widths (`240px` / `320px`), while internal metric dashboards fluidly adapt.\n- **Tablet (768px - 1023px):** 8-column layout with `1.5rem` margins and `1rem` gutters. Auxiliary docks collapse into drawer overlays or secondary bottom sheets.\n- **Mobile (< 768px):** 4-column layout with `1rem` edge margins and `0.75rem` gutters. Multi-column data panels collapse sequentially into singular vertical stacks, with primary CTAs pinned sticky to the bottom viewport.\n\n## Elevation & Depth\n\nThis design system rejects muddy skeuomorphic drop shadows and excessive diffuse glows. Elevation is established strictly through **Tonal Layering** and **Precision Razor Borders**.\n\n1. **Surface 0 (Base Canvas):** `#0a0a0c` \u2014 Infinite background substrate.\n2. **Surface 1 (Structural Modules & Cards):** `#18181b` \u2014 Primary resting state for panels, data grids, and cards, delineated by a razor-thin 1px border of `#27272a`.\n3. **Surface 2 (Elevated Overlays, Flyouts & Menus):** `#27272a` \u2014 Distinctly separated from Surface 1 with an external 1px perimeter outline of `#3f3f46` and a crisp, tight occlusion shadow: `0 8px 24px -4px rgba(0, 0, 0, 0.8)`.\n4. **Vapor Glow (Micro Focus & Critical State):** Reserved purely for focused interactive elements and active status highlights. Formed by a hyper-subtle localized bloom: `0 0 12px 1px rgba(163, 230, 53, 0.25)`. Large or muddy glows are strictly forbidden.\n\n## Shapes\n\nThe design system enforces a disciplined, mechanical shape language (`roundedness: 1`). Rounding is restrained to communicate industrial precision, avoiding both aggressive brutalist 0px raw edges and consumer-grade bulbous radii.\n\n- **Base Radius (`0.25rem` / 4px):** Applied to inputs, buttons, chips, badges, tooltips, and table row selection bounding boxes.\n- **Large Radius (`0.5rem` / 8px):** Applied to parent container panels, modular dashboard cards, modal viewports, and floating menus.\n- **Full Radius (Pill / 9999px):** Permitted only for telemetry dots and micro-status indicators.\n\n## Components\n\n### Buttons\n- **Primary:** Solid vapor lime (`#a3e635`) background with rich pitch black (`#0a0a0c`) text, `font-weight: 600`, 4px radius. Hover: `#bef264` with a sharp focus ring of `0 0 0 2px #0a0a0c, 0 0 0 4px #a3e635`. Active: `#84cc16`.\n- **Secondary:** Surface titanium (`#18181b`) background, 1px border in `#27272a`, text in `#f4f4f5`. Hover: background shifts to `#27272a` with border transitioning to `#3f3f46`.\n- **Ghost:** Transparent background, text in `#a1a1aa`. Hover: background `#18181b`, text `#f4f4f5`.\n\n### Chips & Badges\n- **Status Badges:** Subtle `#18181b` background encased with a 1px border (`#27272a`). Displays a 6px circular dot filled with Vapor Lime (`#a3e635`) for live/active signals or `#71717a` for idle.\n- **Filter Chips:** 4px radius, `#18181b` surface. When selected, border transitions directly to `#a3e635` with text illuminated in `#f4f4f5`.\n\n### Form Controls (Inputs, Checkboxes, Radios)\n- **Input Fields:** Recessed `#0a0a0c` or `#18181b` fill with a crisp 1px stroke in `#27272a`. Placeholder text in `#71717a`. Focused state activates a 1px solid border in `#a3e635` paired with a precise ambient halo `0 0 0 1px #a3e635`.\n- **Checkboxes & Radios:** Base state is an empty 16x16 box with a 1px stroke of `#3f3f46`. Checked state fills the box with `#a3e635` and renders a `#0a0a0c` checkmark icon or center dot.\n\n### Cards & Panels\n- Constructed on `#18181b` with an enclosing 1px stroke of `#27272a`. Headers within cards use bottom border dividers in `#27272a` with uppercase `label-sm` text in `#71717a`. Hoverable cards shift border color to `#3f3f46` with zero scale shifts.\n\n### Lists & Data Tables\n- Row dividers set to 1px hairline `#18181b`. Alternate zebra-striping is prohibited. Selected row highlights utilize a 5% opacity tint of Vapor Lime (`rgba(163, 230, 53, 0.05)`) complemented by a 2px solid left accent bar in `#a3e635`.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#a3e635",
+      "overrideSecondaryColor": "#27272a",
+      "overrideTertiaryColor": "#18181b",
+      "overrideNeutralColor": "#0a0a0c",
+      "spacingScale": 2,
+      "typography": {
+        "label-sm": {
+          "fontFamily": "Sora",
+          "fontSize": "11px",
+          "fontWeight": "600",
+          "lineHeight": "14px",
+          "letterSpacing": "0.05em"
+        },
+        "display-lg-mobile": {
+          "fontFamily": "Sora",
+          "fontSize": "32px",
+          "fontWeight": "700",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.02em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Sora",
+          "fontSize": "24px",
+          "fontWeight": "600",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.015em"
+        },
+        "headline-lg": {
+          "fontFamily": "Sora",
+          "fontSize": "32px",
+          "fontWeight": "600",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.02em"
+        },
+        "title-md": {
+          "fontFamily": "Sora",
+          "fontSize": "16px",
+          "fontWeight": "600",
+          "lineHeight": "24px",
+          "letterSpacing": "-0.005em"
+        },
+        "code-sm": {
+          "fontFamily": "Sora",
+          "fontSize": "12px",
+          "fontWeight": "500",
+          "lineHeight": "18px",
+          "letterSpacing": "0em"
+        },
+        "body-lg": {
+          "fontFamily": "Sora",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "26px",
+          "letterSpacing": "0em"
+        },
+        "label-md": {
+          "fontFamily": "Sora",
+          "fontSize": "13px",
+          "fontWeight": "600",
+          "lineHeight": "16px",
+          "letterSpacing": "0.02em"
+        },
+        "display-lg": {
+          "fontFamily": "Sora",
+          "fontSize": "48px",
+          "fontWeight": "700",
+          "lineHeight": "56px",
+          "letterSpacing": "-0.03em"
+        },
+        "body-md": {
+          "fontFamily": "Sora",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "22px",
+          "letterSpacing": "0em"
+        },
+        "body-sm": {
+          "fontFamily": "Sora",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "18px",
+          "letterSpacing": "0.005em"
+        },
+        "headline-sm": {
+          "fontFamily": "Sora",
+          "fontSize": "20px",
+          "fontWeight": "600",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.01em"
+        },
+        "headline-md": {
+          "fontFamily": "Sora",
+          "fontSize": "24px",
+          "fontWeight": "600",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.015em"
+        }
+      },
+      "spacing": {
+        "space-xl": "2rem",
+        "space-3xl": "4rem",
+        "space-2xl": "3rem",
+        "layout-margin-mobile": "1rem",
+        "layout-gutter": "1rem",
+        "space-xs": "0.25rem",
+        "space-lg": "1.5rem",
+        "space-2xs": "0.125rem",
+        "layout-margin-desktop": "2rem",
+        "space-sm": "0.5rem",
+        "space-md": "1rem"
+      },
+      "headlineFontFamily": "Sora",
+      "bodyFontFamily": "Sora",
+      "labelFontFamily": "Sora"
+    }
+  },
+  "version": "1"
+}

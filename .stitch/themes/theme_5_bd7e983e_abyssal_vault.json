@@ -1,0 +1,184 @@
+{
+  "name": "assets/bd7e983e1d934f86a2ea2be83a020dd8",
+  "designSystem": {
+    "displayName": "Abyssal Vault",
+    "styleGuidelines": "## Brand & Style\n\nThis design system crafts an immersive, contemplative, and ultra-secure atmosphere tailored for personal media vaults, encrypted archives, and confidential creative repositories. Drawing inspiration from deep-sea oceanic trenches and the mesmerizing, self-illuminating phenomena of hadal-zone fauna, the aesthetic couples deep abyssal shadows with electric bioluminescent signaling.\n\nThe core visual language unites **Glassmorphism** and **Atmospheric Layering**:\n- Surfaces emerge like submerged pressure-resistant hulls, utilizing translucent obsidian glass and deep oceanic stratification.\n- Vital interactions and focal media elements glow with an ethereal aquamarine aura, evoking the feeling of uncovering hidden relics in pitch-black waters.\n- Emotional cues telegraph profound privacy, supreme discretion, quiet luxury, and high-fidelity technological refinement. The experience feels tranquil yet intensely focused, preserving personal memories and confidential media within a protected subterranean sanctuary.\n\n## Layout & Spacing\n\nThis design system uses an expansive 12-column fluid grid system paired with an 8pt architectural rhythm to generate a sense of unhurried atmospheric openness:\n\n- **Desktop (1200px and up)**: 12-column fluid grid, 24px gutters, 48px outer page margin. Maximum container width capped at 1520px for media feed integrity. Masonry and fixed-aspect media tiles reflow fluidly from 4 to 6 columns.\n- **Tablet (768px - 1199px)**: 8-column fluid grid, 20px gutters, 32px outer margin. Side navigation retracts into an oceanic docked rail with icon indicators.\n- **Mobile (below 768px)**: 4-column layout with 16px gutters and 20px page margins. Thumb-reach bottom floating command bar replaces desktop header navigation. Media grids adapt to a 2-column or single-stream focal card format.\n\nSpacing uses generous internal padding inside containers (`space-lg` to `space-xl`) to establish an acoustic \"isolation\" effect around confidential media items, echoing the sound-dampened solitude of the deep ocean.\n\n## Elevation & Depth\n\nSpatial layering mimics light descending into water depths, transitioning from pitch abyss (`#030c1a`) up to suspended pressurized glass planes:\n\n- **Ground Level (Abyss)**: `#030c1a` canvas, completely light-absorbent.\n- **Tier 1 (Submerged Vessels & Shelves)**: Background surfaces tinted with `#0b2545` at 40% opacity, paired with a 24px backdrop blur (`backdrop-filter: blur(24px)`) and a hairline outer rim of `rgba(255, 255, 255, 0.05)`.\n- **Tier 2 (Elevated Media Vault Containers & Drawers)**: Tinted `#0b2545` at 70% opacity, framed by a soft internal light gradient falling from top-left to bottom-right (`linear-gradient(135deg, rgba(0, 245, 212, 0.12), rgba(11, 37, 69, 0.6))`).\n- **Tier 3 (Modals, Overlays & Player Decks)**: 90% Midnight Navy backed by a dual drop-shadow structure:\n  - Base Shadow: `0 24px 48px -12px rgba(1, 6, 15, 0.85)` for physical depth.\n  - Bioluminescent Scatter: `0 0 32px -4px rgba(0, 245, 212, 0.15)` for an otherworldly phosphorescent glow.\n- **Interactive Focus & Active States**: Hovering or selecting an elevated element activates an intensified edge discharge (`box-shadow: 0 0 16px rgba(0, 245, 212, 0.35), inset 0 0 0 1px #00f5d4`).\n\n## Components\n\n### Buttons & Interactive Triggers\n- **Primary Bioluminescent Action**: Background filled with `#00f5d4`, text rendered in deep `#030c1a` (bold Manrope), radiating an ambient glow (`box-shadow: 0 0 20px rgba(0, 245, 212, 0.45)`). On hover, the glow blooms (`0 0 28px rgba(0, 245, 212, 0.65)`).\n- **Secondary Ghost Action**: Translucent Midnight surface (`rgba(11, 37, 69, 0.6)`), hairline border (`rgba(0, 245, 212, 0.25)`), text in `#00f5d4`. On hover, the border brightens to 100% aquamarine with subtle interior cyan tinting.\n- **Destructive Vault Purge**: Deep obsidian base with an ominous crimson bioluminescent pulse (`#ff2a5f`), alerting the user to permanent file shredding.\n\n### Media Cards & Vault Containers\n- Built with Tier 1 frosted glassmorphism. Thumbnails are recessed with an ultra-subtle inward oceanic vignette.\n- Metadata bar sits anchored at the base, displaying title in Sora and technical specs (resolution, duration, encryption key) in JetBrains Mono.\n- Hover reveals an animated cyan scanline shimmer passing diagonally across the card face.\n\n### Chips & Status Beacons\n- Monospaced capsule tags with a leading 6px glowing dot.\n- Active encrypted status displays a rhythmic pulsing dot with `animation: pulse 2s infinite ease-in-out` using `#00f5d4`.\n- Quarantined or locked files utilize `#ff9f1c` (deep amber) or `#ff2a5f` (hadal red).\n\n### Input Fields & Search Bars\n- Recessed abyss background (`#020812`) framed with a 1px border of `rgba(148, 174, 203, 0.15)`.\n- Input text rendered in pure luminous white (`#f0f9ff`) with placeholder in muted deep ocean slate (`#577494`).\n- On focus, input triggers an immediate aquamarine edge ignition (`border-color: #00f5d4`) coupled with an ambient outer glow (`box-shadow: 0 0 14px rgba(0, 245, 212, 0.2)`).\n\n### Selection Controls (Checkboxes & Radios)\n- Checkboxes: 20px rounded squares (4px radius) in dark navy with a 1.5px border. Checked state transitions instantly to solid `#00f5d4` with an abyss-black check icon and localized glow.\n- Radios: Concentric circular beacons. When active, an inner 8px aquamarine disc radiates inside a midnight navy well.\n\n### Vault-Specific Components\n- **Bioluminescent Audio/Video Scrubber**: Track background in `#0b2545` with played buffer rendered as a brilliant `#00f5d4` glowing light beam; scrub thumb floats as an intense luminescent droplet.\n- **Encryption Shield Bar**: Segmented progress indicator tracking real-time cryptographic integrity, each completed segment lighting up sequentially in cyan.\n- **Biometric Unlock Portal**: Centerpiece auth trigger framed by concentric pulse rings expanding into the surrounding abyss.",
+    "theme": {
+      "colorMode": "DARK",
+      "font": "SORA",
+      "roundness": "ROUND_EIGHT",
+      "customColor": "#00f5d4",
+      "headlineFont": "SORA",
+      "bodyFont": "MANROPE",
+      "labelFont": "JETBRAINS_MONO",
+      "namedColors": {
+        "secondary_fixed_dim": "#b1c7f0",
+        "secondary_container": "#314769",
+        "on_secondary_fixed": "#001c3b",
+        "primary_fixed_dim": "#00dfc1",
+        "on_tertiary_fixed": "#001e2c",
+        "on_surface": "#d9e3f7",
+        "on_tertiary_container": "#00678a",
+        "surface_container_highest": "#2b3545",
+        "primary_container": "#00f5d4",
+        "on_secondary": "#193151",
+        "secondary_fixed": "#d5e3ff",
+        "surface_container_lowest": "#050e1d",
+        "on_primary_container": "#006c5c",
+        "error_container": "#93000a",
+        "surface_container_low": "#121c2b",
+        "tertiary_fixed": "#c3e8ff",
+        "surface_container": "#16202f",
+        "primary_fixed": "#26fedc",
+        "inverse_primary": "#006b5b",
+        "inverse_on_surface": "#273140",
+        "tertiary_container": "#afe1ff",
+        "on_primary": "#00382f",
+        "outline_variant": "#3a4a46",
+        "surface_tint": "#00dfc1",
+        "on_error": "#690005",
+        "on_surface_variant": "#b9cac4",
+        "on_primary_fixed": "#00201a",
+        "surface_dim": "#091422",
+        "on_primary_fixed_variant": "#005144",
+        "secondary": "#b1c7f0",
+        "tertiary_fixed_dim": "#79d1ff",
+        "surface": "#091422",
+        "tertiary": "#eff8ff",
+        "surface_bright": "#303a49",
+        "on_secondary_fixed_variant": "#314769",
+        "on_tertiary": "#003549",
+        "surface_variant": "#2b3545",
+        "error": "#ffb4ab",
+        "on_secondary_container": "#a0b6de",
+        "inverse_surface": "#d9e3f7",
+        "surface_container_high": "#202a3a",
+        "primary": "#d7fff3",
+        "on_tertiary_fixed_variant": "#004c68",
+        "background": "#091422",
+        "outline": "#83948f",
+        "on_error_container": "#ffdad6",
+        "on_background": "#d9e3f7"
+      },
+      "designMd": "---\nname: Abyssal Vault\ncolors:\n  surface: '#091422'\n  surface-dim: '#091422'\n  surface-bright: '#303a49'\n  surface-container-lowest: '#050e1d'\n  surface-container-low: '#121c2b'\n  surface-container: '#16202f'\n  surface-container-high: '#202a3a'\n  surface-container-highest: '#2b3545'\n  on-surface: '#d9e3f7'\n  on-surface-variant: '#b9cac4'\n  inverse-surface: '#d9e3f7'\n  inverse-on-surface: '#273140'\n  outline: '#83948f'\n  outline-variant: '#3a4a46'\n  surface-tint: '#00dfc1'\n  primary: '#d7fff3'\n  on-primary: '#00382f'\n  primary-container: '#00f5d4'\n  on-primary-container: '#006c5c'\n  inverse-primary: '#006b5b'\n  secondary: '#b1c7f0'\n  on-secondary: '#193151'\n  secondary-container: '#314769'\n  on-secondary-container: '#a0b6de'\n  tertiary: '#eff8ff'\n  on-tertiary: '#003549'\n  tertiary-container: '#afe1ff'\n  on-tertiary-container: '#00678a'\n  error: '#ffb4ab'\n  on-error: '#690005'\n  error-container: '#93000a'\n  on-error-container: '#ffdad6'\n  primary-fixed: '#26fedc'\n  primary-fixed-dim: '#00dfc1'\n  on-primary-fixed: '#00201a'\n  on-primary-fixed-variant: '#005144'\n  secondary-fixed: '#d5e3ff'\n  secondary-fixed-dim: '#b1c7f0'\n  on-secondary-fixed: '#001c3b'\n  on-secondary-fixed-variant: '#314769'\n  tertiary-fixed: '#c3e8ff'\n  tertiary-fixed-dim: '#79d1ff'\n  on-tertiary-fixed: '#001e2c'\n  on-tertiary-fixed-variant: '#004c68'\n  background: '#091422'\n  on-background: '#d9e3f7'\n  surface-variant: '#2b3545'\ntypography:\n  display-hero:\n    fontFamily: Sora\n    fontSize: 56px\n    fontWeight: '600'\n    lineHeight: 68px\n    letterSpacing: -0.03em\n  display-hero-mobile:\n    fontFamily: Sora\n    fontSize: 36px\n    fontWeight: '600'\n    lineHeight: 44px\n    letterSpacing: -0.02em\n  headline-lg:\n    fontFamily: Sora\n    fontSize: 40px\n    fontWeight: '600'\n    lineHeight: 48px\n    letterSpacing: -0.02em\n  headline-lg-mobile:\n    fontFamily: Sora\n    fontSize: 28px\n    fontWeight: '600'\n    lineHeight: 36px\n    letterSpacing: -0.01em\n  headline-md:\n    fontFamily: Sora\n    fontSize: 28px\n    fontWeight: '500'\n    lineHeight: 36px\n    letterSpacing: -0.015em\n  headline-sm:\n    fontFamily: Sora\n    fontSize: 20px\n    fontWeight: '500'\n    lineHeight: 28px\n    letterSpacing: -0.01em\n  title-md:\n    fontFamily: Manrope\n    fontSize: 18px\n    fontWeight: '600'\n    lineHeight: 26px\n    letterSpacing: 0em\n  body-lg:\n    fontFamily: Manrope\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 26px\n    letterSpacing: 0em\n  body-md:\n    fontFamily: Manrope\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 22px\n    letterSpacing: 0.01em\n  body-sm:\n    fontFamily: Manrope\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 18px\n    letterSpacing: 0.015em\n  label-lg:\n    fontFamily: JetBrains Mono\n    fontSize: 13px\n    fontWeight: '500'\n    lineHeight: 18px\n    letterSpacing: 0.05em\n  label-md:\n    fontFamily: JetBrains Mono\n    fontSize: 11px\n    fontWeight: '500'\n    lineHeight: 16px\n    letterSpacing: 0.06em\n  label-code:\n    fontFamily: JetBrains Mono\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 18px\n    letterSpacing: 0.02em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  space-2xs: 0.25rem\n  space-xs: 0.5rem\n  space-sm: 0.75rem\n  space-md: 1rem\n  space-lg: 1.5rem\n  space-xl: 2rem\n  space-2xl: 3rem\n  space-3xl: 4rem\n  gutter-mobile: 1rem\n  gutter-desktop: 1.5rem\n  margin-mobile: 1.25rem\n  margin-tablet: 2rem\n  margin-desktop: 3rem\n---\n\n## Brand & Style\n\nThis design system crafts an immersive, contemplative, and ultra-secure atmosphere tailored for personal media vaults, encrypted archives, and confidential creative repositories. Drawing inspiration from deep-sea oceanic trenches and the mesmerizing, self-illuminating phenomena of hadal-zone fauna, the aesthetic couples deep abyssal shadows with electric bioluminescent signaling.\n\nThe core visual language unites **Glassmorphism** and **Atmospheric Layering**:\n- Surfaces emerge like submerged pressure-resistant hulls, utilizing translucent obsidian glass and deep oceanic stratification.\n- Vital interactions and focal media elements glow with an ethereal aquamarine aura, evoking the feeling of uncovering hidden relics in pitch-black waters.\n- Emotional cues telegraph profound privacy, supreme discretion, quiet luxury, and high-fidelity technological refinement. The experience feels tranquil yet intensely focused, preserving personal memories and confidential media within a protected subterranean sanctuary.\n\n## Colors\n\nThe palette strictly adheres to an oceanic depth distribution to maintain visual weight and high dramatic contrast:\n\n- **60% Abyss Base (`#030c1a`)**: The foundational canvas. An impenetrable, deep trench black-blue that absorbs ambient glare, reduces eye strain, and provides an infinite horizon against which media shines.\n- **30% Midnight Navy (`#0b2545`)**: The structural architecture. Employed across containers, navigation panels, floating cards, toolbars, and contextual drawer surfaces. It establishes spatial hierarchy through tonal layering rather than blunt borders.\n- **10% Bioluminescent Aquamarine (`#00f5d4`)**: The concentrated pulse. Reserved strictly for primary call-to-actions, active playback or encryption progress, focus rings, and glowing indicator beacons. It must never be overused, ensuring its presence commands absolute visual priority.\n- **Accent Radiance (`#00bbf9`)**: A secondary electric cyan used for secondary data markers, audio visualizers, and gentle gradient transitions into the core aquamarine.\n- **Functional Alpha Overlays**:\n  - Vault Surface Glass: `rgba(11, 37, 69, 0.45)` with dynamic backdrop blur.\n  - Luminescent Glow Tint: `rgba(0, 245, 212, 0.18)` for ambient radial underlays beneath high-priority cards.\n  - Text Hierarchy: Primary text at `rgba(240, 249, 255, 0.95)`, secondary labels at `rgba(148, 174, 203, 0.70)`, and muted timestamps/metadata at `rgba(87, 116, 148, 0.50)`.\n\n## Typography\n\nThe typographic system balances futuristic elegance with technical cryptographic precision:\n\n- **Headlines (Sora)**: Imparts a sleek, geometric weight reminiscent of modern marine research interfaces and advanced vault hardware. Slightly condensed tracking on large scales accentuates confident authority.\n- **Body (Manrope)**: Delivers exceptional legibility on dark luminescence. Its balanced geometric construction and open counters ensure comfortable prolonged inspection of file details, captions, and narrative logs.\n- **Labels & System Meta (JetBrains Mono)**: Infuses the vault with an unmistakable cryptographic feel. Used for hashes, timestamps, encryption levels, file sizes, and status chips, evoking an authentic command-line precision behind a polished interface.\n\n## Layout & Spacing\n\nThis design system uses an expansive 12-column fluid grid system paired with an 8pt architectural rhythm to generate a sense of unhurried atmospheric openness:\n\n- **Desktop (1200px and up)**: 12-column fluid grid, 24px gutters, 48px outer page margin. Maximum container width capped at 1520px for media feed integrity. Masonry and fixed-aspect media tiles reflow fluidly from 4 to 6 columns.\n- **Tablet (768px - 1199px)**: 8-column fluid grid, 20px gutters, 32px outer margin. Side navigation retracts into an oceanic docked rail with icon indicators.\n- **Mobile (below 768px)**: 4-column layout with 16px gutters and 20px page margins. Thumb-reach bottom floating command bar replaces desktop header navigation. Media grids adapt to a 2-column or single-stream focal card format.\n\nSpacing uses generous internal padding inside containers (`space-lg` to `space-xl`) to establish an acoustic \"isolation\" effect around confidential media items, echoing the sound-dampened solitude of the deep ocean.\n\n## Elevation & Depth\n\nSpatial layering mimics light descending into water depths, transitioning from pitch abyss (`#030c1a`) up to suspended pressurized glass planes:\n\n- **Ground Level (Abyss)**: `#030c1a` canvas, completely light-absorbent.\n- **Tier 1 (Submerged Vessels & Shelves)**: Background surfaces tinted with `#0b2545` at 40% opacity, paired with a 24px backdrop blur (`backdrop-filter: blur(24px)`) and a hairline outer rim of `rgba(255, 255, 255, 0.05)`.\n- **Tier 2 (Elevated Media Vault Containers & Drawers)**: Tinted `#0b2545` at 70% opacity, framed by a soft internal light gradient falling from top-left to bottom-right (`linear-gradient(135deg, rgba(0, 245, 212, 0.12), rgba(11, 37, 69, 0.6))`).\n- **Tier 3 (Modals, Overlays & Player Decks)**: 90% Midnight Navy backed by a dual drop-shadow structure:\n  - Base Shadow: `0 24px 48px -12px rgba(1, 6, 15, 0.85)` for physical depth.\n  - Bioluminescent Scatter: `0 0 32px -4px rgba(0, 245, 212, 0.15)` for an otherworldly phosphorescent glow.\n- **Interactive Focus & Active States**: Hovering or selecting an elevated element activates an intensified edge discharge (`box-shadow: 0 0 16px rgba(0, 245, 212, 0.35), inset 0 0 0 1px #00f5d4`).\n\n## Shapes\n\nThe shape system leverages a refined 8px (`0.5rem`) base curve radius (`roundedness: 2`). This strikes a harmonious chord between the structural, pressure-treated angularity of deep-submersible instruments and the organic curvature of bioluminescent sea organisms:\n\n- Standard cards, input fields, and panels employ `rounded-lg` (16px / 1rem) to soften content perimeters while preserving sleek geometric discipline.\n- Modals, prominent hero media displays, and lightbox viewports utilize `rounded-xl` (24px / 1.5rem).\n- Floating control pills, status indicators, audio badges, and micro-tags feature continuous pill rounding (`9999px`) to resemble luminous fluid nodes adrift in deep currents.\n\n## Components\n\n### Buttons & Interactive Triggers\n- **Primary Bioluminescent Action**: Background filled with `#00f5d4`, text rendered in deep `#030c1a` (bold Manrope), radiating an ambient glow (`box-shadow: 0 0 20px rgba(0, 245, 212, 0.45)`). On hover, the glow blooms (`0 0 28px rgba(0, 245, 212, 0.65)`).\n- **Secondary Ghost Action**: Translucent Midnight surface (`rgba(11, 37, 69, 0.6)`), hairline border (`rgba(0, 245, 212, 0.25)`), text in `#00f5d4`. On hover, the border brightens to 100% aquamarine with subtle interior cyan tinting.\n- **Destructive Vault Purge**: Deep obsidian base with an ominous crimson bioluminescent pulse (`#ff2a5f`), alerting the user to permanent file shredding.\n\n### Media Cards & Vault Containers\n- Built with Tier 1 frosted glassmorphism. Thumbnails are recessed with an ultra-subtle inward oceanic vignette.\n- Metadata bar sits anchored at the base, displaying title in Sora and technical specs (resolution, duration, encryption key) in JetBrains Mono.\n- Hover reveals an animated cyan scanline shimmer passing diagonally across the card face.\n\n### Chips & Status Beacons\n- Monospaced capsule tags with a leading 6px glowing dot.\n- Active encrypted status displays a rhythmic pulsing dot with `animation: pulse 2s infinite ease-in-out` using `#00f5d4`.\n- Quarantined or locked files utilize `#ff9f1c` (deep amber) or `#ff2a5f` (hadal red).\n\n### Input Fields & Search Bars\n- Recessed abyss background (`#020812`) framed with a 1px border of `rgba(148, 174, 203, 0.15)`.\n- Input text rendered in pure luminous white (`#f0f9ff`) with placeholder in muted deep ocean slate (`#577494`).\n- On focus, input triggers an immediate aquamarine edge ignition (`border-color: #00f5d4`) coupled with an ambient outer glow (`box-shadow: 0 0 14px rgba(0, 245, 212, 0.2)`).\n\n### Selection Controls (Checkboxes & Radios)\n- Checkboxes: 20px rounded squares (4px radius) in dark navy with a 1.5px border. Checked state transitions instantly to solid `#00f5d4` with an abyss-black check icon and localized glow.\n- Radios: Concentric circular beacons. When active, an inner 8px aquamarine disc radiates inside a midnight navy well.\n\n### Vault-Specific Components\n- **Bioluminescent Audio/Video Scrubber**: Track background in `#0b2545` with played buffer rendered as a brilliant `#00f5d4` glowing light beam; scrub thumb floats as an intense luminescent droplet.\n- **Encryption Shield Bar**: Segmented progress indicator tracking real-time cryptographic integrity, each completed segment lighting up sequentially in cyan.\n- **Biometric Unlock Portal**: Centerpiece auth trigger framed by concentric pulse rings expanding into the surrounding abyss.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#00f5d4",
+      "overrideSecondaryColor": "#0b2545",
+      "overrideTertiaryColor": "#00bbf9",
+      "overrideNeutralColor": "#030c1a",
+      "spacingScale": 2,
+      "typography": {
+        "headline-lg": {
+          "fontFamily": "Sora",
+          "fontSize": "40px",
+          "fontWeight": "600",
+          "lineHeight": "48px",
+          "letterSpacing": "-0.02em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Sora",
+          "fontSize": "28px",
+          "fontWeight": "600",
+          "lineHeight": "36px",
+          "letterSpacing": "-0.01em"
+        },
+        "label-md": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "11px",
+          "fontWeight": "500",
+          "lineHeight": "16px",
+          "letterSpacing": "0.06em"
+        },
+        "body-lg": {
+          "fontFamily": "Manrope",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "26px",
+          "letterSpacing": "0em"
+        },
+        "body-sm": {
+          "fontFamily": "Manrope",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "18px",
+          "letterSpacing": "0.015em"
+        },
+        "label-lg": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "13px",
+          "fontWeight": "500",
+          "lineHeight": "18px",
+          "letterSpacing": "0.05em"
+        },
+        "display-hero": {
+          "fontFamily": "Sora",
+          "fontSize": "56px",
+          "fontWeight": "600",
+          "lineHeight": "68px",
+          "letterSpacing": "-0.03em"
+        },
+        "body-md": {
+          "fontFamily": "Manrope",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "22px",
+          "letterSpacing": "0.01em"
+        },
+        "headline-md": {
+          "fontFamily": "Sora",
+          "fontSize": "28px",
+          "fontWeight": "500",
+          "lineHeight": "36px",
+          "letterSpacing": "-0.015em"
+        },
+        "headline-sm": {
+          "fontFamily": "Sora",
+          "fontSize": "20px",
+          "fontWeight": "500",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.01em"
+        },
+        "label-code": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "18px",
+          "letterSpacing": "0.02em"
+        },
+        "title-md": {
+          "fontFamily": "Manrope",
+          "fontSize": "18px",
+          "fontWeight": "600",
+          "lineHeight": "26px",
+          "letterSpacing": "0em"
+        },
+        "display-hero-mobile": {
+          "fontFamily": "Sora",
+          "fontSize": "36px",
+          "fontWeight": "600",
+          "lineHeight": "44px",
+          "letterSpacing": "-0.02em"
+        }
+      },
+      "spacing": {
+        "space-xs": "0.5rem",
+        "space-lg": "1.5rem",
+        "space-2xl": "3rem",
+        "space-3xl": "4rem",
+        "space-xl": "2rem",
+        "margin-tablet": "2rem",
+        "margin-mobile": "1.25rem",
+        "gutter-mobile": "1rem",
+        "margin-desktop": "3rem",
+        "space-md": "1rem",
+        "space-sm": "0.75rem",
+        "gutter-desktop": "1.5rem",
+        "space-2xs": "0.25rem"
+      },
+      "headlineFontFamily": "Sora",
+      "bodyFontFamily": "Manrope",
+      "labelFontFamily": "JetBrains Mono"
+    }
+  },
+  "version": "1"
+}

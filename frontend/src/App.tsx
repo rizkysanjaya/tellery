@@ -1,8 +1,9 @@
 /**
  * =============================================================================
  * Module: frontend/src/App.tsx
- * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
- *          neomorphic themes, Battery Saver / Low Power GPU conservation mode,
+ * Purpose: Root application component managing gallery state, VS Code-style 10-theme
+ *          multi-theme system (Obsidian, Light, Matcha, Solar Flare, Tuscan, Tokyo,
+ *          Abyss, Amethyst, Vapor Lime, Sakura), Battery Saver / Low Power GPU conservation mode,
  *          centralized Preferences & Storage dialog (SettingsModal),
  *          normalized WCAG 2.2 AA contrast in Light & Dark modes,
  *          Multi-Vault Telegram channel switching & dialog discovery,
@@ -81,6 +82,7 @@ import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
 import { AppToast, ToastNotification, ToastType } from "./components/ui/AppToast";
+import { ThemeId, applyTheme, getSavedTheme, getThemeById } from "./config/themes";
 
 // Dynamic code-splitting via React.lazy to reduce entry bundle size (<500 kB target)
 const FolderGrid = React.lazy(() => import("./components/FolderGrid").then((m) => ({ default: m.FolderGrid })));
@@ -190,10 +192,10 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem("telegallery_sort_by");
     return (saved as SortOption) || "date_desc";
   });
-  const [theme, setTheme] = useState<"dark" | "light">(() => {
-    const saved = localStorage.getItem("telegallery_theme");
-    return (saved as "dark" | "light") || "dark";
-  });
+  const [currentTheme, setCurrentTheme] = useState<ThemeId>(() => getSavedTheme());
+  const activeThemeMeta = getThemeById(currentTheme);
+  const theme: "dark" | "light" = activeThemeMeta.mode;
+
   const [batterySaver, setBatterySaver] = useState<boolean>(() => {
     const saved = localStorage.getItem("telegallery_battery_saver");
     if (saved !== null) {
@@ -205,22 +207,10 @@ export const App: React.FC = () => {
     return false;
   });
 
-  // Apply theme class to document root
+  // Apply active theme tokens and mode class to document root
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-      root.classList.remove("light");
-    } else {
-      root.classList.add("light");
-      root.classList.remove("dark");
-    }
-    try {
-      localStorage.setItem("telegallery_theme", theme);
-    } catch {
-      // Ignore quota/storage errors
-    }
-  }, [theme]);
+    applyTheme(currentTheme);
+  }, [currentTheme]);
 
   // Persist battery saver mode and optionally auto-detect low battery (< 20%)
   useEffect(() => {
@@ -284,7 +274,14 @@ export const App: React.FC = () => {
   }, [selectedCollection]);
 
   const handleToggleTheme = useCallback(() => {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+    setCurrentTheme((prev) => {
+      const meta = getThemeById(prev);
+      return meta.mode === "dark" ? "light" : "obsidian";
+    });
+  }, []);
+
+  const handleSelectTheme = useCallback((themeId: ThemeId) => {
+    setCurrentTheme(themeId);
   }, []);
 
   const handleToggleBatterySaver = useCallback(() => {
@@ -2358,6 +2355,7 @@ export const App: React.FC = () => {
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
           theme={theme}
+          currentTheme={currentTheme}
           onToggleTheme={handleToggleTheme}
           batterySaver={batterySaver}
           onToggleBatterySaver={handleToggleBatterySaver}
@@ -2817,6 +2815,8 @@ export const App: React.FC = () => {
         onTriggerUpload={() => hiddenFileInputRef.current?.click()}
         onSyncVault={handleSyncVault}
         theme={theme}
+        currentTheme={currentTheme}
+        onSelectTheme={handleSelectTheme}
         onToggleTheme={handleToggleTheme}
       />
 
@@ -2911,6 +2911,8 @@ export const App: React.FC = () => {
             stats={stats}
             activeVault={activeVault}
             theme={theme}
+            currentTheme={currentTheme}
+            onSelectTheme={handleSelectTheme}
             onToggleTheme={handleToggleTheme}
             batterySaver={batterySaver}
             onToggleBatterySaver={handleToggleBatterySaver}

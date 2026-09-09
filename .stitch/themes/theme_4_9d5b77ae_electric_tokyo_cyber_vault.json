@@ -1,0 +1,161 @@
+{
+  "name": "assets/9d5b77ae2ffb4a0883ddc7590b60e018",
+  "designSystem": {
+    "displayName": "Electric Tokyo Cyber-Vault",
+    "styleGuidelines": "## Brand & Style\n\nThis design system channels a high-octane Cyberpunk aesthetic rooted in the hyper-dense, electric nocturnal atmosphere of Tokyo. Engineered specifically for an encrypted personal media and knowledge vault, the system balances impenetrable digital security with raw, neon-charged subculture.\n\nThe visual direction marries stark, utilitarian structural grids with vivid optical luminance. It evokes the feeling of accessing a black-market data deck in Shinjuku: sharp lines, pitch-black voids, subtle scanline textures, and high-frequency chromatic glows. \n\nInteraction and visual feedback rely heavily on high-contrast states, crisp vector borders, and targeted phosphor blooms, avoiding soft organic shapes in favor of razor-sharp angles and technical precision.\n\n## Layout & Spacing\n\nThe layout model is built on an exact 4px sub-grid mapped to an 8px modular cadence. Layouts conform to a dense, tactical workspace architecture:\n\n- **Grid Architecture:** \n  - **Desktop (>= 1280px):** 12-column dynamic grid with fixed `24px` gutters and `40px` margins. Lateral toolbars and inspector rails lock to fixed widths (`280px` to `360px`), while the central media canvas remains fluid.\n  - **Tablet (768px - 1279px):** 8-column layout with `16px` gutters. Panels collapse into slide-out HUD overlays.\n  - **Mobile (< 768px):** 4-column layout with `16px` margins. Side-rails convert to bottom-anchored sheets.\n- **Visual Rhythm:** Elements must avoid soft gaps; spacing is compact and intentional, treating UI panels like calibrated instruments rather than airy marketing brochures.\n\n## Elevation & Depth\n\nDepth is established without traditional diffuse drop shadows, which dilute the cyberpunk sharpness. Instead, depth is articulated through three distinct techniques:\n\n1. **Surface Tiers:**\n   - **Level 0 (Canvas):** `#08080d` \u2014 Raw background void.\n   - **Level 1 (Panels & Trays):** `#131625` with a 1px structural outline of `rgba(0, 240, 255, 0.12)`.\n   - **Level 2 (Active Cards & Modals):** `#1a1e33` with 1px border `rgba(255, 0, 127, 0.25)`.\n2. **Neon Phosphor Blooms (Glow Overlays):**\n   - Active interactive states project a crisp dual-layer glow: a concentrated inner aura (`0 0 10px rgba(255, 0, 127, 0.45)`) paired with a wide atmospheric dispersion (`0 0 25px rgba(255, 0, 127, 0.15)`).\n   - Cyber-cyan telemetry glow: `0 0 8px rgba(0, 240, 255, 0.5)`.\n3. **Ghost Insets & Laser Cut Borders:** Elevated panels feature razor-thin `1px` high-contrast outer borders, occasionally terminated with 45-degree chamfered corner notches to evoke military-grade hardware interfaces.\n\n## Components\n\n### Buttons\n- **Primary (Voltage Trigger):** Pure `#ff007f` background, text in `#08080d` Space Grotesk Bold, 0px radius. Hover triggers an instant transition to an electric neon aura (`box-shadow: 0 0 16px #ff007f`) with an inverted text shift.\n- **Secondary (Laser Outline):** Transparent background, 1px `#00f0ff` border, `#00f0ff` typography. Hover shifts background to `rgba(0, 240, 255, 0.1)` with a `0 0 12px rgba(0, 240, 255, 0.4)` glow.\n- **Ghost Action:** Background transparent, borderless, `#94a3b8` text, switching to bright white with cyan underscore line on hover.\n\n### Inputs & Search Bars\n- Background set to `#0f111d`. Border is 1px solid `rgba(255, 255, 255, 0.12)`.\n- Text styled in Geist with placeholder in `#3b4261`.\n- **Focus State:** Border flashes instantly to `#00f0ff`, backed by a subtle perimeter glow (`0 0 8px rgba(0, 240, 255, 0.3)`). A microscopic JetBrains Mono prompt character (`>_`) sits fixed as the leading icon.\n\n### Cards & Media Tiles\n- Built on `#131625` with hard 1px outline in `#1e243a`.\n- Hover state elevates the border to `#ff007f` or `#00f0ff` based on media categorization, with media thumbnails shifting from a muted cold-grade to full saturated color.\n- Top-right corner displays monospaced cryptographic IDs or MIME-types (e.g., `[RAW.HEIC]`, `[ENC.256]`).\n\n### Chips & Badges\n- Strict monospaced text (JetBrains Mono) set to uppercase.\n- Ultra-compact padding (`2px 6px`).\n- Encased in a 1px border matching the tag's accent color (e.g., pink for `#VAULT_CORE`, cyan for `#SECURE_SYNC`) with a 10% alpha background of that same hue.\n\n### Lists & Data Rows\n- Flat striped rows switching between `#08080d` and `#0d0f18`.\n- Separated by hairline 1px rules (`#171a2b`).\n- Row hover triggers an electric 2px accent indicator strip on the extreme left border edge in `#00f0ff`.\n\n### Checkboxes & Radio Controls\n- **Checkboxes:** Sharp square boxes (`16px \u00d7 16px`), 1px border `#3b4261`. Checked state fills with `#ff007f` containing an angular vector check in `#08080d`.\n- **Radios:** Diamond or sharp square rotation (45-degree diamond) rather than standard circles, holding a centered dot in `#00f0ff`.\n\n### Vault-Specific Components\n- **Encryption Status Header:** A persistent HUD strip delivering ping metrics, storage allocation, and cryptographic status in glowing Cyan telemetry text.\n- **Media Lightbox:** Frameless obsidian viewport with floating, borderless control clusters illuminated by hot pink interactive glyphs.",
+    "theme": {
+      "colorMode": "DARK",
+      "font": "SPACE_GROTESK",
+      "customColor": "#ff007f",
+      "headlineFont": "SPACE_GROTESK",
+      "bodyFont": "GEIST",
+      "labelFont": "JETBRAINS_MONO",
+      "namedColors": {
+        "on_error_container": "#ffdad6",
+        "surface": "#131318",
+        "outline_variant": "#5c3f46",
+        "background": "#131318",
+        "surface_dim": "#131318",
+        "tertiary": "#dbb8ff",
+        "on_error": "#690005",
+        "surface_container_high": "#2a292f",
+        "tertiary_fixed_dim": "#dbb8ff",
+        "outline": "#ac878f",
+        "on_tertiary": "#470083",
+        "on_surface_variant": "#e5bcc5",
+        "on_primary_container": "#590028",
+        "on_secondary_container": "#00686f",
+        "on_primary_fixed": "#3f001a",
+        "on_background": "#e4e1e9",
+        "on_primary_fixed_variant": "#8f0044",
+        "primary": "#ffb1c4",
+        "surface_variant": "#35343a",
+        "surface_tint": "#ffb1c4",
+        "on_secondary_fixed_variant": "#004f54",
+        "tertiary_fixed": "#efdbff",
+        "secondary_container": "#00eefc",
+        "inverse_surface": "#e4e1e9",
+        "secondary_fixed_dim": "#00dbe9",
+        "on_primary": "#65002e",
+        "on_tertiary_fixed_variant": "#6600b7",
+        "tertiary_container": "#b36fff",
+        "inverse_on_surface": "#303036",
+        "surface_container_low": "#1b1b21",
+        "error": "#ffb4ab",
+        "primary_container": "#ff4a8d",
+        "surface_container_highest": "#35343a",
+        "surface_container_lowest": "#0e0e13",
+        "primary_fixed_dim": "#ffb1c4",
+        "on_tertiary_fixed": "#2b0052",
+        "secondary_fixed": "#7df4ff",
+        "primary_fixed": "#ffd9e1",
+        "on_surface": "#e4e1e9",
+        "on_tertiary_container": "#3e0073",
+        "surface_bright": "#39383f",
+        "secondary": "#d3fbff",
+        "error_container": "#93000a",
+        "on_secondary_fixed": "#002022",
+        "on_secondary": "#00363a",
+        "inverse_primary": "#ba005b",
+        "surface_container": "#1f1f25"
+      },
+      "designMd": "---\nname: Electric Tokyo Cyber-Vault\ncolors:\n  surface: '#131318'\n  surface-dim: '#131318'\n  surface-bright: '#39383f'\n  surface-container-lowest: '#0e0e13'\n  surface-container-low: '#1b1b21'\n  surface-container: '#1f1f25'\n  surface-container-high: '#2a292f'\n  surface-container-highest: '#35343a'\n  on-surface: '#e4e1e9'\n  on-surface-variant: '#e5bcc5'\n  inverse-surface: '#e4e1e9'\n  inverse-on-surface: '#303036'\n  outline: '#ac878f'\n  outline-variant: '#5c3f46'\n  surface-tint: '#ffb1c4'\n  primary: '#ffb1c4'\n  on-primary: '#65002e'\n  primary-container: '#ff4a8d'\n  on-primary-container: '#590028'\n  inverse-primary: '#ba005b'\n  secondary: '#d3fbff'\n  on-secondary: '#00363a'\n  secondary-container: '#00eefc'\n  on-secondary-container: '#00686f'\n  tertiary: '#dbb8ff'\n  on-tertiary: '#470083'\n  tertiary-container: '#b36fff'\n  on-tertiary-container: '#3e0073'\n  error: '#ffb4ab'\n  on-error: '#690005'\n  error-container: '#93000a'\n  on-error-container: '#ffdad6'\n  primary-fixed: '#ffd9e1'\n  primary-fixed-dim: '#ffb1c4'\n  on-primary-fixed: '#3f001a'\n  on-primary-fixed-variant: '#8f0044'\n  secondary-fixed: '#7df4ff'\n  secondary-fixed-dim: '#00dbe9'\n  on-secondary-fixed: '#002022'\n  on-secondary-fixed-variant: '#004f54'\n  tertiary-fixed: '#efdbff'\n  tertiary-fixed-dim: '#dbb8ff'\n  on-tertiary-fixed: '#2b0052'\n  on-tertiary-fixed-variant: '#6600b7'\n  background: '#131318'\n  on-background: '#e4e1e9'\n  surface-variant: '#35343a'\ntypography:\n  display-hero:\n    fontFamily: Space Grotesk\n    fontSize: 56px\n    fontWeight: '700'\n    lineHeight: 64px\n    letterSpacing: -0.04em\n  display-hero-mobile:\n    fontFamily: Space Grotesk\n    fontSize: 36px\n    fontWeight: '700'\n    lineHeight: 42px\n    letterSpacing: -0.03em\n  headline-lg:\n    fontFamily: Space Grotesk\n    fontSize: 32px\n    fontWeight: '600'\n    lineHeight: 40px\n    letterSpacing: -0.02em\n  headline-lg-mobile:\n    fontFamily: Space Grotesk\n    fontSize: 24px\n    fontWeight: '600'\n    lineHeight: 32px\n    letterSpacing: -0.02em\n  headline-md:\n    fontFamily: Space Grotesk\n    fontSize: 20px\n    fontWeight: '600'\n    lineHeight: 28px\n    letterSpacing: -0.01em\n  body-lg:\n    fontFamily: Geist\n    fontSize: 16px\n    fontWeight: '400'\n    lineHeight: 24px\n    letterSpacing: 0em\n  body-md:\n    fontFamily: Geist\n    fontSize: 14px\n    fontWeight: '400'\n    lineHeight: 20px\n    letterSpacing: 0em\n  body-sm:\n    fontFamily: Geist\n    fontSize: 12px\n    fontWeight: '400'\n    lineHeight: 16px\n    letterSpacing: 0.01em\n  label-code:\n    fontFamily: JetBrains Mono\n    fontSize: 12px\n    fontWeight: '500'\n    lineHeight: 16px\n    letterSpacing: 0.08em\n  label-tag:\n    fontFamily: JetBrains Mono\n    fontSize: 11px\n    fontWeight: '600'\n    lineHeight: 14px\n    letterSpacing: 0.06em\nspacing:\n  space-2xs: 0.125rem\n  space-xs: 0.25rem\n  space-sm: 0.5rem\n  space-md: 0.75rem\n  space-lg: 1rem\n  space-xl: 1.5rem\n  space-2xl: 2rem\n  space-3xl: 3rem\n  gutter-mobile: 1rem\n  gutter-desktop: 1.5rem\n  margin-mobile: 1rem\n  margin-desktop: 2.5rem\n---\n\n## Brand & Style\n\nThis design system channels a high-octane Cyberpunk aesthetic rooted in the hyper-dense, electric nocturnal atmosphere of Tokyo. Engineered specifically for an encrypted personal media and knowledge vault, the system balances impenetrable digital security with raw, neon-charged subculture.\n\nThe visual direction marries stark, utilitarian structural grids with vivid optical luminance. It evokes the feeling of accessing a black-market data deck in Shinjuku: sharp lines, pitch-black voids, subtle scanline textures, and high-frequency chromatic glows. \n\nInteraction and visual feedback rely heavily on high-contrast states, crisp vector borders, and targeted phosphor blooms, avoiding soft organic shapes in favor of razor-sharp angles and technical precision.\n\n## Colors\n\nThe 60-30-10 color balance is strictly enforced to maintain cinematic immersion and visual ergonomics:\n\n- **Dominant Base (60%):** `#08080d` (Obsidian Void). Serves as the primary canvas, deep application backdrops, and base layers. Absorbs excess luminance to make overlays pop without visual fatigue.\n- **Secondary Surfaces (30%):** `#131625` (Midnight Slate) and `#1c2035` (Elevated Deck). Used for cards, panels, sidebars, contextual menus, and container fills. Separates functional zones without harsh white dividers.\n- **Accent Signals (10%):** \n  - `#ff007f` (Hot Neon Pink / Voltage Magenta): Reserved for primary interaction triggers, active state rings, system warnings, and high-priority media tags.\n  - `#00f0ff` (Cyan Laser): Allocated to technical readouts, secure encryption indicators, hyperlinked data links, and secondary interactive vectors.\n  - `#7928ca` (Hyper Violet): Used sparingly as an optical bridge between Cyan and Magenta in gradients or background glow dispersion.\n- **Data & Text Hierarchy:** `#f0f4fc` for primary titles, `#94a3b8` for operational metadata, and `#3b4261` for structural lines and disabled states.\n\n## Typography\n\nTypography delivers a synthesis of mechanical precision and editorial sharpness:\n\n- **Display & Headlines (Space Grotesk):** Engineered geometry with brutalist cuts. Headlines should remain tight, assertive, and predominantly tracked slightly negative to maintain impact.\n- **Body & Continuous Copy (Geist):** Clean, neutral, high-legibility sans-serif optimized for deep reading, dense metadata scanning, and long-form note curation inside vault workspaces.\n- **System Telemetry & Labels (JetBrains Mono):** Reserved for timestamps, byte counters, vault IDs, status chips, and code blocks. Labels are always set in uppercase with expanded tracking (`0.06em` to `0.08em`) to echo cybernetic HUD interfaces.\n\n## Layout & Spacing\n\nThe layout model is built on an exact 4px sub-grid mapped to an 8px modular cadence. Layouts conform to a dense, tactical workspace architecture:\n\n- **Grid Architecture:** \n  - **Desktop (>= 1280px):** 12-column dynamic grid with fixed `24px` gutters and `40px` margins. Lateral toolbars and inspector rails lock to fixed widths (`280px` to `360px`), while the central media canvas remains fluid.\n  - **Tablet (768px - 1279px):** 8-column layout with `16px` gutters. Panels collapse into slide-out HUD overlays.\n  - **Mobile (< 768px):** 4-column layout with `16px` margins. Side-rails convert to bottom-anchored sheets.\n- **Visual Rhythm:** Elements must avoid soft gaps; spacing is compact and intentional, treating UI panels like calibrated instruments rather than airy marketing brochures.\n\n## Elevation & Depth\n\nDepth is established without traditional diffuse drop shadows, which dilute the cyberpunk sharpness. Instead, depth is articulated through three distinct techniques:\n\n1. **Surface Tiers:**\n   - **Level 0 (Canvas):** `#08080d` \u2014 Raw background void.\n   - **Level 1 (Panels & Trays):** `#131625` with a 1px structural outline of `rgba(0, 240, 255, 0.12)`.\n   - **Level 2 (Active Cards & Modals):** `#1a1e33` with 1px border `rgba(255, 0, 127, 0.25)`.\n2. **Neon Phosphor Blooms (Glow Overlays):**\n   - Active interactive states project a crisp dual-layer glow: a concentrated inner aura (`0 0 10px rgba(255, 0, 127, 0.45)`) paired with a wide atmospheric dispersion (`0 0 25px rgba(255, 0, 127, 0.15)`).\n   - Cyber-cyan telemetry glow: `0 0 8px rgba(0, 240, 255, 0.5)`.\n3. **Ghost Insets & Laser Cut Borders:** Elevated panels feature razor-thin `1px` high-contrast outer borders, occasionally terminated with 45-degree chamfered corner notches to evoke military-grade hardware interfaces.\n\n## Shapes\n\nThe shape profile is completely zero-radius (`0px`), strictly rejecting organic fillets in favor of hard-edged, technical angularity.\n\n- **Hard Rectangles:** All containers, buttons, cards, and input fields utilize sharp 90-degree corners.\n- **Chamfer Accents:** Primary call-to-action buttons, high-priority status badges, and floating control nodes may incorporate angular 4px or 8px 45-degree cut corners (clip-path polygons) on opposing diagonal vertices to mimic terminal circuitry.\n\n## Components\n\n### Buttons\n- **Primary (Voltage Trigger):** Pure `#ff007f` background, text in `#08080d` Space Grotesk Bold, 0px radius. Hover triggers an instant transition to an electric neon aura (`box-shadow: 0 0 16px #ff007f`) with an inverted text shift.\n- **Secondary (Laser Outline):** Transparent background, 1px `#00f0ff` border, `#00f0ff` typography. Hover shifts background to `rgba(0, 240, 255, 0.1)` with a `0 0 12px rgba(0, 240, 255, 0.4)` glow.\n- **Ghost Action:** Background transparent, borderless, `#94a3b8` text, switching to bright white with cyan underscore line on hover.\n\n### Inputs & Search Bars\n- Background set to `#0f111d`. Border is 1px solid `rgba(255, 255, 255, 0.12)`.\n- Text styled in Geist with placeholder in `#3b4261`.\n- **Focus State:** Border flashes instantly to `#00f0ff`, backed by a subtle perimeter glow (`0 0 8px rgba(0, 240, 255, 0.3)`). A microscopic JetBrains Mono prompt character (`>_`) sits fixed as the leading icon.\n\n### Cards & Media Tiles\n- Built on `#131625` with hard 1px outline in `#1e243a`.\n- Hover state elevates the border to `#ff007f` or `#00f0ff` based on media categorization, with media thumbnails shifting from a muted cold-grade to full saturated color.\n- Top-right corner displays monospaced cryptographic IDs or MIME-types (e.g., `[RAW.HEIC]`, `[ENC.256]`).\n\n### Chips & Badges\n- Strict monospaced text (JetBrains Mono) set to uppercase.\n- Ultra-compact padding (`2px 6px`).\n- Encased in a 1px border matching the tag's accent color (e.g., pink for `#VAULT_CORE`, cyan for `#SECURE_SYNC`) with a 10% alpha background of that same hue.\n\n### Lists & Data Rows\n- Flat striped rows switching between `#08080d` and `#0d0f18`.\n- Separated by hairline 1px rules (`#171a2b`).\n- Row hover triggers an electric 2px accent indicator strip on the extreme left border edge in `#00f0ff`.\n\n### Checkboxes & Radio Controls\n- **Checkboxes:** Sharp square boxes (`16px \u00d7 16px`), 1px border `#3b4261`. Checked state fills with `#ff007f` containing an angular vector check in `#08080d`.\n- **Radios:** Diamond or sharp square rotation (45-degree diamond) rather than standard circles, holding a centered dot in `#00f0ff`.\n\n### Vault-Specific Components\n- **Encryption Status Header:** A persistent HUD strip delivering ping metrics, storage allocation, and cryptographic status in glowing Cyan telemetry text.\n- **Media Lightbox:** Frameless obsidian viewport with floating, borderless control clusters illuminated by hot pink interactive glyphs.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#ff007f",
+      "overrideSecondaryColor": "#00f0ff",
+      "overrideTertiaryColor": "#7928ca",
+      "overrideNeutralColor": "#08080d",
+      "spacingScale": 2,
+      "typography": {
+        "body-lg": {
+          "fontFamily": "Geist",
+          "fontSize": "16px",
+          "fontWeight": "400",
+          "lineHeight": "24px",
+          "letterSpacing": "0em"
+        },
+        "label-tag": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "11px",
+          "fontWeight": "600",
+          "lineHeight": "14px",
+          "letterSpacing": "0.06em"
+        },
+        "headline-lg": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "32px",
+          "fontWeight": "600",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.02em"
+        },
+        "headline-md": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "20px",
+          "fontWeight": "600",
+          "lineHeight": "28px",
+          "letterSpacing": "-0.01em"
+        },
+        "label-code": {
+          "fontFamily": "JetBrains Mono",
+          "fontSize": "12px",
+          "fontWeight": "500",
+          "lineHeight": "16px",
+          "letterSpacing": "0.08em"
+        },
+        "display-hero-mobile": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "36px",
+          "fontWeight": "700",
+          "lineHeight": "42px",
+          "letterSpacing": "-0.03em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "24px",
+          "fontWeight": "600",
+          "lineHeight": "32px",
+          "letterSpacing": "-0.02em"
+        },
+        "body-md": {
+          "fontFamily": "Geist",
+          "fontSize": "14px",
+          "fontWeight": "400",
+          "lineHeight": "20px",
+          "letterSpacing": "0em"
+        },
+        "display-hero": {
+          "fontFamily": "Space Grotesk",
+          "fontSize": "56px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "-0.04em"
+        },
+        "body-sm": {
+          "fontFamily": "Geist",
+          "fontSize": "12px",
+          "fontWeight": "400",
+          "lineHeight": "16px",
+          "letterSpacing": "0.01em"
+        }
+      },
+      "spacing": {
+        "margin-desktop": "2.5rem",
+        "space-3xl": "3rem",
+        "space-2xl": "2rem",
+        "space-lg": "1rem",
+        "space-xs": "0.25rem",
+        "space-xl": "1.5rem",
+        "gutter-mobile": "1rem",
+        "margin-mobile": "1rem",
+        "gutter-desktop": "1.5rem",
+        "space-2xs": "0.125rem",
+        "space-md": "0.75rem",
+        "space-sm": "0.5rem"
+      },
+      "headlineFontFamily": "Space Grotesk",
+      "bodyFontFamily": "Geist",
+      "labelFontFamily": "JetBrains Mono"
+    }
+  },
+  "version": "1"
+}

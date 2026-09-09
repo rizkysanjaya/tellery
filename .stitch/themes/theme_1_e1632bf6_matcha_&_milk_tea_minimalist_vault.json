@@ -1,0 +1,171 @@
+{
+  "name": "assets/e1632bf667f34826a1c64dea5fdbf54c",
+  "designSystem": {
+    "displayName": "Matcha & Milk Tea Minimalist Vault",
+    "styleGuidelines": "## Brand & Style\n\nThis design system draws inspiration from Kyoto teahouses, ceramics, and tactile paper craft. It merges disciplined Japanese minimalism with organic warmth, created specifically for an intimate, personal media vault where users archive memories, voice memos, private journals, and imagery.\n\n### Aesthetics & Movements\n- **Tactile Warm Minimalism:** Clean negative space paired with raw paper textures, ceramic smoothness, and soft organic tones rather than clinical tech whites.\n- **Wabi-Sabi Sensibility:** Quiet, deliberate pacing. Elements do not compete for screen dominance; interactions unfold with relaxed grace.\n- **Emotional Impact:** Grounded, restorative, contemplative, and private. It invokes the comforting atmosphere of an afternoon bowl of matcha over warm steamed oat milk.\n\n## Layout & Spacing\n\nThe layout is built around the concept of \"Ma\" (negative space, pauses, and intentional breathing room).\n\n- **Grid Strategy:** A fluid 12-column system for wide surfaces (max-width 1360px) and a single-column stacked layout with asymmetric spacing for touch screens.\n- **Rhythm:** Spacing favors generous outer margins to simulate physical photo mount margins. Media items (scrapbook collections, film rolls, memo cards) are staggered rather than tightly packed.\n- **Breakpoints:**\n  - Mobile (< 640px): 4 columns, `margin-mobile` (20px), condensed serif scales.\n  - Tablet (640px \u2013 1024px): 8 columns, `margin-tablet` (32px), gutter `1.5rem`.\n  - Desktop (> 1024px): 12 columns, `margin-desktop` (56px), centered container capped at 1360px.\n\n## Elevation & Depth\n\nVisual hierarchy rejects stark drop shadows and artificial neon glows. Depth is created through ceramic layering and organic light falloff.\n\n- **Tonal Layering:** The primary mechanism for hierarchy. Secondary panels and navigation drawers rely on subtle surface shifts (from oat milk base `#f5f1eb` to lifted porcelain `#faf8f5`).\n- **Tea-Wash Shadows:** When elements float (floating audio controllers, modal sheets), shadows use a soft Matcha-tinted spread:\n  - `box-shadow: 0 4px 20px -2px rgba(74, 92, 67, 0.08), 0 1px 4px -1px rgba(74, 92, 67, 0.04);`\n- **Porcelain Inset:** Pressed or recessed controls (search inputs, active track containers) carry an inset shadow tinted with dried earth: `inset 0 1px 3px rgba(43, 51, 39, 0.06)`.\n- **Low-Contrast Separation:** Divisions and card perimeters use faint borders matching the tone of unbleached linen (`#dfd7ca`) rather than harsh gray dividers.\n\n## Components\n\n### Buttons\n- **Primary:** Matcha Sage solid background (`#4a5c43`), Oat Milk text (`#faf8f5`), subtle 8px corners. On hover, smooth shift to a deeper forest green with no elevation jump.\n- **Secondary / Accent:** Toasted Apricot (`#e07a5f`) for single focal conversions (e.g., \"Add Memory\", \"Record\").\n- **Ghost:** Oat Milk base with a faint 1px linen outline (`#dfd7ca`), text in `#4a5c43`.\n\n### Chips & Tags\n- Used for media tags (e.g., `#kyoto-trip`, `#autumn-2023`, `Audio Note`).\n- Shaped in small pill silhouettes with 8px vertical padding. Background set to pale sage tint (`#e6ebe3`), text in `#4a5c43`, and a micro apricot dot for active/filtered tags.\n\n### Media Vault Cards\n- Elevated via `#faf8f5` (Milk Foam) background with a 1px border (`#dfd7ca`).\n- Media items within cards feature subtle inner radiuses (12px) with a soft bottom caption styled in Noto Serif for titles and Manrope for timestamps.\n\n### Input Fields\n- Understated ceramic styling. Background tinted slightly darker than canvas (`#ece6dc`) with inset depth. No heavy focus rings; focus state introduces an earthy Matcha sage outline (`#4a5c43`, 1.5px).\n- Placeholder text tinted with warm ash (`#8a8f85`).\n\n### Checkboxes & Radios\n- Rounded squircle checkboxes (4px radius) and concentric circle radios.\n- Inactive state utilizes an unbleached linen rim. Checked state fills with Matcha Sage and displays an Oat Milk checkmark.\n\n### Audio Player Scrubbers\n- Custom component for voice memos: a continuous waveform colored in `#8a9a7b` (Steamed Leaf), with the played track duration progressing into deep Matcha Sage and an Apricot (`#e07a5f`) tactile drag node.",
+    "theme": {
+      "colorMode": "LIGHT",
+      "font": "NOTO_SERIF",
+      "roundness": "ROUND_EIGHT",
+      "customColor": "#4a5c43",
+      "headlineFont": "NOTO_SERIF",
+      "bodyFont": "MANROPE",
+      "labelFont": "MANROPE",
+      "namedColors": {
+        "primary_fixed_dim": "#b8cdad",
+        "surface_dim": "#ddd9d4",
+        "on_secondary_fixed": "#3c0800",
+        "on_tertiary_fixed": "#121f09",
+        "primary_container": "#4a5c43",
+        "surface_container_low": "#f7f3ed",
+        "error_container": "#ffdad6",
+        "primary": "#33442d",
+        "outline": "#747870",
+        "on_primary_fixed_variant": "#3a4b34",
+        "error": "#ba1a1a",
+        "on_secondary": "#ffffff",
+        "tertiary_fixed": "#d7e8c5",
+        "inverse_primary": "#b8cdad",
+        "on_background": "#1c1c18",
+        "on_tertiary_fixed_variant": "#3d4b31",
+        "surface_container": "#f1ede7",
+        "on_primary_fixed": "#0f1f0b",
+        "on_surface": "#1c1c18",
+        "on_tertiary_container": "#c3d3b1",
+        "inverse_on_surface": "#f4f0ea",
+        "on_tertiary": "#ffffff",
+        "surface": "#fdf9f3",
+        "secondary_fixed": "#ffdbd2",
+        "secondary_fixed_dim": "#ffb4a1",
+        "surface_container_high": "#ebe8e2",
+        "secondary": "#9a442d",
+        "background": "#fdf9f3",
+        "on_secondary_container": "#742814",
+        "surface_bright": "#fdf9f3",
+        "surface_tint": "#51634a",
+        "tertiary_container": "#4d5c41",
+        "surface_variant": "#e6e2dc",
+        "secondary_container": "#fc9174",
+        "surface_container_highest": "#e6e2dc",
+        "on_surface_variant": "#444841",
+        "inverse_surface": "#31302d",
+        "tertiary_fixed_dim": "#bbccaa",
+        "tertiary": "#36442b",
+        "on_error": "#ffffff",
+        "surface_container_lowest": "#ffffff",
+        "primary_fixed": "#d4e9c8",
+        "outline_variant": "#c4c8be",
+        "on_primary_container": "#bfd3b4",
+        "on_error_container": "#93000a",
+        "on_primary": "#ffffff",
+        "on_secondary_fixed_variant": "#7c2e19"
+      },
+      "designMd": "---\nname: Matcha & Milk Tea Minimalist Vault\ncolors:\n  surface: '#fdf9f3'\n  surface-dim: '#ddd9d4'\n  surface-bright: '#fdf9f3'\n  surface-container-lowest: '#ffffff'\n  surface-container-low: '#f7f3ed'\n  surface-container: '#f1ede7'\n  surface-container-high: '#ebe8e2'\n  surface-container-highest: '#e6e2dc'\n  on-surface: '#1c1c18'\n  on-surface-variant: '#444841'\n  inverse-surface: '#31302d'\n  inverse-on-surface: '#f4f0ea'\n  outline: '#747870'\n  outline-variant: '#c4c8be'\n  surface-tint: '#51634a'\n  primary: '#33442d'\n  on-primary: '#ffffff'\n  primary-container: '#4a5c43'\n  on-primary-container: '#bfd3b4'\n  inverse-primary: '#b8cdad'\n  secondary: '#9a442d'\n  on-secondary: '#ffffff'\n  secondary-container: '#fc9174'\n  on-secondary-container: '#742814'\n  tertiary: '#36442b'\n  on-tertiary: '#ffffff'\n  tertiary-container: '#4d5c41'\n  on-tertiary-container: '#c3d3b1'\n  error: '#ba1a1a'\n  on-error: '#ffffff'\n  error-container: '#ffdad6'\n  on-error-container: '#93000a'\n  primary-fixed: '#d4e9c8'\n  primary-fixed-dim: '#b8cdad'\n  on-primary-fixed: '#0f1f0b'\n  on-primary-fixed-variant: '#3a4b34'\n  secondary-fixed: '#ffdbd2'\n  secondary-fixed-dim: '#ffb4a1'\n  on-secondary-fixed: '#3c0800'\n  on-secondary-fixed-variant: '#7c2e19'\n  tertiary-fixed: '#d7e8c5'\n  tertiary-fixed-dim: '#bbccaa'\n  on-tertiary-fixed: '#121f09'\n  on-tertiary-fixed-variant: '#3d4b31'\n  background: '#fdf9f3'\n  on-background: '#1c1c18'\n  surface-variant: '#e6e2dc'\ntypography:\n  display-lg:\n    fontFamily: Noto Serif\n    fontSize: 48px\n    fontWeight: '400'\n    lineHeight: 56px\n    letterSpacing: -0.02em\n  display-lg-mobile:\n    fontFamily: Noto Serif\n    fontSize: 32px\n    fontWeight: '400'\n    lineHeight: 40px\n    letterSpacing: -0.01em\n  headline-lg:\n    fontFamily: Noto Serif\n    fontSize: 32px\n    fontWeight: '500'\n    lineHeight: 40px\n    letterSpacing: -0.01em\n  headline-lg-mobile:\n    fontFamily: Noto Serif\n    fontSize: 24px\n    fontWeight: '500'\n    lineHeight: 32px\n    letterSpacing: 0em\n  headline-md:\n    fontFamily: Noto Serif\n    fontSize: 24px\n    fontWeight: '500'\n    lineHeight: 32px\n  headline-sm:\n    fontFamily: Noto Serif\n    fontSize: 20px\n    fontWeight: '500'\n    lineHeight: 28px\n  body-lg:\n    fontFamily: Manrope\n    fontSize: 18px\n    fontWeight: '400'\n    lineHeight: 28px\n  body-md:\n    fontFamily: Manrope\n    fontSize: 15px\n    fontWeight: '400'\n    lineHeight: 24px\n  body-sm:\n    fontFamily: Manrope\n    fontSize: 13px\n    fontWeight: '400'\n    lineHeight: 20px\n  label-lg:\n    fontFamily: Manrope\n    fontSize: 14px\n    fontWeight: '600'\n    lineHeight: 20px\n    letterSpacing: 0.02em\n  label-md:\n    fontFamily: Manrope\n    fontSize: 12px\n    fontWeight: '600'\n    lineHeight: 16px\n    letterSpacing: 0.04em\n  label-sm:\n    fontFamily: Manrope\n    fontSize: 10px\n    fontWeight: '600'\n    lineHeight: 14px\n    letterSpacing: 0.06em\nrounded:\n  sm: 0.25rem\n  DEFAULT: 0.5rem\n  md: 0.75rem\n  lg: 1rem\n  xl: 1.5rem\n  full: 9999px\nspacing:\n  space-xxs: 0.25rem\n  space-xs: 0.5rem\n  space-sm: 0.75rem\n  space-md: 1rem\n  space-lg: 1.5rem\n  space-xl: 2rem\n  space-2xl: 3rem\n  space-3xl: 4rem\n  gutter: 1.5rem\n  margin-mobile: 1.25rem\n  margin-tablet: 2rem\n  margin-desktop: 3.5rem\n---\n\n## Brand & Style\n\nThis design system draws inspiration from Kyoto teahouses, ceramics, and tactile paper craft. It merges disciplined Japanese minimalism with organic warmth, created specifically for an intimate, personal media vault where users archive memories, voice memos, private journals, and imagery.\n\n### Aesthetics & Movements\n- **Tactile Warm Minimalism:** Clean negative space paired with raw paper textures, ceramic smoothness, and soft organic tones rather than clinical tech whites.\n- **Wabi-Sabi Sensibility:** Quiet, deliberate pacing. Elements do not compete for screen dominance; interactions unfold with relaxed grace.\n- **Emotional Impact:** Grounded, restorative, contemplative, and private. It invokes the comforting atmosphere of an afternoon bowl of matcha over warm steamed oat milk.\n\n## Colors\n\nThe 60-30-10 ratio is strictly maintained across all surfaces to ensure a restful, tea-infused environment.\n\n- **Primary (`#4a5c43` \u2014 Matcha Sage):** 30% visual volume. Grounding and structural. Used for primary typography, dominant interactive states, navigation hubs, and key structural badges.\n- **Secondary (`#e07a5f` \u2014 Toasted Apricot/Sesame):** 10% visual volume. Deliberate, warm accenting. Used sparingly for action triggers, media playback heads, favorite/bookmark indicators, and critical focal points.\n- **Tertiary (`#8a9a7b` \u2014 Steamed Leaf):** A muted green mid-tone applied to metadata icons, subtle progress rings, and tag backgrounds.\n- **Neutral (`#f5f1eb` \u2014 Silky Oat Milk):** 60% visual volume. The canvas base. Extended into layered tonal steps:\n  - Surface Main: `#f5f1eb`\n  - Surface Subdued (Porcelain): `#ece6dc`\n  - Surface Lifted (Milk Foam): `#faf8f5`\n  - Border / Hairline: `#dfd7ca`\n  - Deep Text Neutral: `#2b3327` (Charcoal Moss for maximum legibility on light fields)\n\n## Typography\n\nThe type system creates an intentional dialogue between editorial literature and quiet technical precision.\n\n- **Headlines (Noto Serif):** Brings classical literary gravitas to journal entries, vault album headers, and dates. It anchors memories with a warm, bookish presence.\n- **Body & Labels (Manrope):** A geometric, modern sans-serif with soft terminals that complements the serif titles without distracting from archival content.\n- Ensure body text adheres strictly to a readable line-length constraint (50\u201365 characters) to evoke printed paper essays rather than digital dashboards.\n\n## Layout & Spacing\n\nThe layout is built around the concept of \"Ma\" (negative space, pauses, and intentional breathing room).\n\n- **Grid Strategy:** A fluid 12-column system for wide surfaces (max-width 1360px) and a single-column stacked layout with asymmetric spacing for touch screens.\n- **Rhythm:** Spacing favors generous outer margins to simulate physical photo mount margins. Media items (scrapbook collections, film rolls, memo cards) are staggered rather than tightly packed.\n- **Breakpoints:**\n  - Mobile (< 640px): 4 columns, `margin-mobile` (20px), condensed serif scales.\n  - Tablet (640px \u2013 1024px): 8 columns, `margin-tablet` (32px), gutter `1.5rem`.\n  - Desktop (> 1024px): 12 columns, `margin-desktop` (56px), centered container capped at 1360px.\n\n## Elevation & Depth\n\nVisual hierarchy rejects stark drop shadows and artificial neon glows. Depth is created through ceramic layering and organic light falloff.\n\n- **Tonal Layering:** The primary mechanism for hierarchy. Secondary panels and navigation drawers rely on subtle surface shifts (from oat milk base `#f5f1eb` to lifted porcelain `#faf8f5`).\n- **Tea-Wash Shadows:** When elements float (floating audio controllers, modal sheets), shadows use a soft Matcha-tinted spread:\n  - `box-shadow: 0 4px 20px -2px rgba(74, 92, 67, 0.08), 0 1px 4px -1px rgba(74, 92, 67, 0.04);`\n- **Porcelain Inset:** Pressed or recessed controls (search inputs, active track containers) carry an inset shadow tinted with dried earth: `inset 0 1px 3px rgba(43, 51, 39, 0.06)`.\n- **Low-Contrast Separation:** Divisions and card perimeters use faint borders matching the tone of unbleached linen (`#dfd7ca`) rather than harsh gray dividers.\n\n## Shapes\n\nShapes emulate gently worn river stones and ceramic tea bowls: soft, human, and balanced.\n\n- **Base Corner Radius (`roundedness: 2`):** 0.5rem (8px) for buttons, inputs, and small tiles.\n- **Large Cards & Vault Containers (`rounded-lg`):** 1rem (16px), delivering comfortable enclosure without resembling toy-like bubbles.\n- **Modals & Floating Trays (`rounded-xl`):** 1.5rem (24px).\n- **Speciality Tags & Scrubbers:** Pill radius (`9999px`) reserved for audio playback pills and category tags.\n\n## Components\n\n### Buttons\n- **Primary:** Matcha Sage solid background (`#4a5c43`), Oat Milk text (`#faf8f5`), subtle 8px corners. On hover, smooth shift to a deeper forest green with no elevation jump.\n- **Secondary / Accent:** Toasted Apricot (`#e07a5f`) for single focal conversions (e.g., \"Add Memory\", \"Record\").\n- **Ghost:** Oat Milk base with a faint 1px linen outline (`#dfd7ca`), text in `#4a5c43`.\n\n### Chips & Tags\n- Used for media tags (e.g., `#kyoto-trip`, `#autumn-2023`, `Audio Note`).\n- Shaped in small pill silhouettes with 8px vertical padding. Background set to pale sage tint (`#e6ebe3`), text in `#4a5c43`, and a micro apricot dot for active/filtered tags.\n\n### Media Vault Cards\n- Elevated via `#faf8f5` (Milk Foam) background with a 1px border (`#dfd7ca`).\n- Media items within cards feature subtle inner radiuses (12px) with a soft bottom caption styled in Noto Serif for titles and Manrope for timestamps.\n\n### Input Fields\n- Understated ceramic styling. Background tinted slightly darker than canvas (`#ece6dc`) with inset depth. No heavy focus rings; focus state introduces an earthy Matcha sage outline (`#4a5c43`, 1.5px).\n- Placeholder text tinted with warm ash (`#8a8f85`).\n\n### Checkboxes & Radios\n- Rounded squircle checkboxes (4px radius) and concentric circle radios.\n- Inactive state utilizes an unbleached linen rim. Checked state fills with Matcha Sage and displays an Oat Milk checkmark.\n\n### Audio Player Scrubbers\n- Custom component for voice memos: a continuous waveform colored in `#8a9a7b` (Steamed Leaf), with the played track duration progressing into deep Matcha Sage and an Apricot (`#e07a5f`) tactile drag node.",
+      "colorVariant": "FIDELITY",
+      "overridePrimaryColor": "#4a5c43",
+      "overrideSecondaryColor": "#e07a5f",
+      "overrideTertiaryColor": "#8a9a7b",
+      "overrideNeutralColor": "#f5f1eb",
+      "spacingScale": 2,
+      "typography": {
+        "headline-lg": {
+          "fontFamily": "Noto Serif",
+          "fontSize": "32px",
+          "fontWeight": "500",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.01em"
+        },
+        "display-lg-mobile": {
+          "fontFamily": "Noto Serif",
+          "fontSize": "32px",
+          "fontWeight": "400",
+          "lineHeight": "40px",
+          "letterSpacing": "-0.01em"
+        },
+        "label-sm": {
+          "fontFamily": "Manrope",
+          "fontSize": "10px",
+          "fontWeight": "600",
+          "lineHeight": "14px",
+          "letterSpacing": "0.06em"
+        },
+        "headline-md": {
+          "fontFamily": "Noto Serif",
+          "fontSize": "24px",
+          "fontWeight": "500",
+          "lineHeight": "32px"
+        },
+        "display-lg": {
+          "fontFamily": "Noto Serif",
+          "fontSize": "48px",
+          "fontWeight": "400",
+          "lineHeight": "56px",
+          "letterSpacing": "-0.02em"
+        },
+        "body-lg": {
+          "fontFamily": "Manrope",
+          "fontSize": "18px",
+          "fontWeight": "400",
+          "lineHeight": "28px"
+        },
+        "headline-sm": {
+          "fontFamily": "Noto Serif",
+          "fontSize": "20px",
+          "fontWeight": "500",
+          "lineHeight": "28px"
+        },
+        "label-md": {
+          "fontFamily": "Manrope",
+          "fontSize": "12px",
+          "fontWeight": "600",
+          "lineHeight": "16px",
+          "letterSpacing": "0.04em"
+        },
+        "body-sm": {
+          "fontFamily": "Manrope",
+          "fontSize": "13px",
+          "fontWeight": "400",
+          "lineHeight": "20px"
+        },
+        "label-lg": {
+          "fontFamily": "Manrope",
+          "fontSize": "14px",
+          "fontWeight": "600",
+          "lineHeight": "20px",
+          "letterSpacing": "0.02em"
+        },
+        "headline-lg-mobile": {
+          "fontFamily": "Noto Serif",
+          "fontSize": "24px",
+          "fontWeight": "500",
+          "lineHeight": "32px",
+          "letterSpacing": "0em"
+        },
+        "body-md": {
+          "fontFamily": "Manrope",
+          "fontSize": "15px",
+          "fontWeight": "400",
+          "lineHeight": "24px"
+        }
+      },
+      "spacing": {
+        "gutter": "1.5rem",
+        "space-md": "1rem",
+        "space-sm": "0.75rem",
+        "space-xxs": "0.25rem",
+        "space-3xl": "4rem",
+        "space-2xl": "3rem",
+        "margin-desktop": "3.5rem",
+        "space-lg": "1.5rem",
+        "space-xs": "0.5rem",
+        "margin-tablet": "2rem",
+        "space-xl": "2rem",
+        "margin-mobile": "1.25rem"
+      },
+      "headlineFontFamily": "Noto Serif",
+      "bodyFontFamily": "Manrope",
+      "labelFontFamily": "Manrope"
+    }
+  },
+  "version": "1"
+}

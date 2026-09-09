@@ -3,9 +3,9 @@
  * Module: frontend/src/components/ui/CommandPalette.tsx
  * Purpose: Precision spotlight command palette dialog triggered by Ctrl+K or header search.
  *          Enables rapid keyboard navigation (Timeline, Favorites, Albums), view switching,
- *          sorting, album jumps, upload actions, and vault sync.
+ *          sorting, album jumps, upload actions, vault sync, and instant VS Code-style color theme switching.
  * Used by: frontend/src/App.tsx, frontend/src/components/Header.tsx
- * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts
+ * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, frontend/src/config/themes.ts
  * Public Members: CommandPalette
  * Side Effects: Listens for Ctrl+K keyboard shortcut, dispatches application state actions.
  * =============================================================================
@@ -31,10 +31,11 @@ import {
   Moon,
 } from "lucide-react";
 import { DisplayLayout, FolderItem, MainView, SortOption } from "../../types";
+import { THEMES, ThemeId } from "../../config/themes";
 
 interface CommandItem {
   id: string;
-  category: "Navigation" | "Collections" | "Display Layout" | "Sort Order" | "Actions";
+  category: "Navigation" | "Collections" | "Display Layout" | "Sort Order" | "Actions" | "Themes";
   title: string;
   subtitle?: string;
   icon: React.ReactNode;
@@ -59,6 +60,8 @@ interface CommandPaletteProps {
   onTriggerUpload: () => void;
   onSyncVault?: () => Promise<void>;
   theme?: "dark" | "light";
+  currentTheme?: ThemeId;
+  onSelectTheme?: (themeId: ThemeId) => void;
   onToggleTheme?: () => void;
 }
 
@@ -79,6 +82,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   onTriggerUpload,
   onSyncVault,
   theme = "dark",
+  currentTheme = "obsidian",
+  onSelectTheme,
   onToggleTheme,
 }) => {
   const [query, setQuery] = useState("");
@@ -175,6 +180,27 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             },
           },
         ]
+      : []),
+
+    // VS Code-Style Color Themes
+    ...(onSelectTheme
+      ? THEMES.map((t) => ({
+          id: `theme-${t.id}`,
+          category: "Themes" as const,
+          title: `Theme: ${t.name}`,
+          subtitle: `${t.mode === "dark" ? "Dark" : "Light"} mode • ${t.description}`,
+          icon: (
+            <span
+              className="w-3.5 h-3.5 rounded-full border border-black/30 shadow-xs inline-block shrink-0"
+              style={{ backgroundColor: t.primaryHex }}
+            />
+          ),
+          active: currentTheme === t.id,
+          action: () => {
+            onSelectTheme(t.id);
+            onClose();
+          },
+        }))
       : []),
 
     // Display Layout Switcher
