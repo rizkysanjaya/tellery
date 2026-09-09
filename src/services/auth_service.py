@@ -4,7 +4,8 @@ Module: src.services.auth_service
 Purpose: Telegram MTProto interactive authentication state machine, OTP verification,
          2FA cloud password management, session lifecycle, and 1-click vault provisioning.
          Validates API credentials to prevent blacklisted desktop keys (2040) from breaking MTProto flows.
-Used by: src.api.routes.auth, src.api.app
+         Guarantees proper routing to Welcome & Vault Strategy Hub on login, and clears active vault on logout.
+Used by: src.api.routes.auth, src.api.app, src.api.routes.vaults
 Dependencies: telethon, src.storage.telegram_client, src.services.vault_service, src.config
 Public Members: AuthService, get_auth_service()
 Side Effects: Performs MTProto network calls to Telegram servers, reads/writes session files and .env.
@@ -269,7 +270,7 @@ class AuthService:
             status = await self.get_auth_status()
             return {
                 "status": "success",
-                "step": status["step"],
+                "step": "need_vault",
                 "user": status["user"],
                 "message": "Successfully authenticated with Telegram!",
             }
@@ -306,7 +307,7 @@ class AuthService:
             status = await self.get_auth_status()
             return {
                 "status": "success",
-                "step": status["step"],
+                "step": "need_vault",
                 "user": status["user"],
                 "message": "Two-factor authentication verified successfully!",
             }
@@ -363,7 +364,7 @@ class AuthService:
             settings.tg_channel_id = channel_id
 
             vault_service = get_vault_service()
-            await vault_service.set_active_channel_id(channel_id)
+            vault_service.set_active_channel_id(channel_id)
 
             # Invalidate cached dialogs to force immediate discovery of the new channel
             await vault_service.discover_vaults(force_refresh=True)
@@ -403,10 +404,41 @@ class AuthService:
         self._pending_phone_code_hash = None
         self._pending_step = None
 
+        # Clear active vault from settings, memory, and .env
+        settings = get_settings()
+        settings.tg_channel_id = None
+        vault_service = get_vault_service()
+        vault_service.set_active_channel_id(None)
+        vault_service._cached_vaults = []
+        self._remove_keys_from_env_file({"TG_CHANNEL_ID"})
+
         return {
             "status": "success",
             "message": "Logged out successfully. Please re-authenticate to use TeleGallery.",
         }
+
+    def _remove_keys_from_env_file(self, keys_to_remove: set[str]) -> None:
+        """
+        Safely removes specific keys from the .env file while preserving other variables and comments.
+        """
+        env_path = Path(".env")
+        if not env_path.exists():
+            return
+        try:
+            lines = env_path.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            return
+
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#") and "=" in stripped:
+                k, _ = stripped.split("=", 1)
+                if k.strip() in keys_to_remove:
+                    continue
+            new_lines.append(line)
+
+        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
 
     def _update_env_file(self, updates: dict[str, str]) -> None:
         """

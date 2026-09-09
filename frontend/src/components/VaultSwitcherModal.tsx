@@ -3,7 +3,7 @@
  * Module: frontend/src/components/VaultSwitcherModal.tsx
  * Purpose: Silk Cloud neomorphic modal dialog allowing users to switch between
  *          multiple owned Telegram storage vaults with instantaneous state synchronization,
- *          search filtering, and MTProto dialog refresh.
+ *          search filtering, MTProto dialog refresh, and shortcut to Vault Strategy Hub (Step 5).
  * Used by: frontend/src/App.tsx, frontend/src/components/Sidebar.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, frontend/src/api.ts
  * Public Members: VaultSwitcherModal
@@ -23,6 +23,7 @@ import {
   HardDrive,
   Database,
   Radio,
+  Sparkles,
 } from "lucide-react";
 import { VaultItem } from "../types";
 
@@ -33,6 +34,7 @@ interface VaultSwitcherModalProps {
   activeVault: VaultItem | null;
   onSelectVault: (vaultId: number) => Promise<void>;
   onRefreshVaults: () => Promise<void>;
+  onOpenVaultSetup?: () => void;
   isRefreshing?: boolean;
 }
 
@@ -50,6 +52,7 @@ export const VaultSwitcherModal: React.FC<VaultSwitcherModalProps> = ({
   activeVault,
   onSelectVault,
   onRefreshVaults,
+  onOpenVaultSetup,
   isRefreshing = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -124,6 +127,22 @@ export const VaultSwitcherModal: React.FC<VaultSwitcherModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Vault Setup & Strategy (Step 5) */}
+            {onOpenVaultSetup && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenVaultSetup();
+                }}
+                className="neo-button px-3 py-1.5 rounded-neo text-xs font-semibold text-primary hover:text-primary/90 flex items-center gap-1.5 cursor-pointer"
+                title="Open Welcome & Vault Strategy Hub (Step 5)"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Vault Strategy Hub</span>
+              </button>
+            )}
+
             {/* Refresh Dialogs button */}
             <button
               onClick={() => onRefreshVaults()}

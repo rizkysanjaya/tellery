@@ -4,6 +4,7 @@
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Multi-Vault Telegram channel switching & dialog discovery,
  *          zero-config plug-and-play onboarding wizard & in-browser Telegram MTProto auth,
+ *          on-demand Vault Strategy Hub (Step 5) modal overlay & hash-route invocation (#vault-setup),
  *          role permission gating (Read/Write for owned vaults vs. Read-Only for joined channels),
  *          partitioned sub-millisecond timeline queries, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
  *          hash-based URL routing & state persistence (#/timeline, #/albums, #/albums/:id, #/favorites, #/trash),
@@ -139,6 +140,20 @@ export const App: React.FC = () => {
   // Telegram MTProto Authentication & Zero-Config Onboarding State
   const [authStatus, setAuthStatus] = useState<AuthStatusResponse | null>(null);
   const [checkingAuth, setCheckingAuth] = useState<boolean>(true);
+  const [showVaultSetupWizard, setShowVaultSetupWizard] = useState<boolean>(false);
+
+  // Hash route listener for on-demand Step 5 Vault Setup access (#vault-setup, #step5)
+  useEffect(() => {
+    const handleHashCheck = () => {
+      const h = window.location.hash.toLowerCase();
+      if (h === "#vault-setup" || h === "#step5" || h === "#setup" || h === "#onboarding") {
+        setShowVaultSetupWizard(true);
+      }
+    };
+    handleHashCheck();
+    window.addEventListener("hashchange", handleHashCheck);
+    return () => window.removeEventListener("hashchange", handleHashCheck);
+  }, []);
 
   useEffect(() => {
     fetchAuthStatus()
@@ -2833,10 +2848,43 @@ export const App: React.FC = () => {
             activeVault={activeVault}
             onSelectVault={handleSelectVault}
             onRefreshVaults={() => loadVaults(true)}
+            onOpenVaultSetup={() => setShowVaultSetupWizard(true)}
             isRefreshing={isRefreshingVaults}
           />
         )}
       </Suspense>
+
+      {/* On-Demand Welcome & Vault Strategy Hub (Step 5 Modal / Overlay) */}
+      <Suspense fallback={null}>
+        {showVaultSetupWizard && authStatus && (
+          <OnboardingWizard
+            initialStatus={authStatus}
+            initialStep="need_vault"
+            onComplete={(newStatus) => {
+              setShowVaultSetupWizard(false);
+              window.location.hash = "";
+              handleOnboardingComplete(newStatus);
+            }}
+            onDismiss={() => {
+              setShowVaultSetupWizard(false);
+              window.location.hash = "";
+            }}
+          />
+        )}
+      </Suspense>
+
+      {/* Floating Dev Mode Action: Instant Step 5 Access */}
+      <div className="fixed bottom-4 left-4 z-40">
+        <button
+          type="button"
+          onClick={() => setShowVaultSetupWizard(true)}
+          className="px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-indigo-500/40 text-xs font-semibold shadow-xl backdrop-blur-md flex items-center gap-2 transition-all group cursor-pointer hover:border-indigo-400"
+          title="Open Step 5 (Welcome & Vault Strategy Hub) without logging out or needing OTP"
+        >
+          <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover:scale-125 transition-transform" />
+          <span>Step 5: Vault Setup</span>
+        </button>
+      </div>
 
       {/* Global In-App Notification Toasts */}
       <AppToast toasts={toasts} onDismiss={dismissToast} />

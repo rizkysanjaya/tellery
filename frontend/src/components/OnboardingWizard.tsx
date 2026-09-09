@@ -2,11 +2,13 @@
  * =============================================================================
  * Module: frontend/src/components/OnboardingWizard.tsx
  * Purpose: Fullscreen Vanguard Modern Gallery stepped glassmorphic onboarding wizard for user-supplied Telegram API login,
- *          OTP verification, 2FA cloud password management, and 1-click private vault channel provisioning.
+ *          OTP verification, 2FA cloud password management, and Welcome & Vault Strategy Hub (Step 5) with
+ *          guided fresh Broadcast Channel provisioning vs existing channel connection. Supports direct step preview and dismissal.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, frontend/src/api.ts
  * Public Members: OnboardingWizard
- * Side Effects: Submits authentication requests, sends MTProto OTP codes, and creates storage channels in Telegram.
+ * Side Effects: Submits authentication requests, sends MTProto OTP codes, creates private storage channels in Telegram,
+ *               switches active vault channel, queries accessible channels.
  * =============================================================================
  */
 
@@ -31,6 +33,9 @@ import {
   Sparkles,
   ShieldCheck,
   Check,
+  Radio,
+  Smile,
+  X,
 } from "lucide-react";
 import { AuthStatusResponse, AuthStep, VaultItem } from "../types";
 import {
@@ -47,6 +52,8 @@ import {
 interface OnboardingWizardProps {
   initialStatus: AuthStatusResponse;
   onComplete: (status: AuthStatusResponse) => void;
+  initialStep?: AuthStep;
+  onDismiss?: () => void;
 }
 
 const COMMON_COUNTRIES = [
@@ -67,8 +74,10 @@ const COMMON_COUNTRIES = [
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   initialStatus,
   onComplete,
+  initialStep,
+  onDismiss,
 }) => {
-  const [step, setStep] = useState<AuthStep>(initialStatus.step);
+  const [step, setStep] = useState<AuthStep>(initialStep || initialStatus.step);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -90,7 +99,9 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   // Step 5: Vault Setup
+  const [vaultSetupTab, setVaultSetupTab] = useState<"fresh" | "existing">("fresh");
   const [vaultTitle, setVaultTitle] = useState<string>("Tellery Cloud Vault");
+  const [manualChannelId, setManualChannelId] = useState<string>("");
   const [availableVaults, setAvailableVaults] = useState<VaultItem[]>([]);
   const [createdChannelInfo, setCreatedChannelInfo] = useState<{ id: number; title: string } | null>(null);
 
@@ -219,7 +230,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         setStep("need_password");
       } else {
         if (res.user) setUserProfile(res.user);
-        setStep(res.step as AuthStep);
+        setStep("need_vault");
       }
     } catch (err: any) {
       setError(err.message || "Invalid or expired verification code.");
@@ -241,7 +252,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     try {
       const res = await verifyAuthPassword(password);
       if (res.user) setUserProfile(res.user);
-      setStep(res.step as AuthStep);
+      setStep("need_vault");
     } catch (err: any) {
       setError(err.message || "Incorrect 2FA password.");
     } finally {
@@ -262,10 +273,35 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     try {
       const res = await createStorageVault(vaultTitle.trim());
       setCreatedChannelInfo({ id: res.channel_id, title: res.title });
-      setStep("ready");
+      
+      // Complete onboarding and immediately enter gallery
+      try {
+        const finalStatus = await fetchAuthStatus();
+        onComplete(finalStatus);
+      } catch {
+        onComplete({
+          is_authenticated: true,
+          step: "ready",
+          has_credentials: true,
+          user: userProfile,
+          active_vault: {
+            id: res.channel_id,
+            raw_id: Math.abs(res.channel_id),
+            title: res.title,
+            role: "owner",
+            can_upload: true,
+            can_delete: true,
+            is_creator: true,
+            is_admin: true,
+            broadcast: true,
+            media_count: 0,
+            total_size_bytes: 0,
+            is_active: true,
+          },
+        });
+      }
     } catch (err: any) {
       setError(err.message || "Failed to create storage vault.");
-    } finally {
       setLoading(false);
     }
   };
@@ -277,10 +313,75 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     try {
       await setActiveVault(vault.id);
       setCreatedChannelInfo({ id: vault.id, title: vault.title });
-      setStep("ready");
+      try {
+        const finalStatus = await fetchAuthStatus();
+        onComplete(finalStatus);
+      } catch {
+        onComplete({
+          is_authenticated: true,
+          step: "ready",
+          has_credentials: true,
+          user: userProfile,
+          active_vault: vault,
+        });
+      }
     } catch (err: any) {
       setError(err.message || "Failed to activate selected vault.");
-    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 5c. Handle Manual Channel Connect
+  const handleConnectManualChannel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const raw = manualChannelId.trim();
+    if (!raw) {
+      setError("Please enter a Telegram Channel ID (e.g. -1001234567890).");
+      return;
+    }
+
+    let parsedId = parseInt(raw.replace(/[^\d-]/g, ""), 10);
+    if (isNaN(parsedId)) {
+      setError("Please enter a valid numeric Channel ID (e.g. -1001234567890).");
+      return;
+    }
+
+    if (parsedId > 0 && String(parsedId).length >= 9 && !raw.startsWith("-100")) {
+      parsedId = -parseInt(`100${parsedId}`, 10);
+    }
+
+    setLoading(true);
+    try {
+      const res = await setActiveVault(parsedId);
+      setCreatedChannelInfo({ id: parsedId, title: `Vault (${parsedId})` });
+      try {
+        const finalStatus = await fetchAuthStatus();
+        onComplete(finalStatus);
+      } catch {
+        onComplete({
+          is_authenticated: true,
+          step: "ready",
+          has_credentials: true,
+          user: userProfile,
+          active_vault: {
+            id: parsedId,
+            raw_id: Math.abs(parsedId),
+            title: `Vault (${parsedId})`,
+            role: (res?.role as "owner" | "viewer") || "owner",
+            can_upload: res?.can_upload ?? true,
+            can_delete: res?.can_delete ?? true,
+            is_creator: res?.role === "owner",
+            is_admin: true,
+            broadcast: true,
+            media_count: res?.media_count ?? 0,
+            total_size_bytes: res?.total_size_bytes ?? 0,
+            is_active: true,
+          },
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to connect to channel. Make sure your account has admin/post rights in that channel.");
       setLoading(false);
     }
   };
@@ -330,16 +431,33 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           </span>
         </div>
 
-        {/* Quick Status Badge */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-800/60 border border-slate-700/50 text-slate-300 backdrop-blur-md">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-          Telegram MTProto 2.0 Live
+        <div className="flex items-center gap-3">
+          {/* Quick Status Badge */}
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium bg-slate-800/60 border border-slate-700/50 text-slate-300 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+            Telegram MTProto 2.0 Live
+          </div>
+
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700/60 shadow-sm transition-all cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Back to Gallery</span>
+            </button>
+          )}
         </div>
       </header>
 
       {/* Main Content Container */}
       <main className="relative z-10 flex-1 flex items-center justify-center px-4 py-8 sm:py-12">
-        <div className="w-full max-w-[500px] glass-card rounded-3xl p-6 sm:p-9 relative overflow-hidden transition-all duration-300">
+        <div
+          className={`w-full ${
+            step === "need_vault" ? "max-w-[640px]" : "max-w-[500px]"
+          } glass-card rounded-3xl p-6 sm:p-8 relative overflow-hidden transition-all duration-300`}
+        >
           {/* Top Decorative Sheen Accent */}
           <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-64 h-32 bg-indigo-500/15 blur-2xl rounded-full pointer-events-none" />
 
@@ -799,65 +917,271 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-5 text-left"
               >
-                <div className="space-y-1.5 mb-2">
+                {/* 1. Welcome & Philosophy Header */}
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2 text-white font-semibold text-base sm:text-lg tracking-tight">
-                    <div className="p-1 rounded-md text-indigo-400">
+                    <div className="p-1 rounded-md text-indigo-400 bg-indigo-500/10 border border-indigo-500/20">
                       <FolderPlus className="w-4 h-4" />
                     </div>
-                    <span>Select or Create Media Vault</span>
+                    <span>
+                      {userProfile?.first_name
+                        ? `Welcome, ${userProfile.first_name}!`
+                        : "Welcome to Tellery!"}
+                    </span>
                   </div>
-                  <p className="text-xs sm:text-[13px] text-slate-400 pl-6 leading-relaxed">
-                    {userProfile
-                      ? `Welcome, ${userProfile.first_name}! Set up your private media storage vault.`
-                      : "Configure a private storage channel for your media archive."}
+                  <p className="text-xs sm:text-[13px] text-slate-300 leading-relaxed">
+                    Tellery turns private Telegram channels into your personal, unlimited media warehouse.
                   </p>
                 </div>
 
-                {/* 1-Click Vault Creation */}
-                <form onSubmit={handleCreateVault} className="glass-input rounded-xl p-4 space-y-3">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5" /> Option 1: Create New Private Vault
-                  </span>
-                  <div className="glass-card rounded-lg px-3 py-2 border border-slate-700/60">
-                    <input
-                      type="text"
-                      placeholder="Vault Channel Title"
-                      value={vaultTitle}
-                      onChange={(e) => setVaultTitle(e.target.value)}
-                      className="w-full bg-transparent border-0 p-0 text-white text-sm focus:outline-none placeholder-slate-600"
-                    />
+                {/* 2. Architecture Philosophy & Recommendation Callout */}
+                <div className="p-3.5 rounded-2xl bg-slate-900/90 border border-indigo-500/20 space-y-2.5 text-xs shadow-inner">
+                  <div className="flex items-center gap-2 text-indigo-300 font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Architectural Recommendation: Dedicated Channel</span>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 active:scale-[0.985] transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(99,102,241,0.35)] cursor-pointer"
-                  >
-                    {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Create & Connect Vault"}
-                  </button>
-                </form>
-
-                {/* Existing Channels Selection */}
-                {availableVaults.length > 0 && (
-                  <div className="space-y-2">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                      Option 2: Use Existing Owned Channel
-                    </span>
-                    <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
-                      {availableVaults.map((vault) => (
-                        <button
-                          key={vault.id}
-                          type="button"
-                          onClick={() => handleSelectExistingVault(vault)}
-                          disabled={loading}
-                          className="w-full p-2.5 rounded-xl glass-input hover:border-indigo-500/50 text-left flex items-center justify-between transition-colors cursor-pointer"
-                        >
-                          <span className="text-xs font-medium text-slate-200 truncate">{vault.title}</span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
-                            Connect
-                          </span>
-                        </button>
-                      ))}
+                  <p className="text-slate-400 text-[11px] sm:text-xs leading-relaxed">
+                    We strongly recommend creating a fresh, dedicated private channel solely for Tellery. Existing group chats or channels with chat history, stickers, and voice notes can slow down indexing and clutter your gallery.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
+                    <div className="flex items-start gap-2 p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/15">
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div className="text-[11px] text-slate-300">
+                        <strong className="text-white block font-medium">Broadcast Channel</strong>
+                        Pure media warehouse, silent, zero chat spam, highest MTProto throughput.
+                      </div>
                     </div>
+                    <div className="flex items-start gap-2 p-2 rounded-xl bg-amber-500/10 border border-amber-500/15">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+                      <div className="text-[11px] text-slate-300">
+                        <strong className="text-amber-200 block font-medium">Group Chat / Busy Chat</strong>
+                        Chatter, stickers, and reactions trigger Telegram FloodWait rate limits.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Segmented Tab Switcher */}
+                <div className="p-1 rounded-xl bg-slate-900/80 border border-slate-800 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setVaultSetupTab("fresh")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      vaultSetupTab === "fresh"
+                        ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-[0_0_16px_rgba(99,102,241,0.4)]"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+                    <span>✨ Create Fresh Vault (Recommended)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVaultSetupTab("existing")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      vaultSetupTab === "existing"
+                        ? "bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-[0_0_16px_rgba(99,102,241,0.4)]"
+                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/40"
+                    }`}
+                  >
+                    <FolderPlus className="w-3.5 h-3.5 text-slate-300" />
+                    <span>📁 Connect Existing Channel</span>
+                  </button>
+                </div>
+
+                {/* 4. Tab 1: Create Fresh Vault (Recommended) */}
+                {vaultSetupTab === "fresh" && (
+                  <form onSubmit={handleCreateVault} className="space-y-4">
+                    {/* Vault Title Input */}
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                        Private Channel Title
+                      </label>
+                      <div className="glass-input rounded-xl px-3.5 py-2.5">
+                        <input
+                          type="text"
+                          placeholder="e.g. Tellery Cloud Vault"
+                          value={vaultTitle}
+                          onChange={(e) => setVaultTitle(e.target.value)}
+                          className="w-full bg-transparent border-0 p-0 text-white text-sm focus:outline-none placeholder-slate-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Authentic Telegram App Channel Preview */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400 font-medium flex items-center gap-1.5">
+                          <Radio className="w-3.5 h-3.5 text-sky-400" />
+                          What your raw Telegram channel will look like:
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">Telegram Desktop Preview</span>
+                      </div>
+
+                      {/* Telegram macOS Window Frame */}
+                      <div className="relative rounded-2xl overflow-hidden border border-slate-700/70 shadow-2xl bg-[#0e1621] group transition-all duration-300 hover:border-sky-500/40">
+                        {/* macOS Window Titlebar */}
+                        <div className="flex items-center justify-between px-3.5 py-2 bg-[#17212b] border-b border-slate-700/60 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+                          </div>
+                          <div className="text-[11px] font-medium text-slate-300 flex items-center gap-1.5 truncate max-w-[240px]">
+                            <span>Telegram · {vaultTitle.trim() || "Tellery Cloud Vault"}</span>
+                          </div>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#242f3d] text-sky-300 border border-sky-400/25 font-mono">
+                            Live MTProto Feed
+                          </span>
+                        </div>
+
+                        {/* Real Telegram Channel Screenshot */}
+                        <div className="relative overflow-hidden aspect-[16/9] w-full bg-[#0e1621]">
+                          <img
+                            src="/telegram_vault_preview.jpg"
+                            alt="Telegram App Channel Storage Preview"
+                            className="w-full h-full object-cover object-top group-hover:scale-[1.015] transition-transform duration-500"
+                            loading="eager"
+                          />
+                          {/* Bottom gradient overlay for contrast */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#0b101b]/90 via-transparent to-transparent pointer-events-none" />
+
+                          {/* Dynamic Active Channel Indicator Banner */}
+                          <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between pointer-events-none">
+                            <div className="px-2.5 py-1 rounded-lg bg-black/75 backdrop-blur-md border border-white/15 text-[11px] text-slate-200 flex items-center gap-2 shadow-lg">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+                              <span>
+                                Target Channel: <strong className="text-white font-semibold">{vaultTitle.trim() || "Tellery Cloud Vault"}</strong>
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md bg-black/65 backdrop-blur-md text-[10px] text-slate-400 font-mono border border-white/5">
+                              Unfiltered Stream
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Reassurance Callout Tooltip */}
+                      <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/25 text-left">
+                        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 shrink-0 mt-0.5">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div className="text-xs space-y-1 leading-relaxed">
+                          <div className="font-semibold text-indigo-300 flex items-center gap-1.5">
+                            <span>Don't worry if it looks like a mess in Telegram!</span>
+                            <Smile className="w-3.5 h-3.5 text-amber-400 inline" />
+                          </div>
+                          <p className="text-slate-300 text-[11px] sm:text-xs">
+                            Tellery acts as your intelligent visual gallery interface. While Telegram stores your raw, uncategorized files, Tellery automatically sorts photos by EXIF dates, organizes albums, tags camera metadata, and streams 4K video seamlessly. You never have to manually dig through Telegram messages! 😊
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 1-Click CTA */}
+                    <button
+                      type="submit"
+                      disabled={loading || !vaultTitle.trim()}
+                      className="w-full py-3.5 px-5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 via-indigo-500 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 active:scale-[0.985] shadow-[0_0_32px_-4px_rgba(99,102,241,0.45)] hover:shadow-[0_0_36px_rgba(99,102,241,0.65)] transition-all duration-200 flex items-center justify-center gap-2 group disabled:opacity-50 cursor-pointer"
+                    >
+                      {loading ? (
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                          <span>Creating Private Vault over MTProto...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <span>Create &amp; Connect Vault →</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+
+                {/* 5. Tab 2: Connect Existing Channel */}
+                {vaultSetupTab === "existing" && (
+                  <div className="space-y-4">
+                    {/* Auto-Scanned Owned Channels */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          Auto-Scanned Owned Channels ({availableVaults.length})
+                        </span>
+                        {availableVaults.length > 0 && (
+                          <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-mono">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Ready to connect
+                          </span>
+                        )}
+                      </div>
+
+                      {availableVaults.length > 0 ? (
+                        <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                          {availableVaults.map((vault) => (
+                            <button
+                              key={vault.id}
+                              type="button"
+                              onClick={() => handleSelectExistingVault(vault)}
+                              disabled={loading}
+                              className="w-full p-3 rounded-xl glass-input hover:border-indigo-500/50 text-left flex items-center justify-between transition-all group cursor-pointer"
+                            >
+                              <div className="min-w-0 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-xs shrink-0">
+                                  {vault.title ? vault.title.charAt(0).toUpperCase() : "C"}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="text-xs font-semibold text-slate-200 truncate group-hover:text-indigo-300 transition-colors">
+                                    {vault.title}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-mono">
+                                    ID: {vault.id} {vault.role && `• ${vault.role.toUpperCase()}`}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="text-xs px-3 py-1 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white font-semibold shadow-sm transition-all shrink-0">
+                                Connect →
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-center space-y-1.5">
+                          <p className="text-xs text-slate-300 font-medium">No owned broadcast channels detected</p>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">
+                            Telegram broadcast channels are distinct from private chat groups. We recommend switching to the fresh vault tab to create one in 2 seconds.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Manual Channel ID Connection */}
+                    <form onSubmit={handleConnectManualChannel} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-2.5">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                        <FolderPlus className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Or Connect by Channel ID</span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        If your channel wasn't auto-detected, enter its Telegram ID (e.g. <span className="font-mono text-indigo-400">-1001234567890</span>). Your account must have post permissions.
+                      </p>
+                      <div className="flex gap-2">
+                        <div className="flex-1 glass-input rounded-xl px-3 py-2">
+                          <input
+                            type="text"
+                            placeholder="-100..."
+                            value={manualChannelId}
+                            onChange={(e) => setManualChannelId(e.target.value)}
+                            className="w-full bg-transparent border-0 p-0 text-white text-xs font-mono focus:outline-none placeholder-slate-600"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={loading || !manualChannelId.trim()}
+                          className="py-2 px-4 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-all shrink-0 cursor-pointer shadow-[0_0_16px_rgba(99,102,241,0.3)]"
+                        >
+                          {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : "Connect"}
+                        </button>
+                      </div>
+                    </form>
                   </div>
                 )}
               </motion.div>
