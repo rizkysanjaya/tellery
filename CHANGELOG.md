@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-09-09
+
+### 🚀 Tellery (Gallery Vault) — First Official Release
+- **Zero-Config Browser Onboarding Wizard (`OnboardingWizard.tsx`, `auth_service.py`, `auth.py`)**:
+  - Implemented interactive, in-browser MTProto authentication supporting phone number input, Telegram SMS/app login codes, and 2FA password verification.
+  - Automatically verifies session validity and stores MTProto session credentials locally with zero manual `.env` file editing.
+  - Interactive Step 5 Vault Strategy Hub with direct Telegram storage channel creation and guidance.
+- **Multi-Vault Architecture & Channel Isolation (`vault_service.py`, `vaults.py`, `VaultSwitcherModal.tsx`)**:
+  - Complete multi-channel vault switching allowing users to switch between distinct Telegram channels.
+  - Strict channel isolation across SQLite rows (`channel_id` scoping) for media catalog, virtual albums, favorites, and trash.
+  - Role-based permissions differentiating between Owned vaults (full read/write) and Joined channels (read-only).
+- **100,000+ Media Keyset Cursor Pagination & Virtual Windowing (`media.py`, `repository.py`, `TimelineGrid.tsx`)**:
+  - Scalable cursor-based pagination (`/api/media/timeline/cursor`) utilizing compound B-tree index `(date_taken, id)` for sub-millisecond timeline queries.
+  - Virtual windowing support ensuring smooth 60fps scrolling across massive 100k+ media archives without DOM bloat or memory leaks.
+- **VS Code-Style 10-Theme Multi-Theme System (`themes.ts`, `index.css`, `SettingsModal.tsx`)**:
+  - Precision color themes derived from Stitch design systems: **Obsidian**, **Light**, **Matcha**, **Solar Flare**, **Tuscan**, **Tokyo**, **Abyss**, **Amethyst**, **Vapor Lime**, and **Sakura**.
+  - True OLED Pure Black (`#000000`) dark mode and WCAG 2.2 AA compliant contrast across light and dark modes.
+  - In-browser settings modal with theme switcher, disk cache cleaner, and MTProto telemetry.
+- **Soft-Delete Trash & Data Recovery (`TrashView.tsx`, `media.py`, `repository.py`)**:
+  - Safe 2-tier deletion workflow moving deleted items into an isolated Trash view.
+  - 10-second interactive undo countdown toast with single-click restore and bulk empty trash.
+- **Animated MP4 Video Avatars (`vault_service.py`, `media.py`, `Sidebar.tsx`, `SettingsModal.tsx`)**:
+  - Auto-detection and download of Telegram `.mp4` video profile avatars for channels and user accounts.
+  - Looping, soundless, hardware-accelerated playback with static JPEG poster fallbacks.
+  - Integrated with Battery Saver mode to pause video loops and conserve GPU/CPU power.
+- **Pro-Grade Obsidian Craft UI Rework**:
+  - Purged heavy neomorphic shadows and inconsistent glassmorphic styling in favor of modern Apple/Linear-inspired flat obsidian styling with high-precision hairline borders (`border-outline-variant/15`).
+  - Aligned navigation item widths, hover privacy eye on user avatar, and compact storage size telemetry below media breakdown counters.
+- **Open-Source Hardening & Governance**:
+  - Added MIT License and `.github/FUNDING.yml` for Ko-fi community sponsorships.
+  - Added non-affiliation legal disclaimers and zero-telemetry privacy guarantees.
+
+---
+
 ## [0.9.0] - 2026-09-01
 
 ### 🎨 Silk Cloud — Dynamic Light & Dark Neomorphic UI Redesign (from Stitch Vanguard Modern Gallery)

@@ -1,0 +1,11 @@
+﻿# =============================================================================
+# Module: .github/FUNDING.yml
+# Purpose: GitHub Sponsors and Ko-fi funding configuration for Tellery repository.
+# Used by: GitHub repository display (Sponsor button).
+# Dependencies: None.
+# Public Members: ko_fi.
+# Side Effects: Renders sponsor links on GitHub repository interface.
+# =============================================================================
+
+# Supported funding model platforms:
+ko_fi: rizkysanjaya

@@ -100,9 +100,9 @@ def create_app() -> FastAPI:
     Configures CORS, lifespan handlers, and registers modular API routers.
     """
     app = FastAPI(
-        title="TeleGallery Archive API",
-        description="High-performance unlimited photo and video cloud archive using Telegram MTProto and C++ TDLib.",
-        version="0.2.0",
+        title="Tellery (Gallery Vault) Archive API",
+        description="High-performance zero-cost photo and video cloud archive using Telegram MTProto as remote document warehouse.",
+        version="1.0.0",
         lifespan=lifespan,
     )
 
