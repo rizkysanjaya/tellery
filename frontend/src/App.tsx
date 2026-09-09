@@ -3016,18 +3016,6 @@ export const App: React.FC = () => {
         )}
       </Suspense>
 
-      {/* Floating Dev Mode Action: Instant Step 5 Access */}
-      <div className="fixed bottom-4 left-4 z-40">
-        <button
-          type="button"
-          onClick={() => setShowVaultSetupWizard(true)}
-          className="px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface border border-outline-variant/30 text-xs font-semibold shadow-lg backdrop-blur-md flex items-center gap-2 transition-all group cursor-pointer hover:scale-105 active:scale-95"
-          title="Open Step 5 (Welcome & Vault Strategy Hub) without logging out or needing OTP"
-        >
-          <span className="w-2 h-2 rounded-full bg-primary group-hover:scale-125 transition-transform" />
-          <span>Step 5: Vault Setup</span>
-        </button>
-      </div>
 
       {/* Global In-App Notification Toasts */}
       <AppToast toasts={toasts} onDismiss={dismissToast} />
