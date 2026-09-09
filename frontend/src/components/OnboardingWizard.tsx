@@ -6,6 +6,8 @@
  *          Utilizes an expansive 2-column layout: left column dedicated to authentication and configuration
  *          forms, right column featuring a real-time reactive macOS Telegram preview window and architectural
  *          showcase cards with hairline borders.
+ *          Streamlined Step 5 flow: single welcome hero, instant 1-click private vault provisioning without
+ *          redundant input fields, and existing Telegram channel selection.
  *          Supports dual Light & Dark theme modes, visible focus rings, and on-demand modal dismissal.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, frontend/src/api.ts
@@ -110,7 +112,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
   // Step 5: Vault Setup
   const [vaultSetupTab, setVaultSetupTab] = useState<"fresh" | "existing">("fresh");
-  const [vaultTitle, setVaultTitle] = useState<string>("Tellery Cloud Vault");
+  const [vaultTitle] = useState<string>("Tellery Cloud Vault");
   const [manualChannelId, setManualChannelId] = useState<string>("");
   const [availableVaults, setAvailableVaults] = useState<VaultItem[]>([]);
   const [createdChannelInfo, setCreatedChannelInfo] = useState<{ id: number; title: string } | null>(null);
@@ -275,14 +277,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const handleCreateVault = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (!vaultTitle.trim()) {
-      setError("Please enter a title for your private storage vault.");
-      return;
-    }
+    const targetTitle = (vaultTitle || "Tellery Cloud Vault").trim();
 
     setLoading(true);
     try {
-      const res = await createStorageVault(vaultTitle.trim());
+      const res = await createStorageVault(targetTitle);
       setCreatedChannelInfo({ id: res.channel_id, title: res.title });
       
       // Complete onboarding and immediately enter gallery
@@ -1078,22 +1077,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-5 text-left"
               >
-                {/* 1. Welcome & Philosophy Header */}
-                <div className="space-y-1 mb-2">
-                  <div className="flex items-center gap-2 text-on-surface font-bold text-base sm:text-lg tracking-tight">
-                    <FolderPlus className="w-4 h-4 text-primary" />
-                    <span>
-                      {userProfile?.first_name
-                        ? `Welcome, ${userProfile.first_name}!`
-                        : "Welcome to Tellery!"}
-                    </span>
-                  </div>
-                  <p className="text-xs sm:text-[13px] text-on-surface-variant leading-relaxed">
-                    Tellery uses private Telegram broadcast channels for unlimited, direct cloud media storage.
-                  </p>
-                </div>
-
-                {/* 2. Segmented Tab Switcher */}
+                {/* 1. Segmented Tab Switcher */}
                 <div className="p-1 rounded-xl bg-surface-container-lowest border border-outline-variant/15 flex gap-1">
                   <button
                     type="button"
@@ -1121,32 +1105,24 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                   </button>
                 </div>
 
-                {/* 4. Tab 1: Create Fresh Vault (Recommended) */}
+                {/* 2. Tab 1: Create Fresh Vault (Recommended) */}
                 {vaultSetupTab === "fresh" && (
                   <form onSubmit={handleCreateVault} className="space-y-4">
-                    {/* Vault Title Input */}
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-                        Private Channel Title
-                      </label>
-                      <div className="bg-surface-container-lowest rounded-lg px-3.5 py-2.5 border border-outline-variant/20 focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50">
-                        <input
-                          type="text"
-                          placeholder="e.g. Tellery Cloud Vault"
-                          value={vaultTitle}
-                          onChange={(e) => setVaultTitle(e.target.value)}
-                          className="w-full bg-transparent border-0 p-0 text-on-surface text-sm focus:outline-none placeholder:text-on-surface-variant/50"
-                        />
+                    {/* Automatic Provisioning Info */}
+                    <div className="p-4 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-on-surface">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Automatic Private Vault Creation</span>
                       </div>
-                      <p className="text-[11px] text-on-surface-variant">
-                        Created as a private broadcast channel via the official Telegram MTProto API.
+                      <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                        Tellery will automatically provision a private broadcast channel (<span className="font-semibold text-on-surface">Tellery Cloud Vault</span>) via the official Telegram MTProto API for unlimited cloud storage.
                       </p>
                     </div>
 
                     {/* 1-Click CTA */}
                     <button
                       type="submit"
-                      disabled={loading || !vaultTitle.trim()}
+                      disabled={loading}
                       className="w-full min-h-[42px] py-2.5 px-5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary/90 active:scale-95 shadow-sm disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary/40 focus-visible:outline-none transition-all"
                     >
                       {loading ? (
