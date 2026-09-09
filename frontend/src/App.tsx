@@ -6,7 +6,7 @@
  *          centralized Preferences & Storage dialog (SettingsModal),
  *          normalized WCAG 2.2 AA contrast in Light & Dark modes,
  *          Multi-Vault Telegram channel switching & dialog discovery,
- *          zero-config plug-and-play onboarding wizard & in-browser Telegram MTProto auth,
+ *          zero-config plug-and-play Silk Cloud dual-theme onboarding wizard & in-browser Telegram MTProto auth,
  *          on-demand Vault Strategy Hub (Step 5) modal overlay & hash-route invocation (#vault-setup),
  *          role permission gating (Read/Write for owned vaults vs. Read-Only for joined channels),
  *          partitioned sub-millisecond timeline queries, Spotlight Command Palette (Ctrl+K), persistent left sidebar,
@@ -2226,6 +2226,8 @@ export const App: React.FC = () => {
           <OnboardingWizard
             initialStatus={authStatus}
             onComplete={handleOnboardingComplete}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
           />
         </Suspense>
         <AppToast toasts={toasts} onDismiss={dismissToast} />
@@ -2924,6 +2926,8 @@ export const App: React.FC = () => {
           <OnboardingWizard
             initialStatus={authStatus}
             initialStep="need_vault"
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
             onComplete={(newStatus) => {
               setShowVaultSetupWizard(false);
               window.location.hash = "";
