@@ -1,8 +1,10 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Sidebar.tsx
- * Purpose: Pro-grade flat obsidian sidebar with hairline dividers, compact telemetry widget,
- *          vault switcher, album tree, direct favorites navigation, trash, and settings dialog triggers.
+ * Purpose: Pro-grade flat obsidian sidebar with hairline dividers, compact vault info
+ *          with media breakdown counters and cloud storage size indicator,
+ *          vault switcher, album tree, direct favorites navigation, trash,
+ *          user account greeting badge with privacy toggle, and settings dialog trigger.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu,
  *               FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
@@ -25,6 +27,7 @@ import {
   Trash2,
   Images,
   Video,
+  HardDrive,
   X,
   Loader2,
   Check,
@@ -128,23 +131,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return folders.filter((f) => !f.is_collection);
   }, [folders]);
 
-  const [isVaultCollapsed, setIsVaultCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("tg_sidebar_vault_collapsed") === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggleVaultCollapse = () => {
-    setIsVaultCollapsed((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem("tg_sidebar_vault_collapsed", String(next));
-      } catch {}
-      return next;
-    });
-  };
 
   const [isIdentityHidden, setIsIdentityHidden] = useState<boolean>(() => {
     try {
@@ -328,22 +314,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </div>
 
-            {/* Media Breakdown Counters directly beneath Vault */}
+            {/* Media Breakdown Counters & Storage Size directly beneath Vault */}
             {stats && (
-              <div className="grid grid-cols-2 gap-1.5 pt-1.5 border-t border-outline-variant/10 text-xs">
-                <div
-                  className="flex items-center justify-center gap-1.5 text-on-surface bg-surface-container-lowest/50 border border-outline-variant/10 px-2 py-1 rounded text-[11px] font-medium"
-                  title={`${stats.total_photos} Photos / Images`}
-                >
-                  <Images className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="font-mono">{stats.total_photos}</span>
+              <div className="space-y-1.5 pt-1.5 border-t border-outline-variant/10 text-xs">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div
+                    className="flex items-center justify-center gap-1.5 text-on-surface bg-surface-container-lowest/50 border border-outline-variant/10 px-2 py-1 rounded text-[11px] font-medium"
+                    title={`${stats.total_photos} Photos / Images`}
+                  >
+                    <Images className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="font-mono">{stats.total_photos}</span>
+                  </div>
+                  <div
+                    className="flex items-center justify-center gap-1.5 text-on-surface bg-surface-container-lowest/50 border border-outline-variant/10 px-2 py-1 rounded text-[11px] font-medium"
+                    title={`${stats.total_videos} Videos`}
+                  >
+                    <Video className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="font-mono">{stats.total_videos}</span>
+                  </div>
                 </div>
+
+                {/* Storage size info directly beneath media counters */}
                 <div
-                  className="flex items-center justify-center gap-1.5 text-on-surface bg-surface-container-lowest/50 border border-outline-variant/10 px-2 py-1 rounded text-[11px] font-medium"
-                  title={`${stats.total_videos} Videos`}
+                  className="flex items-center justify-between px-2 py-1 rounded bg-surface-container-lowest/50 border border-outline-variant/10 text-xs"
+                  title={`Archived in Cloud: ${stats.total_size_formatted}`}
                 >
-                  <Video className="w-3.5 h-3.5 text-primary shrink-0" />
-                  <span className="font-mono">{stats.total_videos}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <HardDrive className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="font-mono font-bold text-on-surface text-[11px] truncate tracking-tight">
+                      {stats.total_size_formatted}
+                    </span>
+                    <span className="text-[10px] text-on-surface-variant/80 truncate font-medium">Cloud Storage</span>
+                  </div>
+                  <div
+                    className="flex items-center justify-center px-1.5 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[9px] font-semibold text-primary font-mono shrink-0"
+                    title="Unlimited Telegram Storage"
+                  >
+                    <span>∞ UNLIMITED</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -611,36 +619,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
-        {!isVaultCollapsed && stats && (
-          <div className="p-3 m-3 rounded-lg border border-outline-variant/15 bg-surface-container-lowest/50 space-y-2.5 animate-in fade-in duration-200">
-            {/* Storage archived & Unlimited badge */}
-            <div className="flex items-baseline justify-between">
-              <div>
-                <span className="text-base font-bold font-mono text-on-surface tracking-tight">
-                  {stats.total_size_formatted}
-                </span>
-                <span className="text-[10px] text-on-surface-variant/80 block mt-0.5 font-medium">Archived in Cloud</span>
-              </div>
-              <div className="flex items-center justify-center px-1.5 py-0.5 rounded bg-surface-container border border-outline-variant/15 text-[10px] font-semibold text-primary font-mono" title="Unlimited Telegram Storage">
-                <span>∞ UNLIMITED</span>
-              </div>
-            </div>
-
-            {/* Quick Actions: Preferences & Storage Settings Dialog Trigger */}
-            {onOpenSettings && (
-              <button
-                onClick={onOpenSettings}
-                className="w-full py-1.5 px-2.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 bg-surface-container hover:bg-surface-container-high border border-outline-variant/15 text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
-                title="Manage local disk cache, connection telemetry, and app preferences"
-              >
-                <Settings className="w-3.5 h-3.5 text-primary" />
-                <span>Preferences & Storage</span>
-              </button>
-            )}
-          </div>
-        )}
-
         {/* User Account Greeting Badge at Bottom */}
         {stats?.account_name && (
           <div className="px-3 py-2.5 border-t border-outline-variant/10 flex items-center justify-between text-xs mt-auto bg-surface-container-lowest/30">
@@ -713,18 +691,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <LogOut className="w-3.5 h-3.5" />
                 </button>
               )}
-              <button
-                onClick={toggleVaultCollapse}
-                className="w-7 h-7 rounded-md hover:bg-white/[0.06] flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
-                title={isVaultCollapsed ? "Expand Vault Info" : "Collapse Vault Info"}
-                aria-label="Toggle Vault Info"
-              >
-                <ChevronDown
-                  className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                    isVaultCollapsed ? "rotate-180 text-primary" : "rotate-0"
-                  }`}
-                />
-              </button>
             </div>
           </div>
         )}
