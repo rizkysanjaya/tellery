@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/MediaLightbox.tsx
  * Purpose: Fullscreen modal lightbox with EXIF drawer, keyboard navigation,
- *          zoomable viewport, album/folder assignment manager, 1-click favorite toggle, and deletion controls.
+ *          zoomable viewport, album/folder assignment manager, 1-click favorite toggle,
+ *          accessible 44px+ mobile touch targets, and deletion controls.
  *          Supports permission gating (hiding Delete action when active vault is read-only).
  *          Updated to match Silk Cloud dark neomorphic design system.
  * Used by: frontend/src/App.tsx
@@ -186,12 +187,13 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
       className="fixed inset-0 z-50 bg-background/95 flex flex-col select-none font-sans text-on-surface"
     >
       {/* Top Action Bar */}
-      <header className="w-full flex justify-between items-center px-6 py-4 bg-surface-base/90 backdrop-blur-md border-b border-outline-variant/10 z-10">
+      <header className="w-full flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 bg-surface-base/90 backdrop-blur-md border-b border-outline-variant/10 z-10">
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={onClose}
-            className="w-10 h-10 rounded-full neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shrink-0"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shrink-0 touch-manipulation"
             title="Back (Esc)"
+            aria-label="Back to gallery (Esc)"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -264,8 +266,9 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             >
               <button
                 onClick={onPrev}
-                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg"
+                className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg touch-manipulation"
                 title="Previous (Left Arrow)"
+                aria-label="Previous item (Left Arrow)"
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
@@ -281,8 +284,9 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             >
               <button
                 onClick={onNext}
-                className="w-12 h-12 rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg"
+                className="w-12 h-12 min-w-[48px] min-h-[48px] rounded-full bg-surface-base neo-button flex items-center justify-center text-on-surface hover:text-primary transition-colors cursor-pointer shadow-lg touch-manipulation"
                 title="Next (Right Arrow)"
+                aria-label="Next item (Right Arrow)"
               >
                 <ChevronRight className="w-6 h-6" />
               </button>
@@ -317,14 +321,14 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                     <button
                       onClick={() => setShowDeleteConfirm(false)}
                       disabled={isDeleting}
-                      className="flex-1 px-4 py-2 neo-button rounded-neo-lg text-on-surface text-xs font-semibold transition-all cursor-pointer"
+                      className="flex-1 px-4 py-2.5 min-h-[44px] neo-button rounded-neo-lg text-on-surface text-xs font-semibold transition-all cursor-pointer touch-manipulation"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleDelete}
                       disabled={isDeleting}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2 bg-red-600/20 text-red-400 hover:bg-red-600/30 active:scale-95 disabled:opacity-50 rounded-neo-lg text-xs font-semibold transition-all cursor-pointer"
+                      className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 min-h-[44px] bg-red-600/20 text-red-400 hover:bg-red-600/30 active:scale-95 disabled:opacity-50 rounded-neo-lg text-xs font-semibold transition-all cursor-pointer touch-manipulation"
                     >
                       {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       <span>{isDeleting ? "Deleting..." : "Delete"}</span>
@@ -349,16 +353,18 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             <a
               href={item.stream_url}
               download={item.file_name}
-              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer touch-manipulation"
               title="Download"
+              aria-label="Download file"
             >
               <Download className="w-4 h-4" />
               <span className="text-[11px] font-semibold">Save</span>
             </a>
             <button
               onClick={handleCopyLink}
-              className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button text-on-surface hover:text-primary transition-all text-center cursor-pointer touch-manipulation"
               title="Share Link"
+              aria-label="Share media link"
             >
               {copied ? <Check className="w-4 h-4 text-primary" /> : <Share2 className="w-4 h-4" />}
               <span className="text-[11px] font-semibold">{copied ? "Copied!" : "Share"}</span>
@@ -369,10 +375,11 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
                   onToggleFavorite(item.id, !item.is_favorite);
                 }
               }}
-              className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button transition-all text-center cursor-pointer ${
+              className={`flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button transition-all text-center cursor-pointer touch-manipulation ${
                 item.is_favorite ? "text-amber-400" : "text-on-surface hover:text-amber-400"
               }`}
               title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
+              aria-label={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
             >
               <Star className={`w-4 h-4 ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`} />
               <span className="text-[11px] font-semibold">{item.is_favorite ? "Starred" : "Star"}</span>
@@ -380,8 +387,9 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
             {onDelete && (
               <button
                 onClick={() => setShowDeleteConfirm(true)}
-                className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer"
+                className="flex flex-col items-center justify-center gap-1.5 p-2 sm:p-2.5 min-h-[48px] rounded-neo-xl bg-surface-base neo-button text-red-400 hover:text-red-300 transition-all text-center cursor-pointer touch-manipulation"
                 title="Delete"
+                aria-label="Delete media item"
               >
                 <Trash2 className="w-4 h-4" />
                 <span className="text-[11px] font-semibold">Delete</span>

@@ -4,7 +4,7 @@
  * Purpose: Apple/Google Photos-inspired chronological date-jump scrubber bar
  *          with floating month preview bubble, precision rAF scrollspy synchronization,
  *          smart year-disambiguated period labels (e.g. "Sep '26" vs "Sep '25"),
- *          and 1-click smooth jump navigation.
+ *          touch-manipulation expanded hit slop, and 1-click smooth jump navigation.
  * Used by: frontend/src/components/TimelineGrid.tsx, frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: TimelineDateScrubber
@@ -250,7 +250,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           title="Scroll to top"
           aria-label="Scroll to top"
-          className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors text-[10px]"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors text-[10px] cursor-pointer touch-manipulation relative after:absolute after:-inset-2 after:content-['']"
         >
           <ChevronUp className="w-3.5 h-3.5" />
         </button>
@@ -269,7 +269,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
                 title={`${group.period || group.period_key} (${group.items?.length || 0} items)`}
                 aria-label={`${group.period || group.period_key} (${group.items?.length || 0} items)`}
                 aria-current={isActive ? "true" : undefined}
-                className={`group relative flex items-center justify-center transition-all duration-200 ${
+                className={`group relative flex items-center justify-center transition-all duration-200 cursor-pointer touch-manipulation ${
                   needsYear
                     ? isActive
                       ? "px-2 h-6 min-w-[50px] rounded-full bg-primary text-on-primary font-bold shadow-md scale-105"
@@ -300,7 +300,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
           onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
           title="Scroll to bottom"
           aria-label="Scroll to bottom"
-          className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors text-[10px]"
+          className="w-7 h-7 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors text-[10px] cursor-pointer touch-manipulation relative after:absolute after:-inset-2 after:content-['']"
         >
           <ChevronDown className="w-3.5 h-3.5" />
         </button>

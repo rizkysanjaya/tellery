@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
- *          neomorphic themes, normalized WCAG 2.2 AA contrast in Light & Dark modes,
+ *          neomorphic themes, Battery Saver / Low Power GPU conservation mode,
+ *          normalized WCAG 2.2 AA contrast in Light & Dark modes,
  *          Multi-Vault Telegram channel switching & dialog discovery,
  *          zero-config plug-and-play onboarding wizard & in-browser Telegram MTProto auth,
  *          on-demand Vault Strategy Hub (Step 5) modal overlay & hash-route invocation (#vault-setup),
@@ -27,7 +28,7 @@
  * Side Effects: Fetches timeline/folders/stats/trash/vaults/auth/filter-meta over HTTP, executes uploads, soft deletions,
  *                restorations, permanent purges, single/bulk folder deletions, ZIP exports/downloads, folder color & icon updates,
  *                favorites toggles, folder assignments, vault sync, updates browser window.location.hash history,
- *                handles MTProto auth session & disconnection, and persists theme/layout in localStorage.
+ *                handles MTProto auth session & disconnection, and persists theme/layout/batterySaver in localStorage.
  * =============================================================================
  */
 
@@ -190,6 +191,16 @@ export const App: React.FC = () => {
     const saved = localStorage.getItem("telegallery_theme");
     return (saved as "dark" | "light") || "dark";
   });
+  const [batterySaver, setBatterySaver] = useState<boolean>(() => {
+    const saved = localStorage.getItem("telegallery_battery_saver");
+    if (saved !== null) {
+      return saved === "true";
+    }
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      return true;
+    }
+    return false;
+  });
 
   // Apply theme class to document root
   useEffect(() => {
@@ -207,6 +218,28 @@ export const App: React.FC = () => {
       // Ignore quota/storage errors
     }
   }, [theme]);
+
+  // Persist battery saver mode and optionally auto-detect low battery (< 20%)
+  useEffect(() => {
+    try {
+      localStorage.setItem("telegallery_battery_saver", String(batterySaver));
+    } catch {
+      // Ignore quota/storage errors
+    }
+  }, [batterySaver]);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && "getBattery" in navigator) {
+      (navigator as any).getBattery().then((battery: any) => {
+        if (!battery.charging && battery.level <= 0.20) {
+          const saved = localStorage.getItem("telegallery_battery_saver");
+          if (saved === null) {
+            setBatterySaver(true);
+          }
+        }
+      }).catch(() => {});
+    }
+  }, []);
 
   // Reactive state refs to eliminate stale closure problems across async callbacks & undo actions
   const activeFolderRef = useRef<FolderItem | null>(null);
@@ -249,6 +282,10 @@ export const App: React.FC = () => {
 
   const handleToggleTheme = useCallback(() => {
     setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }, []);
+
+  const handleToggleBatterySaver = useCallback(() => {
+    setBatterySaver((prev) => !prev);
   }, []);
 
   const [loading, setLoading] = useState(true);
@@ -2316,6 +2353,8 @@ export const App: React.FC = () => {
           onToggleMobileSidebar={() => setIsMobileSidebarOpen((p) => !p)}
           theme={theme}
           onToggleTheme={handleToggleTheme}
+          batterySaver={batterySaver}
+          onToggleBatterySaver={handleToggleBatterySaver}
           activeExifFilterCount={activeExifFilterCount}
           onOpenExifFilters={() => setIsExifDrawerOpen(true)}
         />
@@ -2504,6 +2543,7 @@ export const App: React.FC = () => {
                 onToggleFavoriteMedia={handleToggleFavoriteMedia}
                 onFolderContextMenu={handleFolderContextMenu}
                 loading={loading}
+                batterySaver={batterySaver}
               />
             </Suspense>
           ) : currentView === "trash" && !activeFolder ? (
@@ -2535,6 +2575,7 @@ export const App: React.FC = () => {
               onContextMenu={handleCardContextMenu}
               onToggleFavorite={handleToggleFavoriteMedia}
               loading={loading}
+              batterySaver={batterySaver}
             />
           )}
         </main>

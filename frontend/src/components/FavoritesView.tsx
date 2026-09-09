@@ -4,7 +4,7 @@
  * Purpose: Dedicated Silk Cloud neomorphic Favorites view featuring two distinct sections:
  *          1. Favorite Albums section with search filtering, cover previews, un-favorite buttons, and click navigation
  *          2. Favorite Media section with search queries, strictly filtered favorited media items,
- *             full TimelineGrid search empty states, multi-select, layout controls, and hover previews.
+ *             full TimelineGrid search empty states, multi-select, layout controls, battery saver propagation, and hover previews.
  * Used by: frontend/src/App.tsx (when currentView === 'favorites')
  * Dependencies: React, lucide-react, frontend/src/types.ts, TimelineGrid, FolderIcon
  * Public Members: FavoritesView
@@ -28,6 +28,7 @@ interface FavoritesViewProps {
   onLayoutChange: (layout: DisplayLayout) => void;
   sortBy: SortOption;
   onSortChange: (sort: SortOption) => void;
+  batterySaver?: boolean;
   searchQuery?: string;
   onClearSearch?: () => void;
   onSelectMedia: (item: MediaItem) => void;
@@ -52,6 +53,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
   onLayoutChange,
   sortBy,
   onSortChange,
+  batterySaver = false,
   searchQuery,
   onClearSearch,
   onSelectMedia,
@@ -306,6 +308,7 @@ export const FavoritesView: React.FC<FavoritesViewProps> = ({
             layout={displayLayout}
             sortBy={sortBy}
             onSortChange={onSortChange}
+            batterySaver={batterySaver}
             onSelectMedia={onSelectMedia}
             onToggleSelect={onToggleSelect}
             onSelectAllInGroup={onSelectAllInGroup}

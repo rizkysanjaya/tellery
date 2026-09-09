@@ -4,6 +4,7 @@
  * Purpose: High-performance gallery grid tile with instant WebP thumbnail,
  *          constantly looping animated GIFs, 4-corner ergonomic layout (top-left selection,
  *          top-right favorite star, bottom-left video duration, bottom-right file format badge),
+ *          battery saver / low power static thumbnail fallback, touch-manipulation targets,
  *          dense mode adaptive scaling, context menu forwarding, and HTML5 drag-and-drop.
  * Used by: frontend/src/components/TimelineGrid.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/utils/fileTypes.ts
@@ -25,6 +26,7 @@ interface MediaCardProps {
   selectedIds: Set<number>;
   aspectMode?: "square" | "natural";
   isDense?: boolean;
+  batterySaver?: boolean;
   onClick: () => void;
   onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onToggleFavorite?: (id: number, isFavorite: boolean) => void;
@@ -38,6 +40,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   selectedIds,
   aspectMode = "square",
   isDense = false,
+  batterySaver = false,
   onClick,
   onToggleSelect,
   onToggleFavorite,
@@ -191,7 +194,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           {/* Top-Left: Selection Checkbox (Clean Neomorphic, Hover-revealed like Favorite, Solid Accent Active) */}
           <div
             onClick={handleCheckboxClick}
-            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm ${
+            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm touch-manipulation ${
               isDense ? "top-1.5 left-1.5 w-5 h-5" : "top-2.5 left-2.5 w-6 h-6"
             } ${
               isSelected
@@ -214,8 +217,8 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             <div className="absolute inset-0 bg-primary/10 z-[1] pointer-events-none" />
           )}
 
-          {/* Constantly Playing Animated Loop: GIF or Telegram .gif.mp4 Animation */}
-          {isAnimatedVideo ? (
+          {/* Constantly Playing Animated Loop (GIF or Telegram .gif.mp4) or Low-Power Static Thumbnail */}
+          {!batterySaver && isAnimatedVideo ? (
             <video
               src={`${item.stream_url}?preview=1`}
               autoPlay
@@ -224,7 +227,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               playsInline
               className="w-full h-full object-cover pointer-events-none select-none"
             />
-          ) : isGif ? (
+          ) : !batterySaver && isGif ? (
             <img
               src={item.stream_url}
               alt={item.file_name}
@@ -234,7 +237,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none"
             />
           ) : item.thumbnail_url ? (
-            /* Instant Local WebP Thumbnail (0ms) - Always present */
+            /* Instant Local WebP Thumbnail (0ms) - Standard & Battery Saver Fallback */
             <img
               src={item.thumbnail_url}
               alt={item.file_name}
@@ -254,6 +257,15 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             </div>
           )}
 
+          {/* Battery Saver Mode: Animation Indicator Badge */}
+          {batterySaver && (isAnimatedVideo || isGif) && (
+            <div className={`absolute z-[2] pointer-events-none ${isDense ? "bottom-1.5 left-1.5" : "bottom-2.5 left-2.5"}`}>
+              <div className="bg-surface-base/90 backdrop-blur-xs text-primary font-mono font-bold px-1.5 py-0.5 rounded-full text-[8px] sm:text-[9px] shadow-sm border border-primary/20">
+                GIF
+              </div>
+            </div>
+          )}
+
           {/* Top-Right: Star Favorite Button exclusively */}
           <button
             type="button"
@@ -264,7 +276,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               }
             }}
             title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
-            className={`absolute z-[3] rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer ${
+            className={`absolute z-[3] rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer touch-manipulation ${
               isDense ? "top-1.5 right-1.5 w-5 h-5 flex items-center justify-center p-0" : "top-2.5 right-2.5 p-1.5"
             } ${
               item.is_favorite

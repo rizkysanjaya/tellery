@@ -3,7 +3,8 @@
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
  *          contextual empty states, per-section select-all toggles, chronological
- *          date-jump scrubber bar, dense grid ergonomics, and natural aspect masonry showcase.
+ *          date-jump scrubber bar, dense grid ergonomics, battery saver propagation,
+ *          and natural aspect masonry showcase.
  * Used by: frontend/src/App.tsx, frontend/src/components/FavoritesView.tsx
  * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx,
  *               frontend/src/components/MediaListItem.tsx, frontend/src/components/TimelineDateScrubber.tsx, lucide-react
@@ -68,6 +69,7 @@ interface TimelineGridProps {
   layout?: DisplayLayout;
   sortBy?: SortOption;
   onSortChange?: (sort: SortOption) => void;
+  batterySaver?: boolean;
   onSelectMedia: (item: MediaItem) => void;
   onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onSelectAllInGroup: (ids: number[]) => void;
@@ -87,6 +89,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
   layout = "grid",
   sortBy = "date_desc",
   onSortChange,
+  batterySaver = false,
   onSelectMedia,
   onToggleSelect,
   onSelectAllInGroup,
@@ -319,6 +322,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                       isSelected={selectedIds.has(item.id)}
                       isSelectionMode={isSelectionMode}
                       selectedIds={selectedIds}
+                      batterySaver={batterySaver}
                       onClick={() => onSelectMedia(item)}
                       onToggleSelect={onToggleSelect}
                       onContextMenu={onContextMenu}
@@ -337,6 +341,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     isSelectionMode={isSelectionMode}
                     selectedIds={selectedIds}
                     isDense={true}
+                    batterySaver={batterySaver}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
                     onToggleFavorite={onToggleFavorite}
@@ -364,6 +369,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                             isSelectionMode={isSelectionMode}
                             selectedIds={selectedIds}
                             aspectMode="natural"
+                            batterySaver={batterySaver}
                             onClick={() => onSelectMedia(item)}
                             onToggleSelect={onToggleSelect}
                             onToggleFavorite={onToggleFavorite}
@@ -385,6 +391,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     isSelected={selectedIds.has(item.id)}
                     isSelectionMode={isSelectionMode}
                     selectedIds={selectedIds}
+                    batterySaver={batterySaver}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
                     onToggleFavorite={onToggleFavorite}

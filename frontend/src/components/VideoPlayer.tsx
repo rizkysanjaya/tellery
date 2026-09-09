@@ -5,7 +5,7 @@
  *          buffered range tracking, playback speed controls, picture-in-picture,
  *          custom right-click context menu (Loop, Speed, PiP, URL copy, Stats for Nerds),
  *          keyboard shortcuts (YouTube/Netflix style), and auto-hiding controls.
- *          Updated to match Silk Cloud dynamic light & dark neomorphic design system.
+ *          Updated with mobile touch target hit slop and touch scrubbing.
  * Used by: frontend/src/components/MediaLightbox.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: VideoPlayer
@@ -462,6 +462,72 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     window.addEventListener("mouseup", onMouseUp);
   };
 
+  const handleScrubTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!e.touches[0] || !scrubBarRef.current || !videoRef.current) return;
+    const touch = e.touches[0];
+    const rect = scrubBarRef.current.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+    const targetTime = ratio * (videoRef.current.duration || duration || 1);
+    isScrubbingRef.current = true;
+    const vid = videoRef.current as HTMLVideoElement & { fastSeek?: (t: number) => void };
+    if (typeof vid.fastSeek === "function") {
+      vid.fastSeek(targetTime);
+    } else {
+      vid.currentTime = targetTime;
+    }
+    const dur = videoRef.current.duration || duration || 1;
+    if (playedBarRef.current) {
+      playedBarRef.current.style.width = `${(targetTime / dur) * 100}%`;
+    }
+    if (currentTimeDisplayRef.current) {
+      currentTimeDisplayRef.current.textContent = formatTime(targetTime);
+    }
+
+    const onTouchMove = (moveEvent: TouchEvent) => {
+      if (!moveEvent.touches[0] || !scrubBarRef.current || !videoRef.current) return;
+      const moveTouch = moveEvent.touches[0];
+      const r = scrubBarRef.current.getBoundingClientRect();
+      const rat = Math.max(0, Math.min(1, (moveTouch.clientX - r.left) / r.width));
+      const d = videoRef.current.duration || duration || 1;
+      const newT = rat * d;
+
+      if (rafScrubRef.current) {
+        cancelAnimationFrame(rafScrubRef.current);
+      }
+
+      rafScrubRef.current = requestAnimationFrame(() => {
+        if (!videoRef.current) return;
+        const v = videoRef.current as HTMLVideoElement & { fastSeek?: (t: number) => void };
+        if (typeof v.fastSeek === "function") {
+          v.fastSeek(newT);
+        } else {
+          v.currentTime = newT;
+        }
+        if (playedBarRef.current) {
+          playedBarRef.current.style.width = `${rat * 100}%`;
+        }
+        if (currentTimeDisplayRef.current) {
+          currentTimeDisplayRef.current.textContent = formatTime(newT);
+        }
+      });
+    };
+
+    const onTouchEnd = () => {
+      isScrubbingRef.current = false;
+      if (rafScrubRef.current) {
+        cancelAnimationFrame(rafScrubRef.current);
+      }
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
+      resetHideTimer();
+    };
+
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
+  };
+
   // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -664,13 +730,14 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
         }`}
       >
         {/* Row 1: Full-Width Scrubber Progress Bar */}
-        <div className="w-full px-1 pt-0.5">
+        <div className="w-full px-1 py-1.5 -my-1.5 touch-manipulation">
           <div
             ref={scrubBarRef}
             onMouseMove={handleScrubMouseMove}
             onMouseLeave={() => setHoverTime(null)}
             onMouseDown={handleScrubMouseDown}
-            className="w-full h-2 hover:h-3 neo-pressed rounded-full relative cursor-pointer transition-all duration-150 group/scrubber flex items-center"
+            onTouchStart={handleScrubTouchStart}
+            className="w-full h-2 hover:h-3 neo-pressed rounded-full relative cursor-pointer transition-all duration-150 group/scrubber flex items-center touch-manipulation"
           >
             {/* Scrubber Hover Time Tooltip */}
             {hoverTime !== null && (
@@ -710,39 +777,39 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Play/Pause Button */}
             <button
               onClick={togglePlay}
-              className="w-10 h-10 rounded-full neo-button-primary flex items-center justify-center cursor-pointer active:scale-95 transition-transform shrink-0 shadow-md"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full neo-button-primary flex items-center justify-center cursor-pointer active:scale-95 transition-transform shrink-0 shadow-md touch-manipulation"
               title={isPlaying ? "Pause (Space/K)" : "Play (Space/K)"}
             >
               {isPlaying ? (
-                <Pause className="w-4.5 h-4.5 fill-current" />
+                <Pause className="w-5 h-5 fill-current" />
               ) : (
-                <Play className="w-4.5 h-4.5 fill-current ml-0.5" />
+                <Play className="w-5 h-5 fill-current ml-0.5" />
               )}
             </button>
 
             {/* Skip Backward 10s */}
             <button
               onClick={() => handleSkip(-10)}
-              className="w-8.5 h-8.5 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer shrink-0"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer shrink-0 touch-manipulation"
               title="Skip backward 10s (Left Arrow/J)"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
+              <RotateCcw className="w-4 h-4" />
             </button>
 
             {/* Skip Forward 10s */}
             <button
               onClick={() => handleSkip(10)}
-              className="w-8.5 h-8.5 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer shrink-0"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors cursor-pointer shrink-0 touch-manipulation"
               title="Skip forward 10s (Right Arrow/L)"
             >
-              <RotateCw className="w-3.5 h-3.5" />
+              <RotateCw className="w-4 h-4" />
             </button>
 
             {/* Volume Control Group */}
             <div className="flex items-center gap-1.5 ml-1 group/vol">
               <button
                 onClick={toggleMute}
-                className="w-8.5 h-8.5 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0"
+                className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0 touch-manipulation"
                 title={isMuted ? "Unmute (M)" : "Mute (M)"}
               >
                 {isMuted || volume === 0 ? (
@@ -802,21 +869,21 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Loop Toggle */}
             <button
               onClick={toggleLoop}
-              className={`w-8.5 h-8.5 rounded-full flex items-center justify-center transition-all cursor-pointer ${
+              className={`w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full flex items-center justify-center transition-all cursor-pointer shrink-0 touch-manipulation ${
                 isLooping
                   ? "neo-pressed text-primary ring-1 ring-primary/40 bg-primary/10"
                   : "neo-button text-on-surface-variant hover:text-on-surface"
               }`}
               title={isLooping ? "Loop Enabled" : "Loop Disabled"}
             >
-              <Repeat className="w-3.5 h-3.5" />
+              <Repeat className="w-4 h-4" />
             </button>
 
             {/* Playback Speed Popover */}
             <div className="relative">
               <button
                 onClick={() => setShowSettingsMenu((p) => !p)}
-                className={`h-8.5 px-2.5 rounded-full flex items-center gap-1 text-xs font-mono font-semibold transition-all cursor-pointer ${
+                className={`h-9 px-2.5 min-h-[36px] relative after:absolute after:-inset-1 after:content-[''] rounded-full flex items-center gap-1 text-xs font-mono font-semibold transition-all cursor-pointer shrink-0 touch-manipulation ${
                   showSettingsMenu || playbackRate !== 1
                     ? "neo-pressed text-primary ring-1 ring-primary/40 bg-primary/10"
                     : "neo-button text-on-surface-variant hover:text-on-surface"
@@ -837,7 +904,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
                     <button
                       key={rate}
                       onClick={() => handleRateChange(rate)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-neo text-xs font-medium transition-all text-left cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-neo text-xs font-medium transition-all text-left cursor-pointer touch-manipulation ${
                         playbackRate === rate
                           ? "bg-primary/15 text-primary neo-pressed font-bold"
                           : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
@@ -854,13 +921,13 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
             {/* Fullscreen */}
             <button
               onClick={toggleFullscreen}
-              className="w-8.5 h-8.5 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0"
+              className="w-9 h-9 min-w-[36px] min-h-[36px] relative after:absolute after:-inset-1.5 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer shrink-0 touch-manipulation"
               title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}
             >
               {isFullscreen ? (
-                <Minimize className="w-3.5 h-3.5" />
+                <Minimize className="w-4 h-4" />
               ) : (
-                <Maximize className="w-3.5 h-3.5" />
+                <Maximize className="w-4 h-4" />
               )}
             </button>
           </div>

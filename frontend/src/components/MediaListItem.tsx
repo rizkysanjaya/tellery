@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/MediaListItem.tsx
  * Purpose: Detailed table/list row layout component for a media item, displaying
- *          thumbnail, constantly looping animated GIFs, on-hover animated video preview,
+ *          thumbnail, looping animated GIFs, on-hover animated video preview,
+ *          battery saver low-power static thumbnail fallback, touch targets,
  *          filename, folder tags, resolution, duration, file size, and actions.
  * Used by: frontend/src/components/TimelineGrid.tsx (in "list" layout mode)
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -29,6 +30,7 @@ interface MediaListItemProps {
   isSelected: boolean;
   isSelectionMode: boolean;
   selectedIds: Set<number>;
+  batterySaver?: boolean;
   onClick: () => void;
   onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onContextMenu: (e: React.MouseEvent, item: MediaItem) => void;
@@ -39,6 +41,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   isSelected,
   isSelectionMode,
   selectedIds,
+  batterySaver = false,
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -90,6 +93,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   }, []);
 
   const handleMouseEnter = () => {
+    if (batterySaver) return;
     if (isVideo && !isAnimatedVideo) {
       if (hoverPreviewTimerRef.current) clearTimeout(hoverPreviewTimerRef.current);
       hoverPreviewTimerRef.current = setTimeout(() => {
@@ -211,7 +215,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
         {/* Selection Checkbox */}
         <div
           onClick={handleCheckboxClick}
-          className={`w-6 h-6 rounded-neo flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+          className={`w-6 h-6 rounded-neo flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
             isSelected
               ? "bg-primary text-on-primary shadow-sm"
               : isSelectionMode
@@ -226,7 +230,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
 
         {/* Crisp Rounded Thumbnail / Constantly Playing GIF / Smooth Video Hover Preview */}
         <div className="relative w-14 h-14 rounded-neo-lg overflow-hidden bg-surface-container shrink-0 neo-image-wrapper border border-outline-variant/20 shadow-sm">
-          {isAnimatedVideo ? (
+          {!batterySaver && isAnimatedVideo ? (
             <video
               src={item.stream_url}
               autoPlay
@@ -237,13 +241,13 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
             />
           ) : (
             <img
-              src={isGif ? item.stream_url : (item.thumbnail_url || item.stream_url)}
+              src={!batterySaver && isGif ? item.stream_url : (item.thumbnail_url || item.stream_url)}
               alt={item.file_name}
               className="w-full h-full object-cover pointer-events-none select-none"
               loading="lazy"
             />
           )}
-          {isVideo && !isAnimatedVideo && isPlayingPreview && (
+          {isVideo && !isAnimatedVideo && !batterySaver && isPlayingPreview && (
             <video
               src={item.stream_url}
               autoPlay
@@ -253,7 +257,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
               className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none z-[1] animate-in fade-in duration-200"
             />
           )}
-          {isVideo && !isAnimatedVideo && !isPlayingPreview && (
+          {isVideo && !isAnimatedVideo && (!isPlayingPreview || batterySaver) && (
             <div className="absolute inset-0 bg-black/35 flex items-center justify-center pointer-events-none">
               <Play className="w-4 h-4 text-white fill-white" />
             </div>

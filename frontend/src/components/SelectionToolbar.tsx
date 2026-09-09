@@ -3,7 +3,7 @@
  * Module: frontend/src/components/SelectionToolbar.tsx
  * Purpose: 21st.dev Floating Dynamic Island action dock shown when 1+ media items
  *          are selected. Provides bulk operations: Add to Album, Favorite, Download ZIP, Move to Trash, Deselect.
- *          Supports permission gating (hiding Delete action when active vault is read-only).
+ *          Supports permission gating, 44px+ mobile touch targets, and touch-manipulation.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: SelectionToolbar
@@ -116,8 +116,9 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                 setShowFolderPicker((p) => !p);
                 setShowDeleteConfirm(false);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-neo text-xs font-medium transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[42px] sm:min-h-[36px] min-w-[42px] sm:min-w-0 neo-button text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-neo text-xs font-medium transition-all cursor-pointer touch-manipulation"
               title="Add to Album"
+              aria-label="Add to Album"
             >
               <FolderPlus className="w-4 h-4 text-primary" />
               <span className="hidden sm:inline">Add to Album</span>
@@ -137,7 +138,8 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                     <span className="text-xs font-bold text-on-surface">Choose Collection</span>
                     <button
                       onClick={() => setShowFolderPicker(false)}
-                      className="p-1 text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer"
+                      className="p-1.5 min-w-[32px] min-h-[32px] flex items-center justify-center text-on-surface-variant hover:text-on-surface rounded-md cursor-pointer touch-manipulation"
+                      aria-label="Close picker"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -210,8 +212,9 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
             <button
               onClick={onFavoriteSelected}
               disabled={isProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-amber-400 hover:bg-amber-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[42px] sm:min-h-[36px] min-w-[42px] sm:min-w-0 neo-button text-amber-400 hover:bg-amber-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer touch-manipulation"
               title="Add Selected to Favorites"
+              aria-label="Add selected to Favorites"
             >
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
               <span className="hidden sm:inline">Favorite</span>
@@ -223,8 +226,9 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
             <button
               onClick={onDownloadSelected}
               disabled={isProcessing}
-              className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-sky-400 hover:bg-sky-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[42px] sm:min-h-[36px] min-w-[42px] sm:min-w-0 neo-button text-sky-400 hover:bg-sky-500/10 rounded-neo text-xs font-medium transition-all cursor-pointer disabled:opacity-50 touch-manipulation"
               title="Download selected as ZIP archive"
+              aria-label="Download selected as ZIP archive"
             >
               <Download className="w-4 h-4 text-sky-400" />
               <span className="hidden sm:inline">Download ZIP</span>
@@ -239,8 +243,9 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                   setShowDeleteConfirm((p) => !p);
                   setShowFolderPicker(false);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-error hover:bg-error-container/20 rounded-neo text-xs font-medium transition-all cursor-pointer"
+                className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[42px] sm:min-h-[36px] min-w-[42px] sm:min-w-0 neo-button text-error hover:bg-error-container/20 rounded-neo text-xs font-medium transition-all cursor-pointer touch-manipulation"
                 title="Move Selected to Trash"
+                aria-label="Move selected to Trash"
               >
                 <Trash2 className="w-4 h-4 text-error" />
                 <span className="hidden sm:inline">Delete</span>
@@ -262,14 +267,14 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setShowDeleteConfirm(false)}
-                        className="flex-1 px-3 py-1.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-neo text-xs font-medium cursor-pointer"
+                        className="flex-1 px-3 py-2 min-h-[40px] bg-surface-container hover:bg-surface-container-high text-on-surface rounded-neo text-xs font-medium cursor-pointer touch-manipulation"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleDelete}
                         disabled={isProcessing}
-                        className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-error hover:bg-error/80 disabled:opacity-50 text-white rounded-neo text-xs font-medium cursor-pointer"
+                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 min-h-[40px] bg-error hover:bg-error/80 disabled:opacity-50 text-white rounded-neo text-xs font-medium cursor-pointer touch-manipulation"
                       >
                         {isProcessing ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -291,8 +296,9 @@ export const SelectionToolbar: React.FC<SelectionToolbarProps> = ({
           {/* Deselect All */}
           <button
             onClick={onDeselectAll}
-            className="flex items-center gap-1.5 px-3 py-1.5 neo-button text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-neo text-xs font-medium transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 min-h-[42px] sm:min-h-[36px] min-w-[42px] sm:min-w-0 neo-button text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-neo text-xs font-medium transition-all cursor-pointer touch-manipulation"
             title="Deselect All (Esc)"
+            aria-label="Deselect all (Esc)"
           >
             <X className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Deselect</span>

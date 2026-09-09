@@ -3,11 +3,11 @@
  * Module: frontend/src/components/Header.tsx
  * Purpose: Neomorphic top navigation header with spotlight search, responsive breakpoint
  *          collapsing (768px-1150px), segmented filter pills, smart EXIF & date filter trigger,
- *          sort popover menu, universal theme toggle across all views, and layout switchers.
+ *          sort popover menu, universal theme toggle, battery saver toggle, and layout switchers.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, AnimatedTabs
  * Public Members: Header
- * Side Effects: Dispatches search, filter, EXIF drawer toggle, sort, and layout change events.
+ * Side Effects: Dispatches search, filter, EXIF drawer toggle, sort, theme, battery saver, and layout change events.
  * =============================================================================
  */
 
@@ -30,6 +30,8 @@ import {
   Sun,
   Moon,
   SlidersHorizontal,
+  Zap,
+  ZapOff,
 } from "lucide-react";
 import { DisplayLayout, FilterType, FolderItem, MainView, SortOption } from "../types";
 import { AnimatedTabs, TabItem } from "./ui/AnimatedTabs";
@@ -49,6 +51,8 @@ interface HeaderProps {
   onToggleMobileSidebar: () => void;
   theme?: "dark" | "light";
   onToggleTheme?: () => void;
+  batterySaver?: boolean;
+  onToggleBatterySaver?: () => void;
   activeExifFilterCount?: number;
   onOpenExifFilters?: () => void;
 }
@@ -77,6 +81,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileSidebar,
   theme = "dark",
   onToggleTheme,
+  batterySaver = false,
+  onToggleBatterySaver,
   activeExifFilterCount = 0,
   onOpenExifFilters,
 }) => {
@@ -147,8 +153,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Mobile Hamburger Menu Toggle */}
         <button
           onClick={onToggleMobileSidebar}
-          className="p-2 -ml-2 neo-button rounded-full text-on-surface-variant hover:text-primary md:hidden cursor-pointer transition-all w-10 h-10 flex items-center justify-center shrink-0"
+          className="p-2 -ml-2 neo-button rounded-full text-on-surface-variant hover:text-primary md:hidden cursor-pointer transition-all w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center shrink-0 touch-manipulation"
           title="Open Navigation"
+          aria-label="Open Navigation"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -169,8 +176,9 @@ export const Header: React.FC<HeaderProps> = ({
             {searchQuery ? (
               <button
                 onClick={() => onSearchChange("")}
-                className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-md transition-colors cursor-pointer"
+                className="p-1.5 text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high rounded-md transition-colors cursor-pointer min-w-[36px] min-h-[36px] flex items-center justify-center touch-manipulation"
                 title="Clear search"
+                aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -305,11 +313,39 @@ export const Header: React.FC<HeaderProps> = ({
             </>
           )}
 
+          {/* Battery Saver / Low-Power Mode Toggle (Persistent across all views) */}
+          {onToggleBatterySaver && (
+            <button
+              onClick={onToggleBatterySaver}
+              className={`w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full neo-button bg-surface-base transition-all duration-200 cursor-pointer shrink-0 touch-manipulation ${
+                batterySaver
+                  ? "text-amber-400 neo-pressed ring-1 ring-amber-400/40 bg-amber-400/10 shadow-[0_0_12px_rgba(251,191,36,0.3)]"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+              title={
+                batterySaver
+                  ? "Battery Saver: Active (video previews & loops paused to save battery/data)"
+                  : "Battery Saver: Off (Click to pause animated loops & save power)"
+              }
+              aria-label={
+                batterySaver
+                  ? "Battery Saver: Active (click to disable)"
+                  : "Battery Saver: Off (click to enable)"
+              }
+            >
+              {batterySaver ? (
+                <ZapOff className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Zap className="w-4 h-4" />
+              )}
+            </button>
+          )}
+
           {/* Light / Dark Mode Toggle Button (Persistent across all views) */}
           {onToggleTheme && (
             <button
               onClick={onToggleTheme}
-              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full neo-button bg-surface-base text-on-surface hover:text-primary transition-all duration-200 cursor-pointer shrink-0"
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full neo-button bg-surface-base text-on-surface hover:text-primary transition-all duration-200 cursor-pointer shrink-0 touch-manipulation"
               title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
               aria-label={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
             >
