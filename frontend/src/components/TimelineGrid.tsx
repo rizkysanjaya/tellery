@@ -3,7 +3,7 @@
  * Module: frontend/src/components/TimelineGrid.tsx
  * Purpose: Chronological timeline section with sticky date headers, responsive grid,
  *          contextual empty states, per-section select-all toggles, chronological
- *          date-jump scrubber bar, and natural aspect masonry showcase.
+ *          date-jump scrubber bar, dense grid ergonomics, and natural aspect masonry showcase.
  * Used by: frontend/src/App.tsx, frontend/src/components/FavoritesView.tsx
  * Dependencies: frontend/src/types.ts, frontend/src/components/MediaCard.tsx,
  *               frontend/src/components/MediaListItem.tsx, frontend/src/components/TimelineDateScrubber.tsx, lucide-react
@@ -336,6 +336,7 @@ export const TimelineGrid: React.FC<TimelineGridProps> = ({
                     isSelected={selectedIds.has(item.id)}
                     isSelectionMode={isSelectionMode}
                     selectedIds={selectedIds}
+                    isDense={true}
                     onClick={() => onSelectMedia(item)}
                     onToggleSelect={onToggleSelect}
                     onToggleFavorite={onToggleFavorite}

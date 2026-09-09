@@ -3,6 +3,7 @@
  * Module: frontend/src/components/TimelineDateScrubber.tsx
  * Purpose: Apple/Google Photos-inspired chronological date-jump scrubber bar
  *          with floating month preview bubble, precision rAF scrollspy synchronization,
+ *          smart year-disambiguated period labels (e.g. "Sep '26" vs "Sep '25"),
  *          and 1-click smooth jump navigation.
  * Used by: frontend/src/components/TimelineGrid.tsx, frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
@@ -11,7 +12,7 @@
  * =============================================================================
  */
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Calendar, ChevronUp, ChevronDown } from "lucide-react";
 import { TimelineGroup } from "../types";
 
@@ -153,6 +154,65 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
     setHoveredGroup(null);
   };
 
+  // Pre-calculate smart period labels disambiguating identical months across different years (e.g. Sep '26 vs Sep '25)
+  const { labels, needsYear } = useMemo(() => {
+    const parsed = groups.map((g) => {
+      let month = "";
+      let year = "";
+
+      // 1. Try parsing ISO period_key "YYYY-MM"
+      if (g.period_key && /^\d{4}-\d{2}/.test(g.period_key)) {
+        const [y, m] = g.period_key.split("-");
+        year = y;
+        const monthIndex = parseInt(m, 10) - 1;
+        const date = new Date(parseInt(y, 10), monthIndex, 1);
+        if (!isNaN(date.getTime())) {
+          month = date.toLocaleString("en-US", { month: "short" });
+        }
+      }
+
+      // 2. Fallback to period / period_title (e.g. "September 2026")
+      if (!month || !year) {
+        const text = g.period || g.period_title || "";
+        const match = text.match(/([A-Za-z]+)\s+(\d{4})/);
+        if (match) {
+          month = match[1].slice(0, 3);
+          year = match[2];
+        } else {
+          const parts = (text || g.period_key).split(/[\s-]+/);
+          month = parts[0]?.slice(0, 3) || "";
+          year = parts[1] || "";
+        }
+      }
+
+      return { month, year, key: g.period_key };
+    });
+
+    const uniqueYears = new Set(parsed.map((p) => p.year).filter(Boolean));
+    const monthCounts = new Map<string, number>();
+    parsed.forEach((p) => {
+      if (p.month) {
+        monthCounts.set(p.month, (monthCounts.get(p.month) || 0) + 1);
+      }
+    });
+
+    // Multi-year or duplicate month abbreviations require year disambiguation
+    const requiresYear = uniqueYears.size > 1 || Array.from(monthCounts.values()).some((cnt) => cnt > 1);
+
+    const labelsMap = new Map<string, string>();
+    parsed.forEach((p) => {
+      if (!p.month && !p.year) {
+        labelsMap.set(p.key, p.key.slice(0, 4));
+      } else if (requiresYear && p.month && p.year) {
+        labelsMap.set(p.key, `${p.month} '${p.year.slice(2)}`);
+      } else {
+        labelsMap.set(p.key, p.month || p.year || p.key.slice(0, 4));
+      }
+    });
+
+    return { labels: labelsMap, needsYear: requiresYear };
+  }, [groups]);
+
   return (
     <div
       ref={scrubberRef}
@@ -162,7 +222,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
       {/* Floating Date Preview Tooltip Bubble */}
       {hoveredGroup && (
         <div
-          className="absolute right-12 -translate-y-1/2 pointer-events-none transition-all duration-150 ease-out"
+          className={`absolute ${needsYear ? "right-16" : "right-12"} -translate-y-1/2 pointer-events-none transition-all duration-150 ease-out`}
           style={{ top: tooltipPos }}
         >
           <div className="flex items-center gap-2.5 px-3.5 py-2 bg-surface-base/95 border border-outline-variant/30 rounded-neo-lg shadow-xl backdrop-blur-md whitespace-nowrap">
@@ -189,6 +249,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           title="Scroll to top"
+          aria-label="Scroll to top"
           className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors text-[10px]"
         >
           <ChevronUp className="w-3.5 h-3.5" />
@@ -198,9 +259,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
         <div className="flex flex-col items-center gap-1.5 py-1">
           {groups.map((group) => {
             const isActive = activeKey === group.period_key;
-            const parts = (group.period || group.period_key).split(" ");
-            const shortMonth = parts[0]?.slice(0, 3) || "";
-            const shortLabel = parts.length > 1 ? shortMonth : group.period_key.slice(0, 4);
+            const shortLabel = labels.get(group.period_key) || group.period_key.slice(0, 4);
 
             return (
               <button
@@ -208,14 +267,20 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
                 onClick={() => handleJump(group)}
                 onMouseEnter={(e) => handleMouseEnterItem(e, group)}
                 title={`${group.period || group.period_key} (${group.items?.length || 0} items)`}
+                aria-label={`${group.period || group.period_key} (${group.items?.length || 0} items)`}
+                aria-current={isActive ? "true" : undefined}
                 className={`group relative flex items-center justify-center transition-all duration-200 ${
-                  isActive
-                    ? "w-8 h-6 rounded-full bg-primary text-on-primary font-bold shadow-md scale-105"
-                    : "w-6 h-5 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface"
+                  needsYear
+                    ? isActive
+                      ? "px-2 h-6 min-w-[50px] rounded-full bg-primary text-on-primary font-bold shadow-md scale-105"
+                      : "px-1.5 h-5 min-w-[46px] rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface"
+                    : isActive
+                      ? "w-8 h-6 rounded-full bg-primary text-on-primary font-bold shadow-md scale-105"
+                      : "w-6 h-5 rounded-full hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface"
                 }`}
               >
                 <span
-                  className={`text-[9px] font-mono tracking-tighter transition-opacity ${
+                  className={`text-[9px] font-mono tracking-tighter whitespace-nowrap transition-opacity ${
                     isActive ? "opacity-100 font-bold" : "opacity-75 group-hover:opacity-100"
                   }`}
                 >
@@ -234,6 +299,7 @@ export const TimelineDateScrubber: React.FC<TimelineDateScrubberProps> = ({
         <button
           onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
           title="Scroll to bottom"
+          aria-label="Scroll to bottom"
           className="w-6 h-6 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors text-[10px]"
         >
           <ChevronDown className="w-3.5 h-3.5" />

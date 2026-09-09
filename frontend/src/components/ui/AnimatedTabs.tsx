@@ -1,7 +1,8 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/ui/AnimatedTabs.tsx
- * Purpose: Neomorphic toggle pills/tabs supporting raised and pressed states.
+ * Purpose: Neomorphic toggle pills/tabs supporting raised and pressed states,
+ *          responsive text-to-icon collapsing (hideLabelBelow), and ARIA accessibility.
  * Used by: frontend/src/components/Header.tsx
  * Dependencies: React
  * Public Members: AnimatedTabs, TabItem
@@ -25,6 +26,7 @@ interface AnimatedTabsProps<T extends string = string> {
   layoutIdPrefix?: string;
   className?: string;
   tabClassName?: string;
+  hideLabelBelow?: "sm" | "md" | "lg" | "xl";
 }
 
 export function AnimatedTabs<T extends string = string>({
@@ -33,7 +35,18 @@ export function AnimatedTabs<T extends string = string>({
   onChange,
   className = "",
   tabClassName = "",
+  hideLabelBelow,
 }: AnimatedTabsProps<T>) {
+  const labelHideClass = hideLabelBelow
+    ? hideLabelBelow === "sm"
+      ? "hidden sm:inline"
+      : hideLabelBelow === "md"
+      ? "hidden md:inline"
+      : hideLabelBelow === "lg"
+      ? "hidden lg:inline"
+      : "hidden xl:inline"
+    : "";
+
   return (
     <div
       className={`inline-flex items-center gap-1.5 p-1 bg-surface-base rounded-neo-xl neo-pressed ${className}`}
@@ -44,7 +57,9 @@ export function AnimatedTabs<T extends string = string>({
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className={`relative flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded-neo transition-all duration-200 cursor-pointer select-none ${
+            title={tab.label}
+            aria-label={tab.label}
+            className={`relative flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-sm font-semibold rounded-neo transition-all duration-200 cursor-pointer select-none ${
               isActive
                 ? "neo-raised bg-surface-container text-primary"
                 : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container"
@@ -53,7 +68,7 @@ export function AnimatedTabs<T extends string = string>({
             {/* Tab Icon and Label */}
             <span className="relative z-10 flex items-center gap-1.5">
               {tab.icon && <span>{tab.icon}</span>}
-              {tab.label && <span>{tab.label}</span>}
+              {tab.label && <span className={labelHideClass}>{tab.label}</span>}
               {tab.badge !== undefined && (
                 <span
                   className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-medium ${

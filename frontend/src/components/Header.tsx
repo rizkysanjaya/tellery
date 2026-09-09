@@ -1,9 +1,9 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Header.tsx
- * Purpose: Neomorphic top navigation header with spotlight search,
- *          segmented filter pills, smart EXIF & date filter trigger, sort popover menu,
- *          view awareness, and layout switchers.
+ * Purpose: Neomorphic top navigation header with spotlight search, responsive breakpoint
+ *          collapsing (768px-1150px), segmented filter pills, smart EXIF & date filter trigger,
+ *          sort popover menu, universal theme toggle across all views, and layout switchers.
  * Used by: frontend/src/App.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, AnimatedTabs
  * Public Members: Header
@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Spotlight Search Input */}
-        <div className="relative flex-1 max-w-xl group">
+        <div className="relative flex-1 min-w-[140px] sm:min-w-[180px] md:min-w-[220px] max-w-xl group">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant group-focus-within:text-primary transition-colors z-10" />
           <input
             ref={searchInputRef}
@@ -162,7 +162,7 @@ export const Header: React.FC<HeaderProps> = ({
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full pl-10 pr-20 py-2.5 bg-surface-base rounded-neo-lg text-sm font-medium text-on-surface placeholder-on-surface-variant outline-none transition-all neo-pressed focus:ring-1 focus:ring-primary/40"
+            className="w-full pl-10 pr-14 sm:pr-20 py-2.5 bg-surface-base rounded-neo-lg text-sm font-medium text-on-surface placeholder-on-surface-variant outline-none transition-all neo-pressed focus:ring-1 focus:ring-primary/40"
           />
 
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5 z-10">
@@ -187,130 +187,140 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Controls: Filter Pills, Sort Dropdown & Layout Switcher */}
-        {currentView === "timeline" && (
-          <div className="flex items-center gap-3 shrink-0">
-            {/* Neomorphic Filter Pills (All / Photos / Videos) */}
-            <AnimatedTabs<FilterType>
-              tabs={filterTabs}
-              activeId={activeFilter}
-              onChange={onFilterChange}
-              layoutIdPrefix="media-filter"
-            />
+        {/* Right-Hand Controls Container */}
+        <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {currentView === "timeline" && (
+            <>
+              {/* Neomorphic Filter Pills (All / Photos / Videos) with responsive text collapsing */}
+              <AnimatedTabs<FilterType>
+                tabs={filterTabs}
+                activeId={activeFilter}
+                onChange={onFilterChange}
+                layoutIdPrefix="media-filter"
+                hideLabelBelow="lg"
+              />
 
-            {/* Smart EXIF & Date Filters Button */}
-            {onOpenExifFilters && (
-              <button
-                onClick={onOpenExifFilters}
-                className={`relative flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-neo-lg text-sm font-semibold transition-all cursor-pointer ${
-                  activeExifFilterCount > 0
-                    ? "neo-pressed text-primary bg-surface-base font-bold shadow-xs"
-                    : "neo-raised text-on-surface-variant hover:text-on-surface bg-surface-container hover:scale-[1.02]"
-                }`}
-                title="Smart EXIF & Metadata Filters"
-              >
-                <SlidersHorizontal className="w-4 h-4" />
-                <span className="hidden lg:inline">Filters</span>
-                {activeExifFilterCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[11px] font-bold flex items-center justify-center -ml-0.5 shadow-xs">
-                    {activeExifFilterCount}
-                  </span>
-                )}
-              </button>
-            )}
-
-            {/* Sort Menu Dropdown */}
-            {onSortChange && (
-              <div className="relative" ref={sortMenuRef}>
+              {/* Smart EXIF & Date Filters Button */}
+              {onOpenExifFilters && (
                 <button
-                  onClick={() => setShowSortMenu((p) => !p)}
-                  className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-neo-lg text-sm font-semibold transition-all cursor-pointer ${
-                    showSortMenu
-                      ? "neo-pressed text-primary bg-surface-base"
+                  onClick={onOpenExifFilters}
+                  className={`relative flex items-center gap-1.5 px-2.5 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-neo-lg text-sm font-semibold transition-all cursor-pointer ${
+                    activeExifFilterCount > 0
+                      ? "neo-pressed text-primary bg-surface-base font-bold shadow-xs"
                       : "neo-raised text-on-surface-variant hover:text-on-surface bg-surface-container hover:scale-[1.02]"
                   }`}
-                  title="Sort media by date, name, or size"
+                  title="Smart EXIF & Metadata Filters"
+                  aria-label="Smart EXIF & Metadata Filters"
                 >
-                  <ArrowUpDown className="w-4 h-4" />
-                  <span className="hidden md:inline">
-                    {SORT_LABELS[sortBy]?.label || "Sort"}
-                  </span>
-                  <ChevronDown className="w-3.5 h-3.5" />
+                  <SlidersHorizontal className="w-4 h-4" />
+                  <span className="hidden xl:inline">Filters</span>
+                  {activeExifFilterCount > 0 && (
+                    <span className="w-5 h-5 rounded-full bg-primary text-on-primary text-[11px] font-bold flex items-center justify-center -ml-0.5 shadow-xs">
+                      {activeExifFilterCount}
+                    </span>
+                  )}
                 </button>
+              )}
 
-                {showSortMenu && (
-                  <div className="absolute right-0 top-12 w-56 bg-surface-base rounded-neo-xl neo-card p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
-                    <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-3 py-2">
-                      Sort Timeline By
+              {/* Sort Menu Dropdown */}
+              {onSortChange && (
+                <div className="relative" ref={sortMenuRef}>
+                  <button
+                    onClick={() => setShowSortMenu((p) => !p)}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 lg:px-4 py-2 sm:py-2.5 rounded-neo-lg text-sm font-semibold transition-all cursor-pointer ${
+                      showSortMenu
+                        ? "neo-pressed text-primary bg-surface-base"
+                        : "neo-raised text-on-surface-variant hover:text-on-surface bg-surface-container hover:scale-[1.02]"
+                    }`}
+                    title="Sort media by date, name, or size"
+                    aria-label="Sort media by date, name, or size"
+                    aria-haspopup="menu"
+                    aria-expanded={showSortMenu}
+                  >
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="hidden xl:inline">
+                      {SORT_LABELS[sortBy]?.label || "Sort"}
+                    </span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+
+                  {showSortMenu && (
+                    <div className="absolute right-0 top-12 w-56 bg-surface-base rounded-neo-xl neo-card p-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider px-3 py-2">
+                        Sort Timeline By
+                      </div>
+
+                      <div className="space-y-1 mt-1">
+                        {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => {
+                          const isCurrent = sortBy === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => {
+                                onSortChange(key);
+                                setShowSortMenu(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo text-sm font-medium transition-all text-left cursor-pointer ${
+                                isCurrent
+                                  ? "neo-pressed text-primary bg-surface-container-high"
+                                  : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
+                              }`}
+                            >
+                              <span>{SORT_LABELS[key].label}</span>
+                              {isCurrent && (
+                                <Check className="w-4 h-4 text-primary shrink-0" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
+                  )}
+                </div>
+              )}
 
-                    <div className="space-y-1 mt-1">
-                      {(Object.keys(SORT_LABELS) as SortOption[]).map((key) => {
-                        const isCurrent = sortBy === key;
-                        return (
-                          <button
-                            key={key}
-                            onClick={() => {
-                              onSortChange(key);
-                              setShowSortMenu(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-neo text-sm font-medium transition-all text-left cursor-pointer ${
-                              isCurrent
-                                ? "neo-pressed text-primary bg-surface-container-high"
-                                : "text-on-surface-variant hover:bg-surface-container hover:text-on-surface"
-                            }`}
-                          >
-                            <span>{SORT_LABELS[key].label}</span>
-                            {isCurrent && (
-                              <Check className="w-4 h-4 text-primary shrink-0" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
+              {/* Neomorphic Layout Switcher (Condensed on desktop, hidden on tablet/mobile) */}
+              {onDisplayLayoutChange && (
+                <div className="hidden lg:flex items-center gap-1 p-1 bg-surface-base rounded-full neo-pressed">
+                  {layoutTabs.map((tab) => {
+                    const isActive = displayLayout === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => onDisplayLayoutChange(tab.id)}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
+                          isActive
+                            ? "neo-raised bg-surface-container text-primary"
+                            : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
+                        }`}
+                        title={tab.label}
+                        aria-label={tab.label}
+                      >
+                        {tab.icon}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
 
-            {/* Neomorphic Layout Switcher */}
-            {onDisplayLayoutChange && (
-              <div className="hidden sm:flex items-center gap-1.5 p-1 bg-surface-base rounded-full neo-pressed">
-                {layoutTabs.map(tab => {
-                   const isActive = displayLayout === tab.id;
-                   return (
-                     <button
-                       key={tab.id}
-                       onClick={() => onDisplayLayoutChange(tab.id)}
-                       className={`w-9 h-9 flex items-center justify-center rounded-full transition-all duration-200 cursor-pointer ${
-                         isActive 
-                           ? "neo-raised bg-surface-container text-primary"
-                           : "text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high"
-                       }`}
-                       title={tab.label}
-                     >
-                       {tab.icon}
-                     </button>
-                   );
-                })}
-              </div>
-            )}
-
-            {/* Light / Dark Mode Toggle Button */}
-            {onToggleTheme && (
-              <button
-                onClick={onToggleTheme}
-                className="w-10 h-10 flex items-center justify-center rounded-full neo-button bg-surface-base text-on-surface hover:text-primary transition-all duration-200 cursor-pointer"
-                title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
-              >
-                {theme === "dark" ? (
-                  <Sun className="w-4 h-4 text-amber-300" />
-                ) : (
-                  <Moon className="w-4 h-4 text-indigo-600" />
-                )}
-              </button>
-            )}
-          </div>
-        )}
+          {/* Light / Dark Mode Toggle Button (Persistent across all views) */}
+          {onToggleTheme && (
+            <button
+              onClick={onToggleTheme}
+              className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-full neo-button bg-surface-base text-on-surface hover:text-primary transition-all duration-200 cursor-pointer shrink-0"
+              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+              aria-label={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
+            >
+              {theme === "dark" ? (
+                <Sun className="w-4 h-4 text-amber-300" />
+              ) : (
+                <Moon className="w-4 h-4 text-indigo-600" />
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );

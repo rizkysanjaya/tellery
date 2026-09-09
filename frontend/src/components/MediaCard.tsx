@@ -2,9 +2,9 @@
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
  * Purpose: High-performance gallery grid tile with instant WebP thumbnail,
- *          constantly looping animated GIFs, clean un-cluttered top-right favorite star toggle,
- *          hover-revealed top-left selection checkbox without glass UI, context menu forwarding,
- *          and HTML5 drag-and-drop support.
+ *          constantly looping animated GIFs, 4-corner ergonomic layout (top-left selection,
+ *          top-right favorite star, bottom-left video duration, bottom-right file format badge),
+ *          dense mode adaptive scaling, context menu forwarding, and HTML5 drag-and-drop.
  * Used by: frontend/src/components/TimelineGrid.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/utils/fileTypes.ts
  * Public Members: MediaCard
@@ -24,6 +24,7 @@ interface MediaCardProps {
   isSelectionMode: boolean;
   selectedIds: Set<number>;
   aspectMode?: "square" | "natural";
+  isDense?: boolean;
   onClick: () => void;
   onToggleSelect: (id: number, e?: React.MouseEvent) => void;
   onToggleFavorite?: (id: number, isFavorite: boolean) => void;
@@ -36,6 +37,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   isSelectionMode,
   selectedIds,
   aspectMode = "square",
+  isDense = false,
   onClick,
   onToggleSelect,
   onToggleFavorite,
@@ -179,7 +181,9 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         onClick={handleClick}
         onContextMenu={(e) => onContextMenu(e, item)}
         style={aspectRatioStyle}
-        className={`media-card-item relative overflow-hidden bg-surface-container rounded-xl h-full w-full cursor-pointer transition-all duration-200 shadow-md hover:shadow-xl active:scale-[0.98] ${
+        className={`media-card-item relative overflow-hidden bg-surface-container ${
+          isDense ? "rounded-lg" : "rounded-xl"
+        } h-full w-full cursor-pointer transition-all duration-200 shadow-md hover:shadow-xl active:scale-[0.98] ${
           isSelected ? "ring-2 ring-primary shadow-primary/30" : ""
         }`}
       >
@@ -187,7 +191,9 @@ export const MediaCard: React.FC<MediaCardProps> = ({
           {/* Top-Left: Selection Checkbox (Clean Neomorphic, Hover-revealed like Favorite, Solid Accent Active) */}
           <div
             onClick={handleCheckboxClick}
-            className={`absolute top-2.5 left-2.5 z-[3] w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm ${
+            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm ${
+              isDense ? "top-1.5 left-1.5 w-5 h-5" : "top-2.5 left-2.5 w-6 h-6"
+            } ${
               isSelected
                 ? "bg-primary text-on-primary border border-primary scale-105 opacity-100 shadow-md shadow-primary/30"
                 : isSelectionMode
@@ -197,9 +203,9 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             title={isSelected ? "Deselect item" : "Select item"}
           >
             {isSelected ? (
-              <Check className="w-3.5 h-3.5 text-on-primary" strokeWidth={3} />
+              <Check className={`${isDense ? "w-3 h-3" : "w-3.5 h-3.5"} text-on-primary`} strokeWidth={3} />
             ) : (
-              <Check className="w-3.5 h-3.5 transition-colors" strokeWidth={2.5} />
+              <Check className={`${isDense ? "w-3 h-3" : "w-3.5 h-3.5"} transition-colors`} strokeWidth={2.5} />
             )}
           </div>
 
@@ -248,41 +254,39 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             </div>
           )}
 
-          {/* Top-Right: Star Favorite Button & File Format Badge Header */}
-          <div className="absolute top-2.5 right-2.5 z-[3] flex items-center gap-1.5 pointer-events-none">
-            {/* Interactive Star Favorite Button */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (onToggleFavorite) {
-                  onToggleFavorite(item.id, !item.is_favorite);
-                }
-              }}
-              title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
-              className={`p-1.5 rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer ${
-                item.is_favorite
-                  ? "bg-amber-500/25 text-amber-400 border border-amber-500/40 opacity-100 scale-100"
-                  : "bg-surface-base/90 text-on-surface-variant hover:text-amber-400 opacity-0 group-hover:opacity-100 border border-outline-variant/30 hover:scale-110"
-              }`}
-            >
-              <Star
-                className={`w-3.5 h-3.5 ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`}
-                strokeWidth={2}
-              />
-            </button>
+          {/* Top-Right: Star Favorite Button exclusively */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onToggleFavorite) {
+                onToggleFavorite(item.id, !item.is_favorite);
+              }
+            }}
+            title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
+            className={`absolute z-[3] rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer ${
+              isDense ? "top-1.5 right-1.5 w-5 h-5 flex items-center justify-center p-0" : "top-2.5 right-2.5 p-1.5"
+            } ${
+              item.is_favorite
+                ? "bg-amber-500/25 text-amber-400 border border-amber-500/40 opacity-100 scale-100"
+                : "bg-surface-base/90 text-on-surface-variant hover:text-amber-400 opacity-0 group-hover:opacity-100 border border-outline-variant/30 hover:scale-110"
+            }`}
+          >
+            <Star
+              className={`${isDense ? "w-3 h-3" : "w-3.5 h-3.5"} ${item.is_favorite ? "fill-amber-400 text-amber-400" : ""}`}
+              strokeWidth={2}
+            />
+          </button>
 
-            {/* Color-Coded File Format Badge */}
-            <div className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center shadow-sm ${fileBadge.badgeClass}`}>
-              <span>{fileBadge.extension}</span>
-            </div>
-          </div>
-
-          {/* Video Duration Pill Badge (bottom-left corner, only for regular videos) */}
+          {/* Bottom-Left: Video Duration Pill Badge (only for regular videos) */}
           {isVideo && !isAnimatedVideo && (
-            <div className="absolute bottom-2.5 left-2.5 z-[2] pointer-events-none group-hover:opacity-0 transition-opacity duration-150">
-              <div className="bg-surface-base/85 backdrop-blur-xs text-on-surface text-label-md px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                <Play className="w-2.5 h-2.5 fill-current shrink-0 text-primary" />
+            <div className={`absolute z-[2] pointer-events-none group-hover:opacity-0 transition-opacity duration-150 ${
+              isDense ? "bottom-1.5 left-1.5" : "bottom-2.5 left-2.5"
+            }`}>
+              <div className={`bg-surface-base/85 backdrop-blur-xs text-on-surface rounded-full flex items-center shadow-sm ${
+                isDense ? "px-1.5 py-0.5 text-[9px] gap-0.5" : "px-2 py-0.5 text-label-md gap-1"
+              }`}>
+                <Play className={`${isDense ? "w-2 h-2" : "w-2.5 h-2.5"} fill-current shrink-0 text-primary`} />
                 <span className="font-mono">
                   {item.duration_seconds ? formatDuration(item.duration_seconds) : "Video"}
                 </span>
@@ -290,24 +294,47 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             </div>
           )}
 
+          {/* Bottom-Right: Color-Coded File Format Badge */}
+          <div
+            className={`absolute z-[2] pointer-events-none transition-opacity duration-150 ${
+              isDense
+                ? "bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100"
+                : "bottom-2.5 right-2.5 opacity-90 group-hover:opacity-0"
+            }`}
+          >
+            <div
+              className={`rounded-full font-bold tracking-wider uppercase flex items-center shadow-sm ${
+                isDense ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-0.5 text-[10px]"
+              } ${fileBadge.badgeClass}`}
+            >
+              <span>{fileBadge.extension}</span>
+            </div>
+          </div>
+
           {/* Overlay details on hover */}
-          <div className="absolute inset-0 z-[1] bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end p-3 pointer-events-none">
-            <span className="text-xs font-semibold text-on-surface truncate">
+          <div
+            className={`absolute inset-0 z-[1] bg-gradient-to-t from-surface-base/90 via-surface-base/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-end pointer-events-none ${
+              isDense ? "p-1.5" : "p-3"
+            }`}
+          >
+            <span className={`font-semibold text-on-surface truncate ${isDense ? "text-[10px]" : "text-xs"}`}>
               {item.file_name}
             </span>
-            <div className="flex items-center gap-2 text-[10px] text-on-surface-variant mt-0.5">
-              {item.camera_model && (
-                <span className="flex items-center gap-1 font-sans">
-                  <Camera className="w-3 h-3 text-primary" />
-                  {item.camera_model}
-                </span>
-              )}
-              {item.width && item.height && (
-                <span>
-                  {item.width}×{item.height}
-                </span>
-              )}
-            </div>
+            {!isDense && (
+              <div className="flex items-center gap-2 text-[10px] text-on-surface-variant mt-0.5">
+                {item.camera_model && (
+                  <span className="flex items-center gap-1 font-sans">
+                    <Camera className="w-3 h-3 text-primary" />
+                    {item.camera_model}
+                  </span>
+                )}
+                {item.width && item.height && (
+                  <span>
+                    {item.width}×{item.height}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
