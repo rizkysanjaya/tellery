@@ -33,7 +33,7 @@ import {
   ExternalLink,
   ChevronLeft,
   ChevronDown,
-  Sparkles,
+  Plus,
   ShieldCheck,
   Check,
   X,
@@ -41,9 +41,6 @@ import {
   Moon,
   Database,
   Cpu,
-  Star,
-  Play,
-  Search,
 } from "lucide-react";
 import { AuthStatusResponse, AuthStep, VaultItem } from "../types";
 import {
@@ -471,65 +468,19 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         <div className="relative overflow-hidden aspect-[16/9] w-full bg-surface-container-lowest">
           <img
             src="/telegram_vault_preview.jpg"
-            alt="Telegram Channel Raw Media Feed Preview"
+            alt="Telegram Channel Media Feed"
             className="w-full h-full object-cover object-top"
             loading="eager"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent pointer-events-none" />
-
-          {/* Live Dynamic Target Banner */}
-          <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between pointer-events-none">
-            <div className="px-3 py-1.5 rounded-neo bg-black/85 text-xs text-white flex items-center gap-2 shadow-lg backdrop-blur-sm border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span>
-                Target Channel: <strong className="font-bold text-primary">{vaultTitle.trim() || "Tellery Cloud Vault"}</strong>
-              </span>
-            </div>
-            <span className="px-2.5 py-1 rounded-neo bg-black/75 text-[10px] text-slate-300 font-mono border border-white/10">
-              Raw Broadcast Storage
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* Architectural Strategy Comparison Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-on-surface">
-            <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center text-xs font-bold">
-              ✓
-            </span>
-            <span>Dedicated Broadcast Channel</span>
-          </div>
-          <p className="text-[11px] text-on-surface-variant leading-relaxed">
-            Pure media warehouse, silent, zero chat noise, and highest MTProto upload and download throughput.
-          </p>
-        </div>
-
-        <div className="p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 space-y-1.5">
-          <div className="flex items-center gap-2 text-xs font-bold text-on-surface">
-            <span className="w-5 h-5 rounded-full bg-amber-500/10 text-amber-500 flex items-center justify-center text-xs font-bold">
-              !
-            </span>
-            <span>Shared Group Chat</span>
-          </div>
-          <p className="text-[11px] text-on-surface-variant leading-relaxed">
-            Chat messages, stickers, and reactions trigger Telegram FloodWait rate limits during heavy media indexing.
-          </p>
-        </div>
-      </div>
-
-      {/* Automated EXIF Organization Callout */}
-      <div className="flex items-start gap-3 p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 text-left">
-        <div className="p-2 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
-          <Sparkles className="w-4 h-4" />
-        </div>
-        <div className="text-xs space-y-1 leading-relaxed">
-          <div className="font-bold text-on-surface">Automated EXIF Organization &amp; Caching</div>
-          <p className="text-on-surface-variant text-[11px] leading-relaxed">
-            While Telegram functions as your raw, unlimited cloud blob store, Tellery organizes photos by EXIF capture date, aggregates albums, generates 60fps streaming buffers, and manages soft trash recovery automatically.
-          </p>
-        </div>
+      {/* Clean Technical Architecture Note */}
+      <div className="p-4 rounded-neo neo-card bg-surface-base border border-outline-variant/15 text-xs text-on-surface-variant space-y-1.5 leading-relaxed">
+        <div className="font-semibold text-on-surface text-xs">Private Broadcast Channel Storage</div>
+        <p className="text-[11px] leading-relaxed">
+          Tellery uploads photos and videos as raw uncompressed documents to this channel. Your files remain accessible in your Telegram apps at all times, with unlimited cloud capacity and zero third-party cloud hosting fees.
+        </p>
       </div>
     </div>
   );
@@ -537,157 +488,63 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // Right Column Showcase for Steps 1-4 (Authentication & Credentials)
   const renderAuthShowcase = () => (
     <div className="space-y-4">
-      {/* Tellery Media Vault Interactive Interface Preview Window */}
-      <div className="rounded-neo-xl overflow-hidden neo-frame bg-surface-base border border-outline-variant/25 shadow-2xl">
-        {/* Window Titlebar */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant/15 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-400/90 shadow-sm" />
-            <span className="w-3 h-3 rounded-full bg-amber-400/90 shadow-sm" />
-            <span className="w-3 h-3 rounded-full bg-emerald-400/90 shadow-sm" />
+      {/* Real Architecture / Security Overview */}
+      <div className="rounded-neo-xl overflow-hidden neo-frame bg-surface-base border border-outline-variant/25 shadow-2xl p-6 space-y-5">
+        <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-neo neo-pressed bg-surface-container flex items-center justify-center text-primary">
+              <Cloud className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-on-surface block">Direct Telegram MTProto 2.0</span>
+              <span className="text-[11px] text-on-surface-variant font-mono">Client-to-cloud connection</span>
+            </div>
           </div>
-          <div className="text-xs font-semibold text-on-surface-variant flex items-center gap-2">
-            <Cloud className="w-3.5 h-3.5 text-primary" />
-            <span>Tellery Media Vault · Live Interface Preview</span>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full neo-pressed bg-surface-base text-primary border border-outline-variant/15 font-mono">
-            Silk Cloud
+          <span className="text-[10px] px-2 py-0.5 rounded-full neo-pressed bg-surface-container text-primary font-mono font-semibold">
+            Local Session
           </span>
         </div>
 
-        {/* Simulated Gallery Header Bar */}
-        <div className="px-4 py-2.5 bg-surface-base border-b border-outline-variant/15 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 px-3 py-1 rounded-neo neo-pressed bg-surface-container-lowest text-on-surface-variant text-xs flex-1 max-w-xs">
-            <Search className="w-3.5 h-3.5 text-on-surface-variant" />
-            <span className="text-[11px]">Search timeline, cameras, dates...</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="px-2.5 py-1 rounded-neo text-[11px] font-bold neo-pressed bg-surface-base text-primary">
-              All
-            </span>
-            <span className="px-2.5 py-1 rounded-neo text-[11px] font-medium text-on-surface-variant neo-button bg-surface-base">
-              Photos
-            </span>
-            <span className="px-2.5 py-1 rounded-neo text-[11px] font-medium text-on-surface-variant neo-button bg-surface-base">
-              Videos
-            </span>
-          </div>
-        </div>
+        <p className="text-xs text-on-surface-variant leading-relaxed">
+          Tellery connects directly from your local browser and daemon to Telegram's official MTProto servers. All encryption keys, sessions, and SQLite database indexes remain stored on your machine.
+        </p>
 
-        {/* Simulated 4-Card Media Showcase Grid */}
-        <div className="p-4 bg-surface-container-lowest grid grid-cols-2 gap-3">
-          {/* Card 1 */}
-          <div className="relative aspect-[4/3] rounded-neo overflow-hidden neo-frame bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 p-3 flex flex-col justify-between border border-outline-variant/15 group">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-primary/20 text-primary border border-primary/30">
-                RAW · 48MP
-              </span>
-              <span className="w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-amber-400">
-                <Star className="w-3 h-3 fill-amber-400" />
-              </span>
+        <div className="space-y-2.5 pt-1">
+          <div className="p-3 rounded-neo bg-surface-container-low border border-outline-variant/15 flex items-start gap-3">
+            <div className="p-1.5 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
+              <ShieldCheck className="w-4 h-4" />
             </div>
-            <div>
-              <div className="text-xs font-semibold text-white">Sony A7R V · 24mm f/1.4</div>
-              <div className="text-[10px] text-slate-300 font-mono">Today, 14:20 · Lossless</div>
+            <div className="text-xs space-y-0.5">
+              <div className="font-semibold text-on-surface">Zero Intermediary Servers</div>
+              <div className="text-on-surface-variant text-[11px] leading-relaxed">
+                Your credentials, session keys, and media streams never pass through any third-party servers.
+              </div>
             </div>
           </div>
 
-          {/* Card 2 */}
-          <div className="relative aspect-[4/3] rounded-neo overflow-hidden neo-frame bg-gradient-to-br from-slate-900 via-indigo-950 to-purple-950 p-3 flex flex-col justify-between border border-outline-variant/15 group">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                4K · 60fps
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-black/60 text-white">
-                03:42
-              </span>
+          <div className="p-3 rounded-neo bg-surface-container-low border border-outline-variant/15 flex items-start gap-3">
+            <div className="p-1.5 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
+              <Database className="w-4 h-4" />
             </div>
-            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm self-center flex items-center justify-center text-white">
-              <Play className="w-4 h-4 ml-0.5 fill-white" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-white">Cinematic Reel 04</div>
-              <div className="text-[10px] text-slate-300 font-mono">ProRes 422 · 60fps Stream</div>
+            <div className="text-xs space-y-0.5">
+              <div className="font-semibold text-on-surface">Lossless Media Storage</div>
+              <div className="text-on-surface-variant text-[11px] leading-relaxed">
+                Photos and videos are saved in Telegram as uncompressed document files, preserving complete EXIF metadata.
+              </div>
             </div>
           </div>
 
-          {/* Card 3 */}
-          <div className="relative aspect-[4/3] rounded-neo overflow-hidden neo-frame bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 p-3 flex flex-col justify-between border border-outline-variant/15 group">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-primary/20 text-primary border border-primary/30">
-                HDR · DNG
-              </span>
-              <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                Synced
-              </span>
+          <div className="p-3 rounded-neo bg-surface-container-low border border-outline-variant/15 flex items-start gap-3">
+            <div className="p-1.5 rounded-neo bg-primary/10 text-primary shrink-0 mt-0.5">
+              <Cpu className="w-4 h-4" />
             </div>
-            <div>
-              <div className="text-xs font-semibold text-white">Leica Q3 · Summilux 28</div>
-              <div className="text-[10px] text-slate-300 font-mono">Architecture Archive</div>
+            <div className="text-xs space-y-0.5">
+              <div className="font-semibold text-on-surface">Local SQLite Indexing</div>
+              <div className="text-on-surface-variant text-[11px] leading-relaxed">
+                Fast timeline queries and album metadata are cached locally on your device for sub-millisecond response times.
+              </div>
             </div>
           </div>
-
-          {/* Card 4 */}
-          <div className="relative aspect-[4/3] rounded-neo overflow-hidden neo-frame bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-900 p-3 flex flex-col justify-between border border-outline-variant/15 group">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                DCI 4K
-              </span>
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-black/60 text-white">
-                01:15
-              </span>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm self-center flex items-center justify-center text-white">
-              <Play className="w-4 h-4 ml-0.5 fill-white" />
-            </div>
-            <div>
-              <div className="text-xs font-semibold text-white">Coastal Sunset 2026</div>
-              <div className="text-[10px] text-slate-300 font-mono">Fujifilm X-T5 · F-Log2</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Window Bottom Status Bar */}
-        <div className="px-4 py-2 bg-surface-container border-t border-outline-variant/15 flex items-center justify-between text-[10px] text-on-surface-variant font-mono">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span>Direct MTProto 2.0 Stream</span>
-          </div>
-          <span>Sub-millisecond Timeline</span>
-        </div>
-      </div>
-
-      {/* Architecture Highlights Grid (3 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div className="p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-            <ShieldCheck className="w-4 h-4 text-primary" />
-            <span>Zero Middleman</span>
-          </div>
-          <p className="text-[11px] text-on-surface-variant leading-relaxed">
-            Data transfers directly between your browser and Telegram's data centers. No intermediary servers.
-          </p>
-        </div>
-
-        <div className="p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-            <Database className="w-4 h-4 text-primary" />
-            <span>Lossless Original</span>
-          </div>
-          <p className="text-[11px] text-on-surface-variant leading-relaxed">
-            Photos and videos are stored bit-for-bit with full uncompressed resolution and complete EXIF metadata.
-          </p>
-        </div>
-
-        <div className="p-3.5 rounded-neo neo-card bg-surface-base border border-outline-variant/15 space-y-1.5">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-primary">
-            <Cpu className="w-4 h-4 text-primary" />
-            <span>Local SQLite</span>
-          </div>
-          <p className="text-[11px] text-on-surface-variant leading-relaxed">
-            Sub-millisecond filtering and instant pagination powered by local SQLite caching on your device.
-          </p>
         </div>
       </div>
     </div>
@@ -745,17 +602,14 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
         <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start lg:items-center">
           {/* ── LEFT COLUMN: Modern Action & Configuration Hub (lg:col-span-5) ── */}
           <div className="lg:col-span-5 flex flex-col justify-center space-y-5">
-            {/* Category Pill / Step Indicator */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold neo-pressed bg-surface-container-low text-primary w-fit border border-outline-variant/15">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              <span>
-                {step === "need_credentials" && "Step 1 of 4 · API Configuration"}
-                {step === "need_phone" && "Step 2 of 4 · Phone Authentication"}
-                {step === "need_code" && "Step 3 of 4 · Security Verification"}
-                {step === "need_password" && "Step 4 of 4 · Two-Step Verification"}
-                {step === "need_vault" && "Vault Strategy · Storage Configuration"}
-                {step === "ready" && "Ready · Storage Online"}
-              </span>
+            {/* Subtle Step Label */}
+            <div className="text-[11px] font-mono font-semibold uppercase tracking-wider text-primary">
+              {step === "need_credentials" && "Step 1 of 4 · API Credentials"}
+              {step === "need_phone" && "Step 2 of 4 · Phone Authentication"}
+              {step === "need_code" && "Step 3 of 4 · Verification Code"}
+              {step === "need_password" && "Step 4 of 4 · Cloud Password"}
+              {step === "need_vault" && "Step 5 · Storage Channel"}
+              {step === "ready" && "Setup Complete"}
             </div>
 
             {/* Bold Modern Hero Headline */}
@@ -1248,7 +1102,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                         : "neo-button bg-surface-base text-on-surface-variant hover:text-on-surface"
                     }`}
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-primary" />
+                    <Plus className="w-3.5 h-3.5 text-primary" />
                     <span>Create Fresh Vault</span>
                   </button>
                   <button
@@ -1454,22 +1308,6 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
-            </div>
-
-            {/* Trust & Telemetry Stats Row */}
-            <div className="grid grid-cols-3 gap-2.5 pt-1 text-center">
-              <div className="p-2.5 rounded-neo neo-pressed bg-surface-container-lowest border border-outline-variant/10">
-                <div className="text-xs sm:text-sm font-bold text-on-surface">Unlimited</div>
-                <div className="text-[10px] text-on-surface-variant font-mono">Cloud Storage</div>
-              </div>
-              <div className="p-2.5 rounded-neo neo-pressed bg-surface-container-lowest border border-outline-variant/10">
-                <div className="text-xs sm:text-sm font-bold text-primary">Direct MTProto</div>
-                <div className="text-[10px] text-on-surface-variant font-mono">Zero Middleman</div>
-              </div>
-              <div className="p-2.5 rounded-neo neo-pressed bg-surface-container-lowest border border-outline-variant/10">
-                <div className="text-xs sm:text-sm font-bold text-on-surface">&lt; 1ms</div>
-                <div className="text-[10px] text-on-surface-variant font-mono">Local Indexing</div>
-              </div>
             </div>
           </div>
 
