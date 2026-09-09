@@ -41,6 +41,7 @@ import {
   Moon,
   Database,
   Cpu,
+  HelpCircle,
 } from "lucide-react";
 import { AuthStatusResponse, AuthStep, VaultItem } from "../types";
 import {
@@ -113,6 +114,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   const [manualChannelId, setManualChannelId] = useState<string>("");
   const [availableVaults, setAvailableVaults] = useState<VaultItem[]>([]);
   const [createdChannelInfo, setCreatedChannelInfo] = useState<{ id: number; title: string } | null>(null);
+  const [showStorageTooltip, setShowStorageTooltip] = useState<boolean>(false);
 
   // Alternative options modal / note
   const [showAlternativeNote, setShowAlternativeNote] = useState<boolean>(false);
@@ -423,55 +425,55 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   // Right Column Showcase for Step 5 (Vault Strategy Hub)
   const renderVaultShowcase = () => (
     <div className="space-y-4">
-      {/* macOS Desktop Telegram Window Mockup */}
-      <div className="rounded-neo-xl overflow-hidden neo-frame bg-surface-base border border-outline-variant/25 shadow-2xl">
-        {/* Window Titlebar */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-surface-container border-b border-outline-variant/15 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-red-400/90 shadow-sm" />
-            <span className="w-3 h-3 rounded-full bg-amber-400/90 shadow-sm" />
-            <span className="w-3 h-3 rounded-full bg-emerald-400/90 shadow-sm" />
-          </div>
-          <div className="text-xs font-semibold text-on-surface-variant flex items-center gap-2 truncate max-w-[280px]">
-            <span>Telegram Desktop · {vaultTitle.trim() || "Tellery Cloud Vault"}</span>
-          </div>
-          <span className="text-[10px] px-2 py-0.5 rounded-full neo-pressed bg-surface-base text-primary border border-outline-variant/15 font-mono">
-            Live MTProto Feed
-          </span>
+      {/* Live Preview Header Note */}
+      <div className="flex items-center justify-between px-1 text-xs text-on-surface-variant">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="font-semibold text-on-surface">Telegram Desktop Preview</span>
         </div>
+        <span className="font-mono text-[11px] text-primary">
+          Target: {vaultTitle.trim() || "Tellery Cloud Vault"}
+        </span>
+      </div>
 
-        {/* Telegram Channel Header inside Mockup */}
-        <div className="px-4 py-2.5 bg-surface-base border-b border-outline-variant/15 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-primary/20 neo-pressed flex items-center justify-center text-primary font-bold text-sm">
-              {vaultTitle.trim() ? vaultTitle.trim().charAt(0).toUpperCase() : "T"}
-            </div>
-            <div>
-              <div className="text-xs font-bold text-on-surface flex items-center gap-2">
-                <span>{vaultTitle.trim() || "Tellery Cloud Vault"}</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-mono">
-                  Verified
-                </span>
+      {/* Telegram Desktop Window Preview (Clean, authentic macOS window with matching corners) */}
+      <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-outline-variant/25 bg-surface-container-lowest group">
+        <img
+          src="/telegram_vault_preview.png"
+          alt="Telegram Desktop Channel View"
+          className="w-full h-auto block select-none"
+          loading="eager"
+        />
+
+        {/* ? Tooltip in left corner of image */}
+        <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 z-30">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowStorageTooltip((prev) => !prev)}
+              className="w-7 h-7 rounded-full neo-button bg-surface-base/90 backdrop-blur-md text-primary border border-outline-variant/30 flex items-center justify-center text-xs font-bold shadow-lg hover:scale-110 active:scale-95 transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+              title="Why do files look raw in Telegram?"
+              aria-label="Storage organization info"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+
+            {/* Reassuring Tooltip (Hover on desktop, click on mobile) */}
+            <div
+              className={`absolute bottom-full left-0 mb-2.5 w-72 sm:w-80 p-3.5 rounded-neo-lg neo-card bg-surface-base/95 backdrop-blur-md border border-outline-variant/25 shadow-2xl transition-all duration-200 text-left ${
+                showStorageTooltip
+                  ? "opacity-100 visible translate-y-0 pointer-events-auto"
+                  : "opacity-0 invisible translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 group-hover:pointer-events-auto"
+              }`}
+            >
+              <div className="font-semibold text-xs text-on-surface flex items-center gap-1.5 mb-1.5 text-primary">
+                <span>Don't worry if it looks like a mess in Telegram!</span>
               </div>
-              <div className="text-[10px] text-on-surface-variant font-mono">
-                broadcast channel · 1 subscriber · private
-              </div>
+              <p className="text-[11px] text-on-surface-variant leading-relaxed">
+                Tellery acts as your intelligent visual gallery interface. While Telegram stores your raw, uncategorized files, Tellery automatically sorts photos by EXIF dates, organizes albums, tags camera metadata, and streams 4K video seamlessly. You never have to manually dig through Telegram messages!
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-on-surface-variant">
-            <span className="w-2 h-2 rounded-full bg-emerald-500" />
-            <span className="font-mono text-[10px]">Cloud Blob Store</span>
-          </div>
-        </div>
-
-        {/* Telegram Channel Feed Image Preview */}
-        <div className="relative overflow-hidden aspect-[16/9] w-full bg-surface-container-lowest">
-          <img
-            src="/telegram_vault_preview.jpg"
-            alt="Telegram Channel Media Feed"
-            className="w-full h-full object-cover object-top"
-            loading="eager"
-          />
         </div>
       </div>
 
