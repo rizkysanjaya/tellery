@@ -1,0 +1,18 @@
+﻿# =============================================================================
+# Module: docker-compose.yml
+# Purpose: 1-Command container deployment for Tellery (Gallery Vault).
+# Used by: Docker users and self-hosted server deployments.
+# =============================================================================
+
+services:
+  tellery:
+    build: .
+    container_name: tellery
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./.thumbnails:/app/.thumbnails
+    environment:
+      - DB_PATH=data/telegallery.db
