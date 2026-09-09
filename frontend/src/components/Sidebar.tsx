@@ -1,20 +1,22 @@
 /**
  * =============================================================================
  * Module: frontend/src/components/Sidebar.tsx
- * Purpose: Silk Cloud neomorphic sidebar with live MTProto telemetry,
- *          Multi-Vault Telegram channel switcher trigger, permission gating (upload/delete),
- *          album drop targets, keyboard shortcut tags, storage stats, vault sync,
+ * Purpose: Silk Cloud neomorphic sidebar with streamlined cloud storage card,
+ *          Preferences & Storage dialog trigger (SettingsModal), Multi-Vault Telegram switcher,
+ *          permission gating (upload/delete), album drag & drop targets, keyboard shortcuts,
  *          Favorites section, Collections accordion, Trash recovery view navigation,
- *          session logout trigger, right-click context menu triggers, and 3-dots action menu (customize icon/color, change cover thumbnail, rename, move to collection, export ZIP, delete).
+ *          session logout trigger, right-click context menu, and album management modals.
  * Used by: frontend/src/App.tsx
- * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu, FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
+ * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu,
+ *               FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
- * Side Effects: Triggers view changes (timeline, albums, favorites, trash), vault switcher modal, album selection, media drop-to-album assignments, right-click context menu,
- *                vault synchronization, upload triggers, folder rename, customize, collection grouping, cover thumbnail selection, ZIP export, favorite toggling, and session logout.
+ * Side Effects: Triggers view changes (timeline, albums, favorites, trash), settings modal,
+ *                vault switcher modal, album selection, media drop-to-album assignments,
+ *                vault synchronization, upload triggers, and album management modals.
  * =============================================================================
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Clock,
   FolderPlus,
@@ -31,22 +33,19 @@ import {
   Check,
   Cloud,
   RefreshCw,
-  HardDrive,
   Eye,
   EyeOff,
   Settings,
   Star,
   LogOut,
 } from "lucide-react";
-import { CacheStats, FolderItem, MainView, StatsResponse, VaultItem } from "../types";
-import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
+import { FolderItem, MainView, StatsResponse, VaultItem } from "../types";
 import { FolderIcon } from "./ui/FolderIcon";
 import { FolderActionMenu } from "./ui/FolderActionMenu";
 import { FolderCustomizeModal } from "./ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./ui/FolderRenameModal";
 import { FolderCoverModal } from "./ui/FolderCoverModal";
 import { FolderMoveModal } from "./ui/FolderMoveModal";
-import { LiquidProgressBar } from "./ui/LiquidProgressBar";
 
 interface SidebarProps {
   currentView: MainView;
@@ -55,6 +54,7 @@ interface SidebarProps {
   stats: StatsResponse | null;
   activeVault?: VaultItem | null;
   onOpenVaultSwitcher?: () => void;
+  onOpenSettings?: () => void;
   canUpload?: boolean;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
@@ -87,6 +87,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   stats,
   activeVault = null,
   onOpenVaultSwitcher,
+  onOpenSettings,
   canUpload = true,
   isOpenMobile,
   onCloseMobile,
@@ -117,9 +118,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [newAlbumName, setNewAlbumName] = useState("");
   const [isCreatingAlbum, setIsCreatingAlbum] = useState(false);
   const [dragOverSidebarFolderId, setDragOverSidebarFolderId] = useState<number | null>(null);
-  const [cacheStats, setCacheStats] = useState<CacheStats | null>(null);
-  const [isClearingCache, setIsClearingCache] = useState(false);
-  const [cacheToast, setCacheToast] = useState<string | null>(null);
   const [folderToCustomize, setFolderToCustomize] = useState<FolderItem | null>(null);
   const [folderToRename, setFolderToRename] = useState<FolderItem | null>(null);
   const [folderToCover, setFolderToCover] = useState<FolderItem | null>(null);
@@ -170,52 +168,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
   };
 
-  const loadCacheStats = async () => {
-    try {
-      const data = await fetchCacheStats();
-      setCacheStats(data);
-    } catch {}
-  };
-
-  const [showCacheLimitModal, setShowCacheLimitModal] = useState(false);
-  const [customLimitGb, setCustomLimitGb] = useState<string>("2");
-  const [isUpdatingLimit, setIsUpdatingLimit] = useState(false);
-
-  const handleSaveCacheLimit = async (bytes: number) => {
-    setIsUpdatingLimit(true);
-    try {
-      const updated = await updateCacheLimit(bytes);
-      setCacheStats(updated);
-      setShowCacheLimitModal(false);
-      setCacheToast("Limit updated!");
-      setTimeout(() => setCacheToast(null), 3000);
-    } catch (err) {
-      console.error("Failed to update cache limit:", err);
-    } finally {
-      setIsUpdatingLimit(false);
-    }
-  };
-
-  useEffect(() => {
-    loadCacheStats();
-    const interval = setInterval(loadCacheStats, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleClearCache = async () => {
-    if (isClearingCache) return;
-    setIsClearingCache(true);
-    try {
-      const result = await clearLocalCache();
-      setCacheToast(`Reclaimed ${result.freed_formatted}`);
-      setTimeout(() => setCacheToast(null), 3000);
-      await loadCacheStats();
-    } catch (err) {
-      console.error("Failed to clear cache:", err);
-    } finally {
-      setIsClearingCache(false);
-    }
-  };
 
   const handleCreateAlbumSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -760,89 +712,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
+        {/* Vault Storage Stats Widget at Bottom (Collapsible) */}
         {!isVaultCollapsed && stats && (
-          <div className="p-4 m-3 neo-card rounded-neo-xl space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-200">
-            <div className="space-y-3">
-              {/* Storage archived & Unlimited badge */}
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-xl font-bold font-mono text-on-surface tracking-tight drop-shadow-sm">
-                    {stats.total_size_formatted}
-                  </span>
-                  <span className="text-xs text-on-surface-variant block mt-0.5 font-medium">Archived in Cloud</span>
-                </div>
-                <div className="flex items-center justify-center px-2.5 py-1 rounded-lg neo-pressed bg-surface-base text-sm font-bold text-primary font-mono shadow-inner" title="Unlimited Storage">
-                  <span>∞</span>
-                </div>
+          <div className="p-3.5 m-3 neo-card rounded-neo-xl space-y-2.5 animate-in fade-in slide-in-from-bottom-2 duration-200 border border-outline-variant/15">
+            {/* Storage archived & Unlimited badge */}
+            <div className="flex items-baseline justify-between">
+              <div>
+                <span className="text-lg font-bold font-mono text-on-surface tracking-tight drop-shadow-sm">
+                  {stats.total_size_formatted}
+                </span>
+                <span className="text-[11px] text-on-surface-variant block mt-0.5 font-medium">Archived in Cloud</span>
               </div>
-
-                {/* Local Disk Cache Meter & 1-Click Purge */}
-                {cacheStats && (
-                  <div className="pt-2.5 border-t border-surface-container-high space-y-2">
-                    {/* 1. Label */}
-                    <div className="flex items-center gap-1.5 text-on-surface-variant font-medium text-xs">
-                      <HardDrive className="w-3.5 h-3.5 text-primary" />
-                      <span>Local Cache</span>
-                    </div>
-
-                    {/* 2. Numbers: Stacked between label and bar */}
-                    <div className="flex items-baseline justify-between font-mono">
-                      <span className="text-sm font-bold text-on-surface">
-                        {cacheStats.cache_formatted}
-                      </span>
-                      <span className="text-xs text-on-surface-variant font-medium">
-                        / {cacheStats.max_formatted} ({cacheStats.percent_used}%)
-                      </span>
-                    </div>
-
-                    {/* 3. Cache Progress Bar (Liquid Theme) */}
-                    <LiquidProgressBar
-                      progress={cacheStats.percent_used}
-                      height="h-2.5"
-                      color={
-                        cacheStats.percent_used > 85
-                          ? "error"
-                          : cacheStats.percent_used > 60
-                          ? "amber"
-                          : "indigo"
-                      }
-                      isPulsing={isClearingCache}
-                    />
-
-                    {/* Action Buttons: Obvious Clear Cache Button + Gears Setting Button */}
-                    <div className="flex items-center gap-2 pt-0.5">
-                      <button
-                        onClick={handleClearCache}
-                        disabled={isClearingCache || cacheStats.cache_bytes === 0}
-                        className={`flex-1 py-1.5 px-3 rounded-neo-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                          isClearingCache
-                            ? "neo-pressed bg-surface-base text-emerald-400 cursor-wait"
-                            : cacheStats.cache_bytes === 0
-                            ? "opacity-50 cursor-not-allowed bg-surface-base/50 text-on-surface-variant"
-                            : "neo-button bg-surface-base text-on-surface hover:text-red-400 active:neo-pressed"
-                        }`}
-                        title="Clear local streaming cache to free disk space"
-                      >
-                        <Trash2 className={`w-3.5 h-3.5 ${isClearingCache ? "animate-spin text-emerald-400" : ""}`} />
-                        <span>{isClearingCache ? "Purging..." : cacheToast || "Clear Cache"}</span>
-                      </button>
-
-                      <button
-                        onClick={() => {
-                          const currentGb = (cacheStats.max_bytes / (1024 * 1024 * 1024)).toFixed(1).replace(/\.0$/, "");
-                          setCustomLimitGb(currentGb);
-                          setShowCacheLimitModal(true);
-                        }}
-                        className="p-1.5 rounded-neo-lg neo-button bg-surface-base text-on-surface-variant hover:text-primary active:neo-pressed flex items-center justify-center transition-all cursor-pointer shrink-0"
-                        title="Adjust maximum cache size limit"
-                        aria-label="Adjust Cache Limit"
-                      >
-                        <Settings className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
+              <div className="flex items-center justify-center px-2 py-0.5 rounded-lg neo-pressed bg-surface-base text-xs font-bold text-primary font-mono shadow-inner" title="Unlimited Telegram Storage">
+                <span>∞ UNLIMITED</span>
               </div>
+            </div>
+
+            {/* Quick Actions: Preferences & Storage Settings Dialog Trigger */}
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                className="w-full py-2 px-3 rounded-neo-lg text-xs font-semibold flex items-center justify-center gap-2 neo-button bg-surface-base text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
+                title="Manage local disk cache, connection telemetry, and app preferences"
+              >
+                <Settings className="w-3.5 h-3.5 text-primary" />
+                <span>Preferences & Storage</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -898,10 +794,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
+              {onOpenSettings && (
+                <button
+                  onClick={onOpenSettings}
+                  className="w-7 h-7 min-w-[28px] min-h-[28px] relative after:absolute after:-inset-2 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
+                  title="Open Preferences & Settings"
+                  aria-label="Preferences"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                </button>
+              )}
               {onLogout && (
                 <button
                   onClick={onLogout}
-                  className="w-7 h-7 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-error transition-all cursor-pointer"
+                  className="w-7 h-7 min-w-[28px] min-h-[28px] relative after:absolute after:-inset-2 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-error transition-all cursor-pointer touch-manipulation"
                   title="Disconnect Telegram Session / Log Out"
                   aria-label="Log Out"
                 >
@@ -910,7 +816,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
               <button
                 onClick={toggleVaultCollapse}
-                className="w-7 h-7 rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer"
+                className="w-7 h-7 min-w-[28px] min-h-[28px] relative after:absolute after:-inset-2 after:content-[''] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
                 title={isVaultCollapsed ? "Expand Vault Info" : "Collapse Vault Info"}
                 aria-label="Toggle Vault Info"
               >
@@ -924,90 +830,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </aside>
-
-      {/* Cache Limit Configuration Modal */}
-      {showCacheLimitModal && (
-        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-          <div className="max-w-sm w-full bg-surface-base rounded-neo-xl p-6 neo-card space-y-5 border border-outline-variant/15 shadow-2xl">
-            <div className="flex items-center justify-between pb-3 border-b border-outline-variant/15">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-neo bg-primary/10 neo-pressed flex items-center justify-center text-primary">
-                  <Settings className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="text-base font-bold text-on-surface">Max Cache Limit</h4>
-                  <p className="text-[11px] text-on-surface-variant">Adjust local disk limit for streaming</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCacheLimitModal(false)}
-                className="p-1 text-on-surface-variant hover:text-on-surface rounded-neo neo-button cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Quick Presets */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider block">
-                Quick Presets
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: "500 MB", bytes: 500 * 1024 * 1024 },
-                  { label: "1.5 GB", bytes: 1500 * 1024 * 1024 },
-                  { label: "3.0 GB", bytes: 3000 * 1024 * 1024 },
-                  { label: "5.0 GB", bytes: 5000 * 1024 * 1024 },
-                ].map((preset) => (
-                  <button
-                    key={preset.label}
-                    onClick={() => handleSaveCacheLimit(preset.bytes)}
-                    disabled={isUpdatingLimit}
-                    className={`py-2 px-1 rounded-neo text-xs font-semibold transition-all cursor-pointer ${
-                      cacheStats && Math.abs(cacheStats.max_bytes - preset.bytes) < 100 * 1024 * 1024
-                        ? "neo-pressed bg-surface-base text-primary ring-1 ring-primary/40"
-                        : "neo-button bg-surface-base text-on-surface hover:text-primary"
-                    }`}
-                  >
-                    {preset.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Input */}
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider block">
-                Custom Limit (GB)
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0.2"
-                  max="100"
-                  step="0.5"
-                  value={customLimitGb}
-                  onChange={(e) => setCustomLimitGb(e.target.value)}
-                  placeholder="2.0"
-                  className="flex-1 px-3.5 py-2 rounded-neo neo-pressed bg-surface-container-lowest text-on-surface text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-                <button
-                  onClick={() => {
-                    const gb = parseFloat(customLimitGb);
-                    if (!isNaN(gb) && gb >= 0.1) {
-                      handleSaveCacheLimit(Math.round(gb * 1024 * 1024 * 1024));
-                    }
-                  }}
-                  disabled={isUpdatingLimit || !customLimitGb}
-                  className="px-4 py-2 rounded-neo neo-button text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 cursor-pointer"
-                >
-                  {isUpdatingLimit ? "Saving..." : "Apply"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Album Customize Modal */}
       {folderToCustomize && (

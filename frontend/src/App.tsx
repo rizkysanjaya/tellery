@@ -3,6 +3,7 @@
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
  *          neomorphic themes, Battery Saver / Low Power GPU conservation mode,
+ *          centralized Preferences & Storage dialog (SettingsModal),
  *          normalized WCAG 2.2 AA contrast in Light & Dark modes,
  *          Multi-Vault Telegram channel switching & dialog discovery,
  *          zero-config plug-and-play onboarding wizard & in-browser Telegram MTProto auth,
@@ -90,6 +91,7 @@ const ExifFilterDrawer = React.lazy(() => import("./components/ExifFilterDrawer"
 const DuplicateConflictModal = React.lazy(() => import("./components/DuplicateConflictModal").then((m) => ({ default: m.DuplicateConflictModal })));
 const MoveConfirmationModal = React.lazy(() => import("./components/MoveConfirmationModal").then((m) => ({ default: m.MoveConfirmationModal })));
 const VaultSwitcherModal = React.lazy(() => import("./components/VaultSwitcherModal").then((m) => ({ default: m.VaultSwitcherModal })));
+const SettingsModal = React.lazy(() => import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal })));
 const OnboardingWizard = React.lazy(() => import("./components/OnboardingWizard").then((m) => ({ default: m.OnboardingWizard })));
 import { FolderCustomizeModal } from "./components/ui/FolderCustomizeModal";
 import { FolderRenameModal } from "./components/ui/FolderRenameModal";
@@ -133,6 +135,7 @@ export const App: React.FC = () => {
   const [vaults, setVaults] = useState<VaultItem[]>([]);
   const [activeVault, setActiveVaultState] = useState<VaultItem | null>(null);
   const [isVaultSwitcherOpen, setIsVaultSwitcherOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRefreshingVaults, setIsRefreshingVaults] = useState(false);
   const activeVaultRef = useRef<VaultItem | null>(null);
   useEffect(() => {
@@ -2333,6 +2336,7 @@ export const App: React.FC = () => {
         onFolderContextMenu={handleFolderContextMenu}
         isSyncing={isSyncing}
         onLogout={handleLogout}
+        onOpenSettings={() => setIsSettingsOpen(true)}
       />
 
       {/* Main Workspace Area (Offset by Sidebar on Desktop) */}
@@ -2892,6 +2896,24 @@ export const App: React.FC = () => {
             onRefreshVaults={() => loadVaults(true)}
             onOpenVaultSetup={() => setShowVaultSetupWizard(true)}
             isRefreshing={isRefreshingVaults}
+          />
+        )}
+      </Suspense>
+
+      {/* Centralized Preferences & Storage Settings Modal */}
+      <Suspense fallback={null}>
+        {isSettingsOpen && (
+          <SettingsModal
+            isOpen={isSettingsOpen}
+            onClose={() => setIsSettingsOpen(false)}
+            stats={stats}
+            activeVault={activeVault}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
+            batterySaver={batterySaver}
+            onToggleBatterySaver={handleToggleBatterySaver}
+            onLogout={handleLogout}
+            onOpenVaultSwitcher={() => setIsVaultSwitcherOpen(true)}
           />
         )}
       </Suspense>
