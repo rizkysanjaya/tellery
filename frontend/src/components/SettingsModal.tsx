@@ -4,6 +4,7 @@
  * Purpose: Centralized Silk Cloud neomorphic settings dialog providing local disk cache
  *          metering, cache limit configuration, 1-click cache purge, MTProto vault telemetry,
  *          Battery Saver mode toggle, theme mode switcher, and session disconnect.
+ *          Supports WCAG 2.2 AA visible focus rings and keyboard Escape key modal dismissal.
  * Used by: frontend/src/App.tsx, frontend/src/components/Sidebar.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, frontend/src/api.ts,
  *               frontend/src/components/ui/LiquidProgressBar.tsx
@@ -87,6 +88,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [isOpen, loadCache]);
 
+  // Keyboard Escape listener for accessible modal dismissal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleClearCache = async () => {
     if (isClearingCache) return;
     setIsClearingCache(true);
@@ -149,7 +162,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer touch-manipulation"
+            className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
             aria-label="Close settings"
           >
             <X className="w-5 h-5" />
@@ -175,7 +188,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 onClick={loadCache}
                 disabled={loadingCache}
-                className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation"
+                className="w-8 h-8 min-w-[32px] min-h-[32px] rounded-full neo-button flex items-center justify-center text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 title="Refresh cache stats"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingCache ? "animate-spin text-primary" : ""}`} />
@@ -219,7 +232,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button
                     onClick={handleClearCache}
                     disabled={isClearingCache || cacheStats.cache_bytes === 0}
-                    className={`min-h-[36px] px-3.5 py-1.5 rounded-neo-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer touch-manipulation ${
+                    className={`min-h-[36px] px-3.5 py-1.5 rounded-neo-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
                       isClearingCache
                         ? "neo-pressed bg-surface-base text-emerald-400 cursor-wait"
                         : cacheStats.cache_bytes === 0
@@ -252,7 +265,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         key={preset.label}
                         onClick={() => handleSaveCacheLimit(preset.bytes)}
                         disabled={isUpdatingLimit}
-                        className={`min-h-[36px] py-1.5 px-2 rounded-neo text-xs font-semibold transition-all cursor-pointer touch-manipulation ${
+                        className={`min-h-[36px] py-1.5 px-2 rounded-neo text-xs font-semibold transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
                           Math.abs(cacheStats.max_bytes - preset.bytes) < 100 * 1024 * 1024
                             ? "neo-pressed bg-surface-base text-primary ring-1 ring-primary/40 font-bold"
                             : "neo-button bg-surface-base text-on-surface hover:text-primary"
@@ -273,7 +286,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       value={customLimitGb}
                       onChange={(e) => setCustomLimitGb(e.target.value)}
                       placeholder="2.0"
-                      className="flex-1 min-h-[38px] px-3.5 py-1.5 rounded-neo neo-pressed bg-surface-container-lowest text-on-surface text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary touch-manipulation"
+                      className="flex-1 min-h-[38px] px-3.5 py-1.5 rounded-neo neo-pressed bg-surface-container-lowest text-on-surface text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary focus-visible:ring-2 focus-visible:ring-primary touch-manipulation"
                     />
                     <span className="text-xs font-mono text-on-surface-variant">GB</span>
                     <button
@@ -284,7 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         }
                       }}
                       disabled={isUpdatingLimit || !customLimitGb}
-                      className="min-h-[38px] px-4 py-1.5 rounded-neo neo-button text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 cursor-pointer touch-manipulation"
+                      className="min-h-[38px] px-4 py-1.5 rounded-neo neo-button text-xs font-bold text-primary hover:text-primary/80 disabled:opacity-50 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                     >
                       {isUpdatingLimit ? "Saving..." : "Set Limit"}
                     </button>
@@ -319,7 +332,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClose();
                     onOpenVaultSwitcher();
                   }}
-                  className="min-h-[36px] px-3 py-1.5 rounded-neo-lg text-xs font-semibold neo-button text-primary hover:text-primary-hover flex items-center gap-1 cursor-pointer touch-manipulation"
+                  className="min-h-[36px] px-3 py-1.5 rounded-neo-lg text-xs font-semibold neo-button text-primary hover:text-primary-hover flex items-center gap-1 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                 >
                   <RefreshCw className="w-3 h-3" />
                   <span>Switch Vault</span>
@@ -389,7 +402,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <button
                     onClick={onToggleBatterySaver}
-                    className={`min-h-[36px] px-3 py-1 rounded-neo-lg text-xs font-bold transition-all cursor-pointer touch-manipulation ${
+                    className={`min-h-[36px] px-3 py-1 rounded-neo-lg text-xs font-bold transition-all cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:outline-none ${
                       batterySaver
                         ? "neo-pressed bg-amber-500/15 text-amber-400 ring-1 ring-amber-400/40"
                         : "neo-button bg-surface-base text-on-surface-variant hover:text-on-surface"
@@ -418,7 +431,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                   <button
                     onClick={onToggleTheme}
-                    className="min-h-[36px] px-3 py-1 rounded-neo-lg text-xs font-bold neo-button text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation flex items-center gap-1"
+                    className="min-h-[36px] px-3 py-1 rounded-neo-lg text-xs font-bold neo-button text-on-surface-variant hover:text-primary transition-all cursor-pointer touch-manipulation flex items-center gap-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
                   >
                     {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
                     <span>Switch to {theme === "dark" ? "Light" : "Dark"}</span>
@@ -455,7 +468,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     onClose();
                     onLogout();
                   }}
-                  className="min-h-[36px] px-3 py-1.5 rounded-neo-lg text-xs font-semibold neo-button text-error hover:bg-error-container/20 transition-all cursor-pointer touch-manipulation flex items-center gap-1.5"
+                  className="min-h-[36px] px-3 py-1.5 rounded-neo-lg text-xs font-semibold neo-button text-error hover:bg-error-container/20 transition-all cursor-pointer touch-manipulation flex items-center gap-1.5 focus-visible:ring-2 focus-visible:ring-error focus-visible:outline-none"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Log Out</span>
@@ -469,7 +482,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="px-6 py-3.5 border-t border-outline-variant/15 flex items-center justify-end shrink-0 bg-surface-container-lowest/30">
           <button
             onClick={onClose}
-            className="min-h-[38px] px-5 py-1.5 rounded-neo-lg neo-button text-xs font-bold text-on-surface hover:text-primary cursor-pointer touch-manipulation"
+            className="min-h-[38px] px-5 py-1.5 rounded-neo-lg neo-button text-xs font-bold text-on-surface hover:text-primary cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
           >
             Close
           </button>

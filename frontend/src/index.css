@@ -2,6 +2,7 @@
  * =============================================================================
  * Module: frontend/src/index.css
  * Purpose: Global styling, Silk Cloud dynamic Light & Dark neomorphic theme variables,
+ *          WCAG 2.2 AA accessible visible focus rings (:focus-visible),
  *          high-performance GPU-composited shadow tokens, responsive scrollbars,
  *          Vanguard Modern Gallery glassmorphic auth utilities, and
  *          hardware-composited liquid droplet dock keyframe animations.
@@ -10,7 +11,7 @@
  * Public Members: .neo-raised, .neo-pressed, .neo-card, .neo-frame, .neo-image-wrapper,
  *                .neo-button, .neo-button-primary, .glass-card, .glass-input, .brand-glow,
  *                @keyframes dockDropletRise, @keyframes dockDropletBase, @keyframes dockIconPop
- * Side Effects: Applies dynamic light/dark CSS variables and global keyframes.
+ * Side Effects: Applies dynamic light/dark CSS variables, accessible focus ring rules, and global keyframes.
  * =============================================================================
  */
 
@@ -224,6 +225,12 @@
     border-left-color: transparent;
   }
 
+  /* Accessible keyboard focus visible state (WCAG 2.2 AA) */
+  .neo-button:focus-visible {
+    outline: none;
+    box-shadow: var(--neo-button-shadow), 0 0 0 2px rgb(var(--color-background)), 0 0 0 4px rgb(var(--color-primary));
+  }
+
   /* Primary accent button */
   .neo-button-primary {
     background: var(--neo-button-primary-bg);
@@ -241,6 +248,11 @@
 
   .neo-button-primary:active {
     transform: translateY(0);
+  }
+
+  .neo-button-primary:focus-visible {
+    outline: none;
+    box-shadow: var(--neo-button-primary-shadow), 0 0 0 2px rgb(var(--color-background)), 0 0 0 4px rgb(var(--color-primary));
   }
 
   /* Vanguard Modern Gallery Glassmorphism */

@@ -2,6 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
  * Purpose: High-performance gallery grid tile with instant WebP thumbnail,
+ *          WCAG 2.2 AA accessible keyboard navigation (Enter to view, Space to select),
+ *          visible focus rings (:focus-visible), screen-reader aria-labels,
  *          constantly looping animated GIFs, 4-corner ergonomic layout (top-left selection,
  *          top-right favorite star, bottom-left video duration, bottom-right file format badge),
  *          battery saver / low power static thumbnail fallback, touch-manipulation targets,
@@ -176,6 +178,19 @@ export const MediaCard: React.FC<MediaCardProps> = ({
     >
       <div
         draggable
+        tabIndex={0}
+        role="button"
+        aria-label={`${item.file_name}, ${item.mime_type.startsWith("video") ? "Video" : "Photo"}${item.duration_seconds ? `, duration ${formatDuration(item.duration_seconds)}` : ""}, ${isSelected ? "selected" : "not selected"}`}
+        aria-pressed={isSelected}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            onClick();
+          } else if (e.key === " " || e.key === "Spacebar") {
+            e.preventDefault();
+            onToggleSelect(item.id);
+          }
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUpOrCancel}
@@ -186,22 +201,24 @@ export const MediaCard: React.FC<MediaCardProps> = ({
         style={aspectRatioStyle}
         className={`media-card-item relative overflow-hidden bg-surface-container ${
           isDense ? "rounded-lg" : "rounded-xl"
-        } h-full w-full cursor-pointer transition-all duration-200 shadow-md hover:shadow-xl active:scale-[0.98] ${
+        } h-full w-full cursor-pointer transition-all duration-200 shadow-md hover:shadow-xl active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
           isSelected ? "ring-2 ring-primary shadow-primary/30" : ""
         }`}
       >
         <div className="relative w-full h-full overflow-hidden bg-surface-container">
           {/* Top-Left: Selection Checkbox (Clean Neomorphic, Hover-revealed like Favorite, Solid Accent Active) */}
-          <div
+          <button
+            type="button"
             onClick={handleCheckboxClick}
-            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm touch-manipulation ${
+            aria-label={isSelected ? `Deselect ${item.file_name}` : `Select ${item.file_name}`}
+            className={`absolute z-[3] rounded-full flex items-center justify-center transition-all duration-150 cursor-pointer shadow-sm touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
               isDense ? "top-1.5 left-1.5 w-5 h-5" : "top-2.5 left-2.5 w-6 h-6"
             } ${
               isSelected
                 ? "bg-primary text-on-primary border border-primary scale-105 opacity-100 shadow-md shadow-primary/30"
                 : isSelectionMode
                   ? "bg-surface-base/90 border border-outline-variant/60 hover:border-primary hover:scale-110 opacity-70 group-hover:opacity-100 text-transparent hover:text-primary/40"
-                  : "bg-surface-base/90 border border-outline-variant/50 hover:border-primary hover:scale-110 opacity-0 group-hover:opacity-100 text-transparent hover:text-primary/40"
+                  : "bg-surface-base/90 border border-outline-variant/50 hover:border-primary hover:scale-110 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-transparent hover:text-primary/40"
             }`}
             title={isSelected ? "Deselect item" : "Select item"}
           >
@@ -210,7 +227,7 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             ) : (
               <Check className={`${isDense ? "w-3 h-3" : "w-3.5 h-3.5"} transition-colors`} strokeWidth={2.5} />
             )}
-          </div>
+          </button>
 
           {/* Selected Dimming Overlay */}
           {isSelected && (
@@ -275,13 +292,14 @@ export const MediaCard: React.FC<MediaCardProps> = ({
                 onToggleFavorite(item.id, !item.is_favorite);
               }
             }}
+            aria-label={item.is_favorite ? `Remove ${item.file_name} from Favorites` : `Add ${item.file_name} to Favorites`}
             title={item.is_favorite ? "Remove from Favorites" : "Add to Favorites"}
-            className={`absolute z-[3] rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer touch-manipulation ${
+            className={`absolute z-[3] rounded-full transition-all duration-150 shadow-sm pointer-events-auto cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
               isDense ? "top-1.5 right-1.5 w-5 h-5 flex items-center justify-center p-0" : "top-2.5 right-2.5 p-1.5"
             } ${
               item.is_favorite
                 ? "bg-amber-500/25 text-amber-400 border border-amber-500/40 opacity-100 scale-100"
-                : "bg-surface-base/90 text-on-surface-variant hover:text-amber-400 opacity-0 group-hover:opacity-100 border border-outline-variant/30 hover:scale-110"
+                : "bg-surface-base/90 text-on-surface-variant hover:text-amber-400 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 border border-outline-variant/30 hover:scale-110"
             }`}
           >
             <Star

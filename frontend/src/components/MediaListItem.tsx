@@ -3,6 +3,8 @@
  * Module: frontend/src/components/MediaListItem.tsx
  * Purpose: Detailed table/list row layout component for a media item, displaying
  *          thumbnail, looping animated GIFs, on-hover animated video preview,
+ *          WCAG 2.2 AA accessible keyboard navigation (Enter to view, Space to select),
+ *          visible focus rings (:focus-visible), screen-reader aria-labels,
  *          battery saver low-power static thumbnail fallback, touch targets,
  *          filename, folder tags, resolution, duration, file size, and actions.
  * Used by: frontend/src/components/TimelineGrid.tsx (in "list" layout mode)
@@ -195,6 +197,19 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
   return (
     <div
       draggable
+      tabIndex={0}
+      role="button"
+      aria-label={`${item.file_name}, ${item.mime_type.startsWith("video") ? "Video" : "Photo"}, ${isSelected ? "selected" : "not selected"}`}
+      aria-pressed={isSelected}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onClick();
+        } else if (e.key === " " || e.key === "Spacebar") {
+          e.preventDefault();
+          onToggleSelect(item.id);
+        }
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onPointerDown={handlePointerDown}
@@ -204,7 +219,7 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
       onDragStart={handleDragStart}
       onClick={handleClick}
       onContextMenu={(e) => onContextMenu(e, item)}
-      className={`media-card-item group flex items-center justify-between px-3.5 py-2.5 neo-card rounded-neo-xl transition-all duration-150 cursor-pointer select-none border border-outline-variant/15 ${
+      className={`media-card-item group flex items-center justify-between px-3.5 py-2.5 neo-card rounded-neo-xl transition-all duration-150 cursor-pointer select-none border border-outline-variant/15 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
         isSelected
           ? "bg-surface-container-high ring-2 ring-primary shadow-sm"
           : "bg-surface-base hover:bg-surface-container hover:border-outline-variant/30 hover:-translate-y-[1px]"
@@ -213,20 +228,22 @@ export const MediaListItem: React.FC<MediaListItemProps> = ({
       {/* Left: Checkbox + Thumbnail + Filename & Details */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
         {/* Selection Checkbox */}
-        <div
+        <button
+          type="button"
           onClick={handleCheckboxClick}
-          className={`w-6 h-6 rounded-neo flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
+          aria-label={isSelected ? `Deselect ${item.file_name}` : `Select ${item.file_name}`}
+          className={`w-6 h-6 rounded-neo flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
             isSelected
               ? "bg-primary text-on-primary shadow-sm"
               : isSelectionMode
                 ? "bg-surface-container-highest border border-outline-variant hover:border-primary"
-                : "bg-surface-container border border-outline-variant opacity-0 group-hover:opacity-100 hover:border-primary"
+                : "bg-surface-container border border-outline-variant opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:border-primary"
           }`}
         >
           {isSelected && (
             <Check className="w-4 h-4 text-on-primary" strokeWidth={3} />
           )}
-        </div>
+        </button>
 
         {/* Crisp Rounded Thumbnail / Constantly Playing GIF / Smooth Video Hover Preview */}
         <div className="relative w-14 h-14 rounded-neo-lg overflow-hidden bg-surface-container shrink-0 neo-image-wrapper border border-outline-variant/20 shadow-sm">
