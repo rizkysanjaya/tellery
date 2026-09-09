@@ -3,6 +3,7 @@
  * Module: frontend/src/components/SettingsModal.tsx
  * Purpose: Precision pro-grade settings dialog providing local disk cache metering,
  *          cache limit configuration, 1-click cache purge, MTProto vault telemetry,
+ *          animated MP4 video & static avatar support,
  *          Battery Saver mode toggle, VS Code-style 10-theme gallery switcher, and session disconnect.
  *          Supports WCAG 2.2 AA visible focus rings and keyboard Escape key modal dismissal.
  * Used by: frontend/src/App.tsx, frontend/src/components/Sidebar.tsx
@@ -552,7 +553,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {stats?.account_name && (
             <div className="p-3.5 rounded-xl bg-surface-container-lowest/40 flex items-center justify-between border border-outline-variant/15">
               <div className="flex items-center gap-2.5">
-                {stats.user_avatar_url ? (
+                {stats.user_avatar_video_url && !batterySaver ? (
+                  <video
+                    src={stats.user_avatar_video_url}
+                    poster={stats.user_avatar_url || undefined}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="w-8 h-8 rounded-full object-cover ring-1 ring-primary/40"
+                  />
+                ) : stats.user_avatar_url ? (
                   <img
                     src={stats.user_avatar_url}
                     alt={stats.account_name}

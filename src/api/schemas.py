@@ -148,7 +148,9 @@ class StatsResponse(BaseModel):
     account_username: Optional[str] = None
     channel_name: Optional[str] = None
     channel_avatar_url: Optional[str] = None
+    channel_avatar_video_url: Optional[str] = None
     user_avatar_url: Optional[str] = None
+    user_avatar_video_url: Optional[str] = None
 
 
 class FolderResponse(BaseModel):

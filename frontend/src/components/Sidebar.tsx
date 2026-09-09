@@ -3,6 +3,7 @@
  * Module: frontend/src/components/Sidebar.tsx
  * Purpose: Pro-grade flat obsidian sidebar with hairline dividers, compact vault info
  *          with media breakdown counters and cloud storage size indicator,
+ *          animated MP4 video & static avatar support for vaults and user profiles,
  *          vault switcher, album tree, direct favorites navigation, trash,
  *          user account greeting badge with privacy toggle, and settings dialog trigger.
  * Used by: frontend/src/App.tsx
@@ -78,6 +79,7 @@ interface SidebarProps {
   onExportFolderZip?: (folder: FolderItem) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folder: FolderItem) => void;
   isSyncing?: boolean;
+  batterySaver?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -111,6 +113,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onExportFolderZip,
   onFolderContextMenu,
   isSyncing = false,
+  batterySaver = false,
 }) => {
   const [isAlbumsExpanded, setIsAlbumsExpanded] = useState(true);
   const [showInlineNewAlbum, setShowInlineNewAlbum] = useState(false);
@@ -293,9 +296,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             </div>
 
-            {/* Channel Profile Photo & Channel Name */}
+            {/* Channel Profile Photo / Video Avatar & Channel Name */}
             <div className="flex items-center gap-2.5 min-w-0">
-              {stats?.channel_avatar_url ? (
+              {stats?.channel_avatar_video_url && !batterySaver ? (
+                <video
+                  src={stats.channel_avatar_video_url}
+                  poster={stats.channel_avatar_url || undefined}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-primary/30"
+                />
+              ) : stats?.channel_avatar_url ? (
                 <img
                   src={stats.channel_avatar_url}
                   alt={activeVault?.title || stats.channel_name || "Vault"}
@@ -628,7 +641,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="relative group/avatar cursor-pointer shrink-0 rounded-full select-none"
                 title={isIdentityHidden ? "Show Identity" : "Hide Identity (Incognito)"}
               >
-                {stats.user_avatar_url ? (
+                {stats.user_avatar_video_url && !batterySaver ? (
+                  <video
+                    src={stats.user_avatar_video_url}
+                    poster={stats.user_avatar_url || undefined}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className={`w-7 h-7 rounded-full object-cover ring-1 ring-primary/40 transition-all duration-200 ${
+                      isIdentityHidden ? "filter blur-[4px] brightness-75 scale-95" : ""
+                    }`}
+                  />
+                ) : stats.user_avatar_url ? (
                   <img
                     src={stats.user_avatar_url}
                     alt={stats.account_name}

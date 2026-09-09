@@ -2341,6 +2341,7 @@ export const App: React.FC = () => {
         canUpload={activeVault?.can_upload !== false}
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        batterySaver={batterySaver}
         onSelectTimeline={() => {
           setSearchQuery("");
           setCurrentView("timeline");

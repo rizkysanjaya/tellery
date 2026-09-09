@@ -76,7 +76,9 @@ export interface StorageStats {
   account_username?: string | null;
   channel_name?: string | null;
   channel_avatar_url?: string | null;
+  channel_avatar_video_url?: string | null;
   user_avatar_url?: string | null;
+  user_avatar_video_url?: string | null;
 }
 
 export type StatsResponse = StorageStats;

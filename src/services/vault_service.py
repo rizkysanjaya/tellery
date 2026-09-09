@@ -2,13 +2,13 @@
 =============================================================================
 Module: src.services.vault_service
 Purpose: Telegram Channel / Vault discovery, permission intelligence (Owner vs Viewer),
-         owned-channel isolation harness, avatar caching, and active vault state management
-         for seamless multi-channel gallery switching.
+         owned-channel isolation harness, static & animated/video avatar caching,
+         and active vault state management for seamless multi-channel gallery switching.
 Used by: src.api.routes.vaults, src.api.routes.media, src.services.sync_service
 Dependencies: telethon, pathlib, src.storage.telegram_client, src.database.repository, src.config
 Public Members: VaultService, get_vault_service(), get_vault_by_id(), download_channel_avatar()
-Side Effects: Calls Telegram MTProto get_dialogs() & download_profile_photo(),
-              writes avatar files to data/avatars/, queries SQLite database for channel stats.
+Side Effects: Calls Telegram MTProto get_dialogs(), download_profile_photo() & _download_photo(),
+              writes avatar JPG and MP4 files to data/avatars/, queries SQLite database for channel stats.
 =============================================================================
 """
 
@@ -52,29 +52,61 @@ class VaultService:
                 return v
         return None
 
-    async def download_channel_avatar(self, channel_id: int) -> Optional[str]:
+    async def download_channel_avatar(self, channel_id: int) -> dict[str, Optional[str]]:
         """
         Downloads and caches profile avatar for a specific Telegram channel.
-        Saves to data/avatars/channel_avatar_{abs_id}.jpg.
+        Supports both static image (.jpg) and animated video avatar (.mp4) if available.
+        Saves to data/avatars/channel_avatar_{abs_id}.jpg and .mp4.
         """
         avatar_dir = Path("data/avatars")
         avatar_dir.mkdir(parents=True, exist_ok=True)
         avatar_file = avatar_dir / f"channel_avatar_{abs(channel_id)}.jpg"
-        if avatar_file.exists():
-            return str(avatar_file)
+        avatar_video_file = avatar_dir / f"channel_avatar_{abs(channel_id)}.mp4"
+
+        result = {
+            "photo": str(avatar_file) if avatar_file.exists() else None,
+            "video": str(avatar_video_file) if avatar_video_file.exists() else None,
+        }
+
+        # If both are cached, return immediately
+        if result["photo"] and result["video"]:
+            return result
 
         try:
             await self.telegram_client.start()
+            raw_client = self.telegram_client.raw_client
             entity = await self.telegram_client.get_target_entity(channel_id)
             if entity:
-                res = await self.telegram_client.raw_client.download_profile_photo(
-                    entity, file=str(avatar_file)
-                )
-                if res:
-                    return str(avatar_file)
+                # 1. Download static snapshot if missing
+                if not avatar_file.exists():
+                    try:
+                        res = await raw_client.download_profile_photo(entity, file=str(avatar_file))
+                        if res and avatar_file.exists():
+                            result["photo"] = str(avatar_file)
+                    except Exception as e:
+                        logger.debug("Failed downloading static avatar for channel %s: %s", channel_id, e)
+
+                # 2. Check and download animated / video avatar if present
+                photo_obj = getattr(entity, "photo", None)
+                if getattr(photo_obj, "has_video", False) and not avatar_video_file.exists():
+                    try:
+                        from telethon.tl.functions.channels import GetFullChannelRequest
+                        full = await raw_client(GetFullChannelRequest(entity))
+                        chat_photo = getattr(getattr(full, "full_chat", None), "chat_photo", None)
+                        if chat_photo and getattr(chat_photo, "video_sizes", None):
+                            v_res = await raw_client._download_photo(
+                                chat_photo, file=str(avatar_video_file), date=None, thumb=-1, progress_callback=None
+                            )
+                            if v_res and avatar_video_file.exists():
+                                result["video"] = str(avatar_video_file)
+                                logger.info("Successfully downloaded animated video avatar for channel %s", channel_id)
+                    except Exception as e:
+                        logger.debug("Failed downloading video avatar for channel %s: %s", channel_id, e)
+
         except Exception as e:
             logger.debug("Failed to download avatar for channel %s: %s", channel_id, e)
-        return None
+
+        return result
 
     def get_active_channel_id(self) -> Optional[int]:
         """Returns the currently active Telegram channel ID."""
