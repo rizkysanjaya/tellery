@@ -3,7 +3,7 @@
  * Module: frontend/src/components/SettingsModal.tsx
  * Purpose: Precision pro-grade settings dialog providing local disk cache metering,
  *          cache limit configuration, 1-click cache purge, MTProto vault telemetry,
- *          animated MP4 video & static avatar support,
+ *          animated MP4 video & static avatar support, Ko-fi sponsor support link,
  *          Battery Saver mode toggle, VS Code-style 10-theme gallery switcher, and session disconnect.
  *          Supports WCAG 2.2 AA visible focus rings and keyboard Escape key modal dismissal.
  * Used by: frontend/src/App.tsx, frontend/src/components/Sidebar.tsx
@@ -11,7 +11,7 @@
  *               frontend/src/components/ui/LiquidProgressBar.tsx, frontend/src/config/themes.ts
  * Public Members: SettingsModal, SettingsModalProps
  * Side Effects: Fetches cache statistics over HTTP, dispatches cache clearing & limit updates,
- *                toggles theme and battery saver preferences in localStorage.
+ *                toggles theme and battery saver preferences in localStorage, opens external Ko-fi sponsor link.
  * =============================================================================
  */
 
@@ -33,6 +33,7 @@ import {
   Sliders,
   Check,
   Palette,
+  Coffee,
 } from "lucide-react";
 import { CacheStats, StatsResponse, VaultItem } from "../types";
 import { clearLocalCache, fetchCacheStats, updateCacheLimit } from "../api";
@@ -597,7 +598,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="px-5 py-3 border-t border-outline-variant/15 flex items-center justify-end shrink-0 bg-surface-container-lowest/40">
+        <div className="px-5 py-3 border-t border-outline-variant/15 flex items-center justify-between shrink-0 bg-surface-container-lowest/40">
+          <div className="flex items-center gap-2.5">
+            <span className="text-[11px] font-mono text-on-surface-variant/60">
+              Tellery v1.0.0
+            </span>
+            <span className="text-outline-variant/30 text-xs">•</span>
+            <a
+              href="https://ko-fi.com/gomski"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:text-amber-500 dark:hover:text-amber-300 transition-colors"
+              title="Support Tellery development on Ko-fi"
+            >
+              <Coffee className="w-3.5 h-3.5 text-amber-500" />
+              <span>Support on Ko-fi</span>
+            </a>
+          </div>
+
           <button
             onClick={onClose}
             className="min-h-[32px] px-4 py-1 rounded-md bg-surface-container hover:bg-surface-container-high border border-outline-variant/20 text-xs font-medium text-on-surface hover:text-primary cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none transition-colors"

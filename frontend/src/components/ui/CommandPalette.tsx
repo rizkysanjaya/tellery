@@ -3,11 +3,12 @@
  * Module: frontend/src/components/ui/CommandPalette.tsx
  * Purpose: Precision spotlight command palette dialog triggered by Ctrl+K or header search.
  *          Enables rapid keyboard navigation (Timeline, Favorites, Albums), view switching,
- *          sorting, album jumps, upload actions, vault sync, and instant VS Code-style color theme switching.
+ *          sorting, album jumps, upload actions, vault sync, instant VS Code-style color theme switching,
+ *          and Ko-fi project support action.
  * Used by: frontend/src/App.tsx, frontend/src/components/Header.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, frontend/src/config/themes.ts
  * Public Members: CommandPalette
- * Side Effects: Listens for Ctrl+K keyboard shortcut, dispatches application state actions.
+ * Side Effects: Listens for Ctrl+K keyboard shortcut, dispatches application state actions, opens external Ko-fi URL.
  * =============================================================================
  */
 
@@ -29,13 +30,14 @@ import {
   RefreshCw,
   Sun,
   Moon,
+  Coffee,
 } from "lucide-react";
 import { DisplayLayout, FolderItem, MainView, SortOption } from "../../types";
 import { THEMES, ThemeId } from "../../config/themes";
 
 interface CommandItem {
   id: string;
-  category: "Navigation" | "Collections" | "Display Layout" | "Sort Order" | "Actions" | "Themes";
+  category: "Navigation" | "Collections" | "Display Layout" | "Sort Order" | "Actions" | "Themes" | "Support";
   title: string;
   subtitle?: string;
   icon: React.ReactNode;
@@ -334,6 +336,19 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
         onClose();
       },
     })),
+
+    // Support & Community
+    {
+      id: "support-kofi",
+      category: "Support" as const,
+      title: "Support Tellery on Ko-fi",
+      subtitle: "Buy the creator a coffee at ko-fi.com/gomski",
+      icon: <Coffee className="w-4 h-4 text-amber-500" />,
+      action: () => {
+        window.open("https://ko-fi.com/gomski", "_blank", "noopener,noreferrer");
+        onClose();
+      },
+    },
   ];
 
   // Filter commands by search query

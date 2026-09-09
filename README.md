@@ -1,4 +1,4 @@
-﻿<!--
+<!--
 =============================================================================
 Module: README.md
 Purpose: Comprehensive project documentation, architecture guide, legal disclaimers,
@@ -14,7 +14,7 @@ Side Effects: None (Documentation).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Version](https://img.shields.io/badge/version-1.0.0-emerald.svg?style=flat-square)](CHANGELOG.md)
-[![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-F16061?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/rizkysanjaya)
+[![Support on Ko-fi](https://img.shields.io/badge/Support%20on-Ko--fi-F16061?style=flat-square&logo=ko-fi&logoColor=white)](https://ko-fi.com/gomski)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg?style=flat-square&logo=react&logoColor=black)](https://reactjs.org)
 
@@ -149,7 +149,7 @@ To access your personal Tellery vault securely from your smartphone or tablet fr
 
 If you find Tellery useful for liberating your personal media library and eliminating recurring cloud storage subscription fees, please consider supporting the project:
 
-[![Support on Ko-fi](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/rizkysanjaya)
+[![Support on Ko-fi](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/gomski)
 
 Your support helps cover development time, testing hardware, and future native desktop/mobile clients!
 
