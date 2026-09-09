@@ -1125,7 +1125,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           </div>
           <div className="flex justify-between">
             <span className="text-on-surface-variant">Looping:</span>
-            <span className={isLooping ? "text-emerald-500 font-bold" : "text-on-surface-variant"}>
+            <span className={isLooping ? "text-emerald-600 dark:text-emerald-500 font-bold" : "text-on-surface-variant"}>
               {isLooping ? "Active" : "Off"}
             </span>
           </div>

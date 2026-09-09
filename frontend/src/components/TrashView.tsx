@@ -186,7 +186,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                   type="button"
                   disabled={isProcessing}
                   onClick={handleBulkRestoreClick}
-                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-400 hover:bg-emerald-500/25 flex items-center gap-1.5 cursor-pointer transition-colors disabled:opacity-50"
                 >
                   <RotateCcw className={`w-3.5 h-3.5 ${isProcessing ? "animate-spin" : ""}`} />
                   <span>Restore ({selectedIds.size})</span>
@@ -283,7 +283,7 @@ export const TrashView: React.FC<TrashViewProps> = ({
                         e.stopPropagation();
                         onRestoreItem(item.id);
                       }}
-                      className="flex-1 py-1 px-2 rounded-md text-[11px] font-semibold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/30 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                      className="flex-1 py-1 px-2 rounded-md text-[11px] font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30 flex items-center justify-center gap-1 cursor-pointer transition-colors"
                       title="Restore to gallery"
                     >
                       <RotateCcw className="w-3 h-3" />

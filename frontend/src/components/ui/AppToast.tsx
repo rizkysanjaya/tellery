@@ -52,19 +52,19 @@ const ToastItem: React.FC<{ toast: ToastNotification; onDismiss: () => void }> =
 
   const config = {
     error: {
-      icon: <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />,
-      border: "border-red-500/40",
-      text: "text-red-300",
+      icon: <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" />,
+      border: "border-red-500/30 dark:border-red-500/40",
+      text: "text-red-800 dark:text-red-300",
     },
     warning: {
-      icon: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />,
-      border: "border-amber-500/40",
-      text: "text-amber-200",
+      icon: <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />,
+      border: "border-amber-500/30 dark:border-amber-500/40",
+      text: "text-amber-800 dark:text-amber-200",
     },
     success: {
-      icon: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />,
-      border: "border-emerald-500/40",
-      text: "text-emerald-200",
+      icon: <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />,
+      border: "border-emerald-500/30 dark:border-emerald-500/40",
+      text: "text-emerald-800 dark:text-emerald-200",
     },
     info: {
       icon: <Info className="w-5 h-5 text-primary shrink-0" />,

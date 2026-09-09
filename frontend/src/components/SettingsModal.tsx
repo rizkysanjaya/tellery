@@ -220,7 +220,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[11px] text-on-surface-variant/70">
                     {cacheFeedback ? (
-                      <span className="text-emerald-400 font-semibold">{cacheFeedback}</span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-semibold">{cacheFeedback}</span>
                     ) : (
                       "Clearing cache will not delete any files from Telegram cloud."
                     )}
@@ -230,13 +230,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     disabled={isClearingCache || cacheStats.cache_bytes === 0}
                     className={`min-h-[32px] px-3 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer touch-manipulation focus-visible:ring-1 focus-visible:ring-primary focus-visible:outline-none ${
                       isClearingCache
-                        ? "bg-emerald-500/10 text-emerald-400 cursor-wait"
+                        ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 cursor-wait"
                         : cacheStats.cache_bytes === 0
                         ? "opacity-50 cursor-not-allowed bg-surface-container text-on-surface-variant/50"
                         : "border border-rose-500/25 text-rose-400 bg-rose-500/10 hover:bg-rose-500/20"
                     }`}
                   >
-                    <Trash2 className={`w-3.5 h-3.5 ${isClearingCache ? "animate-spin text-emerald-400" : ""}`} />
+                    <Trash2 className={`w-3.5 h-3.5 ${isClearingCache ? "animate-spin text-emerald-600 dark:text-emerald-400" : ""}`} />
                     <span>{isClearingCache ? "Purging..." : "Purge Cache"}</span>
                   </button>
                 </div>
@@ -347,7 +347,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="p-2.5 rounded-lg bg-surface-container-lowest/60 border border-outline-variant/10">
                 <span className="text-on-surface-variant/70 block text-[10px] mb-0.5">Access Level</span>
                 <span className="font-semibold text-primary flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                   <span>{activeVault?.role === "owner" ? "Owner (Read / Write)" : "Viewer (Read-Only)"}</span>
                 </span>
               </div>

@@ -106,7 +106,7 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 text-[11px] text-emerald-400/90 pt-1">
+          <div className="flex items-center gap-1.5 text-[11px] text-emerald-700 dark:text-emerald-400/90 pt-1">
             <CloudOff className="w-3.5 h-3.5 shrink-0" />
             <span>All media files remain safe on Telegram cloud.</span>
           </div>

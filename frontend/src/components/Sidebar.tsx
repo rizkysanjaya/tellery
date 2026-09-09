@@ -287,8 +287,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             {/* Status indicator & Role Badge & Switcher Chevron */}
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(16,185,129,0.5)] dark:shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
                 <span>Connected to</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -296,8 +296,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span
                     className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                       activeVault.role === "owner"
-                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                        : "bg-surface-container text-amber-400 border border-amber-500/20"
+                        ? "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 dark:border-emerald-500/20"
+                        : "bg-surface-container text-amber-800 dark:text-amber-400 border border-amber-500/30 dark:border-amber-500/20"
                     }`}
                   >
                     {activeVault.role === "owner" ? "Owner" : "Read-Only"}

@@ -835,7 +835,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 
                     {/* Verified Indicator Icon */}
                     {isPhoneValid && (
-                      <div className="text-emerald-500 flex-shrink-0" title="Valid telephone format">
+                      <div className="text-emerald-600 dark:text-emerald-500 flex-shrink-0" title="Valid telephone format">
                         <Check className="w-4 h-4 stroke-[2.5]" />
                       </div>
                     )}
@@ -923,7 +923,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 {/* Trust & Encryption Footnote */}
                 <div className="mt-5 pt-3.5 border-t border-outline-variant/15 flex items-center justify-between text-[11px] text-on-surface-variant">
                   <div className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                     <span>Official MTProto Handshake</span>
                   </div>
                   <span>Local Session Storage</span>
@@ -1111,7 +1111,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                     {/* Automatic Provisioning Info */}
                     <div className="p-4 rounded-xl bg-surface-container-lowest/80 border border-outline-variant/15 space-y-1.5">
                       <div className="flex items-center gap-2 text-xs font-semibold text-on-surface">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />
                         <span>Automatic Private Vault Creation</span>
                       </div>
                       <p className="text-[11px] text-on-surface-variant leading-relaxed">
@@ -1149,8 +1149,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                           Available Owned Channels ({availableVaults.length})
                         </span>
                         {availableVaults.length > 0 && (
-                          <span className="text-[10px] text-emerald-500 flex items-center gap-1 font-mono font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[10px] text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-mono font-medium">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 dark:bg-emerald-500 animate-pulse" />
                             Ready to connect
                           </span>
                         )}
@@ -1236,8 +1236,8 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 className="text-center space-y-6 py-2"
               >
-                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 mx-auto flex items-center justify-center text-emerald-400 shadow-sm">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 dark:border-emerald-500/25 mx-auto flex items-center justify-center text-emerald-700 dark:text-emerald-400 shadow-sm">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-500" />
                 </div>
 
                 <div>

@@ -55,15 +55,15 @@ const FILE_TYPE_COLORS: Record<string, { textColor: string; badgeClass: string; 
 
   // --- Photography / JPEG (Emerald / Green) ---
   jpg: {
-    textColor: "text-emerald-400",
+    textColor: "text-emerald-700 dark:text-emerald-400",
     badgeClass: "bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.2)]",
-    pillClass: "text-emerald-400 bg-emerald-500/15 border border-emerald-500/25",
+    pillClass: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/25",
     category: "image",
   },
   jpeg: {
-    textColor: "text-emerald-400",
+    textColor: "text-emerald-700 dark:text-emerald-400",
     badgeClass: "bg-emerald-950/80 border border-emerald-500/30 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.2)]",
-    pillClass: "text-emerald-400 bg-emerald-500/15 border border-emerald-500/25",
+    pillClass: "text-emerald-700 dark:text-emerald-400 bg-emerald-500/15 border border-emerald-500/25",
     category: "image",
   },
 

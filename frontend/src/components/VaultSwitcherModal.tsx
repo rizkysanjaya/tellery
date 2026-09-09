@@ -239,8 +239,8 @@ export const VaultSwitcherModal: React.FC<VaultSwitcherModalProps> = ({
                               {vault.title}
                             </span>
                             {isActive && (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-800 dark:text-emerald-400 border border-emerald-500/30">
+                                <span className="w-1 h-1 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
                                 Active
                               </span>
                             )}
@@ -259,7 +259,7 @@ export const VaultSwitcherModal: React.FC<VaultSwitcherModalProps> = ({
 
                       {/* Right Badge / Status */}
                       <div className="flex items-center gap-2 shrink-0 ml-3">
-                        <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 border border-emerald-500/30 dark:border-emerald-500/20">
                           <ShieldCheck className="w-3 h-3" />
                           Owner
                         </span>
