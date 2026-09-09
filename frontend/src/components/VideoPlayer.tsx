@@ -5,7 +5,7 @@
  *          buffered range tracking, playback speed controls, picture-in-picture,
  *          custom right-click context menu (Loop, Speed, PiP, URL copy, Stats for Nerds),
  *          keyboard shortcuts (YouTube/Netflix style), and auto-hiding controls.
- *          Updated to match Silk Cloud dark neomorphic design system.
+ *          Updated to match Silk Cloud dynamic light & dark neomorphic design system.
  * Used by: frontend/src/components/MediaLightbox.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts
  * Public Members: VideoPlayer
@@ -1017,54 +1017,54 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
 
       {/* Stats for Nerds HUD Overlay */}
       {showStatsOverlay && (
-        <div className="absolute top-4 left-4 z-40 bg-black/85 backdrop-blur-md border border-white/15 rounded-neo-lg p-3 text-[11px] font-mono text-zinc-300 shadow-2xl space-y-1.5 min-w-[270px] animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex items-center justify-between pb-1.5 border-b border-white/10 text-primary font-sans font-bold text-xs">
+        <div className="absolute top-4 left-4 z-40 bg-surface-base/95 backdrop-blur-md border border-outline-variant/30 rounded-neo-lg p-3 text-[11px] font-mono text-on-surface shadow-2xl space-y-1.5 min-w-[270px] neo-card animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center justify-between pb-1.5 border-b border-outline-variant/20 text-primary font-sans font-bold text-xs">
             <div className="flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5" />
               <span>Stats for Nerds</span>
             </div>
             <button
               onClick={() => setShowStatsOverlay(false)}
-              className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              className="p-1 rounded-full hover:bg-surface-container text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Item ID:</span>
-            <span className="text-zinc-200">#{item.id}</span>
+            <span className="text-on-surface-variant">Item ID:</span>
+            <span className="text-on-surface font-semibold">#{item.id}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Resolution:</span>
-            <span className="text-zinc-200">
+            <span className="text-on-surface-variant">Resolution:</span>
+            <span className="text-on-surface font-semibold">
               {item.width && item.height ? `${item.width}×${item.height}` : "Auto"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Duration:</span>
-            <span className="text-zinc-200">{formatTime(duration)}</span>
+            <span className="text-on-surface-variant">Duration:</span>
+            <span className="text-on-surface font-semibold">{formatTime(duration)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Format:</span>
-            <span className="text-indigo-400 uppercase">{item.mime_type}</span>
+            <span className="text-on-surface-variant">Format:</span>
+            <span className="text-primary font-semibold uppercase">{item.mime_type}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">File Size:</span>
-            <span className="text-zinc-200">{(item.file_size / (1024 * 1024)).toFixed(2)} MB</span>
+            <span className="text-on-surface-variant">File Size:</span>
+            <span className="text-on-surface font-semibold">{(item.file_size / (1024 * 1024)).toFixed(2)} MB</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Speed:</span>
-            <span className="text-zinc-200">{playbackRate}x</span>
+            <span className="text-on-surface-variant">Speed:</span>
+            <span className="text-on-surface font-semibold">{playbackRate}x</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Looping:</span>
-            <span className={isLooping ? "text-emerald-400 font-bold" : "text-zinc-400"}>
+            <span className="text-on-surface-variant">Looping:</span>
+            <span className={isLooping ? "text-emerald-500 font-bold" : "text-on-surface-variant"}>
               {isLooping ? "Active" : "Off"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-zinc-500">Volume:</span>
-            <span className="text-zinc-200">{Math.round(volume * 100)}% {isMuted ? "(Muted)" : ""}</span>
+            <span className="text-on-surface-variant">Volume:</span>
+            <span className="text-on-surface font-semibold">{Math.round(volume * 100)}% {isMuted ? "(Muted)" : ""}</span>
           </div>
         </div>
       )}

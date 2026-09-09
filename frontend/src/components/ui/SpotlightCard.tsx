@@ -3,7 +3,7 @@
  * Module: frontend/src/components/ui/SpotlightCard.tsx
  * Purpose: 21st.dev spotlight card component that renders a cursor-following radial
  *          gradient beam using direct DOM style updates (0 React state re-renders)
- *          to ensure buttery smooth 60fps scrolling and video playback.
+ *          with Silk Cloud dynamic light/dark neomorphic tokens.
  * Used by: frontend/src/components/MediaCard.tsx, frontend/src/components/FolderGrid.tsx
  * Dependencies: React
  * Public Members: SpotlightCard
@@ -48,7 +48,7 @@ export const SpotlightCard: React.FC<SpotlightCardProps> = ({
     <div
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/80 transition-shadow duration-300 ${className}`}
+      className={`relative overflow-hidden rounded-neo-lg border border-outline-variant/15 bg-surface-base neo-card transition-shadow duration-300 ${className}`}
       {...props}
     >
       {/* Dynamic Cursor Spotlight Beam (Zero React re-render overhead) */}

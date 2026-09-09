@@ -2,7 +2,8 @@
  * =============================================================================
  * Module: frontend/src/App.tsx
  * Purpose: Root application component managing gallery state, Silk Cloud Light/Dark
- *          neomorphic themes, Multi-Vault Telegram channel switching & dialog discovery,
+ *          neomorphic themes, normalized WCAG 2.2 AA contrast in Light & Dark modes,
+ *          Multi-Vault Telegram channel switching & dialog discovery,
  *          zero-config plug-and-play onboarding wizard & in-browser Telegram MTProto auth,
  *          on-demand Vault Strategy Hub (Step 5) modal overlay & hash-route invocation (#vault-setup),
  *          role permission gating (Read/Write for owned vaults vs. Read-Only for joined channels),
@@ -2197,7 +2198,7 @@ export const App: React.FC = () => {
       <div
         onContextMenu={handleCanvasContextMenu}
         onClick={handleCanvasClick}
-        className="min-h-screen text-zinc-100 flex relative"
+        className="min-h-screen text-on-surface bg-background flex relative selection:bg-primary/20 selection:text-primary"
       >
       {/* Hidden File Input for Sidebar & Context Menu Upload trigger */}
       <input
@@ -2878,10 +2879,10 @@ export const App: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowVaultSetupWizard(true)}
-          className="px-3 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 text-slate-300 hover:text-white border border-indigo-500/40 text-xs font-semibold shadow-xl backdrop-blur-md flex items-center gap-2 transition-all group cursor-pointer hover:border-indigo-400"
+          className="px-3 py-1.5 rounded-full bg-surface-base neo-raised text-on-surface-variant hover:text-on-surface border border-outline-variant/30 text-xs font-semibold shadow-lg backdrop-blur-md flex items-center gap-2 transition-all group cursor-pointer hover:scale-105 active:scale-95"
           title="Open Step 5 (Welcome & Vault Strategy Hub) without logging out or needing OTP"
         >
-          <span className="w-2 h-2 rounded-full bg-indigo-400 group-hover:scale-125 transition-transform" />
+          <span className="w-2 h-2 rounded-full bg-primary group-hover:scale-125 transition-transform" />
           <span>Step 5: Vault Setup</span>
         </button>
       </div>
