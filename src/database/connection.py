@@ -117,6 +117,12 @@ async def init_db() -> None:
                 SET telegram_channel_id = -CAST(('100' || telegram_channel_id) AS INTEGER) 
                 WHERE telegram_channel_id > 0;
             """)
+
+            # Senior DBA migration: Migrate global UNIQUE idx_media_file_hash to per-channel UNIQUE idx_media_channel_file_hash
+            idx_cur = await conn.execute("SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_media_file_hash';")
+            idx_row = await idx_cur.fetchone()
+            if idx_row and idx_row[0] and "UNIQUE" in idx_row[0].upper() and "telegram_channel_id" not in idx_row[0]:
+                await conn.execute("DROP INDEX IF EXISTS idx_media_file_hash;")
         await conn.commit()
 
     # ---------- 2. Execute schema.sql (tables and covered indexes) ----------

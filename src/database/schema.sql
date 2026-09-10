@@ -36,9 +36,12 @@ CREATE TABLE IF NOT EXISTS media_items (
 );
 
 -- Indices for high-selectivity queries and $O(\log N)$ deduplication
-CREATE UNIQUE INDEX IF NOT EXISTS idx_media_file_hash 
-    ON media_items(file_hash) 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_media_channel_file_hash 
+    ON media_items(telegram_channel_id, file_hash) 
     WHERE is_deleted = 0;
+
+CREATE INDEX IF NOT EXISTS idx_media_file_hash 
+    ON media_items(file_hash);
 
 CREATE INDEX IF NOT EXISTS idx_media_timeline 
     ON media_items(COALESCE(date_taken, created_at) DESC);

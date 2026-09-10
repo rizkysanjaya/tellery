@@ -182,7 +182,8 @@ export function uploadMediaFile(
   file: File,
   onProgress?: (progressPercent: number, loadedBytes: number, totalBytes: number, speedMbps?: number) => void,
   onProcessing?: () => void,
-  folderId?: number | null
+  folderId?: number | null,
+  channelId?: number | null
 ): Promise<any> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -192,6 +193,9 @@ export function uploadMediaFile(
     formData.append("upload_id", uploadId);
     if (folderId !== undefined && folderId !== null) {
       formData.append("folder_id", folderId.toString());
+    }
+    if (channelId !== undefined && channelId !== null) {
+      formData.append("channel_id", channelId.toString());
     }
 
     let pollInterval: any = null;

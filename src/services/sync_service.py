@@ -87,8 +87,6 @@ class SyncService:
 
         if isinstance(target_channel_id, int):
             existing = await self.repository.get_by_channel_message(target_channel_id, message.id)
-            if not existing:
-                existing = await self.repository.get_by_message_id(message.id)
             if existing:
                 return {"status": "skipped", "reason": "already_indexed", "item": existing}
         else:
@@ -154,8 +152,8 @@ class SyncService:
         # Compute deterministic SHA-256 hash for database catalog indexing
         file_hash = hashlib.sha256(raw_hash_seed.encode("utf-8")).hexdigest()
 
-        # Check if hash already exists (e.g. uploaded previously via web)
-        existing_hash = await self.repository.get_by_hash(file_hash)
+        # Check if hash already exists in target channel (e.g. uploaded previously via web)
+        existing_hash = await self.repository.get_by_hash(file_hash, channel_id=target_channel_id)
         if existing_hash:
             return {"status": "skipped", "reason": "duplicate_hash", "item": existing_hash}
 
@@ -312,12 +310,19 @@ class SyncService:
                 if event.deleted_ids:
                     try:
                         from src.database.connection import get_db_connection
+                        norm_ch = normalize_channel_id(target_channel)
                         async with get_db_connection() as conn:
                             placeholders = ",".join("?" for _ in event.deleted_ids)
-                            await conn.execute(
-                                f"UPDATE media_items SET is_deleted = 1 WHERE telegram_message_id IN ({placeholders}) AND is_deleted = 0",
-                                tuple(event.deleted_ids),
-                            )
+                            if norm_ch:
+                                await conn.execute(
+                                    f"UPDATE media_items SET is_deleted = 1 WHERE telegram_channel_id = ? AND telegram_message_id IN ({placeholders}) AND is_deleted = 0",
+                                    (norm_ch, *event.deleted_ids),
+                                )
+                            else:
+                                await conn.execute(
+                                    f"UPDATE media_items SET is_deleted = 1 WHERE telegram_message_id IN ({placeholders}) AND is_deleted = 0",
+                                    tuple(event.deleted_ids),
+                                )
                             await conn.commit()
                         print(f"[LiveSync] 🗑️ Auto-soft-deleted {len(event.deleted_ids)} items removed from Telegram channel: {event.deleted_ids}")
                     except Exception as err:

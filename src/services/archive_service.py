@@ -82,8 +82,8 @@ class ArchiveService:
         # 1. Compute SHA-256 and byte size
         file_hash, file_size = compute_file_sha256(target_path)
 
-        # 2. Check for deduplication in SQLite
-        existing = await self.repository.get_by_hash(file_hash)
+        # 2. Check for deduplication in SQLite scoped to target channel
+        existing = await self.repository.get_by_hash(file_hash, channel_id=target_channel)
         if existing:
             await self.repository.log_audit(
                 action="DEDUP_HIT",

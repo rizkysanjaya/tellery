@@ -15,7 +15,7 @@ Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite D
 ============================================================================
 """
 
-from typing import Any, Optional
+from typing import Any, Optional, Union
 import aiosqlite
 from src.database.connection import get_db_connection, normalize_channel_id
 
@@ -24,22 +24,37 @@ class MediaRepository:
     """Repository handling database queries for media catalog, folders, and audit log."""
 
     @staticmethod
-    async def get_by_hash(file_hash: str) -> Optional[dict[str, Any]]:
+    async def get_by_hash(file_hash: str, channel_id: Optional[Union[int, str]] = None) -> Optional[dict[str, Any]]:
         """
-        Retrieves active media item by cryptographic file hash.
-        Cost: O(log N) point lookup via UNIQUE index idx_media_file_hash.
+        Retrieves active media item by cryptographic file hash, optionally scoped by Telegram channel.
+        Cost: O(log N) point lookup via covered index idx_media_channel_file_hash / idx_media_file_hash.
         """
-        query = """
-            SELECT id, file_hash, file_name, file_size, mime_type,
-                   telegram_channel_id, telegram_message_id, telegram_file_id,
-                   width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at
-            FROM media_items
-            WHERE file_hash = ? AND is_deleted = 0
-            LIMIT 1;
-        """
+        norm_ch = normalize_channel_id(channel_id)
+        if norm_ch is not None:
+            query = """
+                SELECT id, file_hash, file_name, file_size, mime_type,
+                       telegram_channel_id, telegram_message_id, telegram_file_id,
+                       width, height, duration_seconds, camera_make, camera_model,
+                       date_taken, thumbnail_path, created_at
+                FROM media_items
+                WHERE telegram_channel_id = ? AND file_hash = ? AND is_deleted = 0
+                LIMIT 1;
+            """
+            params = (norm_ch, file_hash)
+        else:
+            query = """
+                SELECT id, file_hash, file_name, file_size, mime_type,
+                       telegram_channel_id, telegram_message_id, telegram_file_id,
+                       width, height, duration_seconds, camera_make, camera_model,
+                       date_taken, thumbnail_path, created_at
+                FROM media_items
+                WHERE file_hash = ? AND is_deleted = 0
+                LIMIT 1;
+            """
+            params = (file_hash,)
+
         async with get_db_connection() as conn:
-            async with conn.execute(query, (file_hash,)) as cursor:
+            async with conn.execute(query, params) as cursor:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
 
@@ -84,22 +99,37 @@ class MediaRepository:
                 return dict(row) if row else None
 
     @staticmethod
-    async def get_by_message_id(message_id: int) -> Optional[dict[str, Any]]:
+    async def get_by_message_id(message_id: int, channel_id: Optional[Union[int, str]] = None) -> Optional[dict[str, Any]]:
         """
-        Retrieves active media item by Telegram message ID.
-        Cost: O(log N) point lookup via idx_media_channel_msg.
+        Retrieves active media item by Telegram message ID, optionally scoped by Telegram channel.
+        Cost: O(log N) point lookup via idx_media_channel_msg_active or idx_media_channel_msg.
         """
-        query = """
-            SELECT id, file_hash, file_name, file_size, mime_type,
-                   telegram_channel_id, telegram_message_id, telegram_file_id,
-                   width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at
-            FROM media_items
-            WHERE telegram_message_id = ? AND is_deleted = 0
-            LIMIT 1;
-        """
+        norm_ch = normalize_channel_id(channel_id)
+        if norm_ch is not None:
+            query = """
+                SELECT id, file_hash, file_name, file_size, mime_type,
+                       telegram_channel_id, telegram_message_id, telegram_file_id,
+                       width, height, duration_seconds, camera_make, camera_model,
+                       date_taken, thumbnail_path, created_at
+                FROM media_items
+                WHERE telegram_channel_id = ? AND telegram_message_id = ? AND is_deleted = 0
+                LIMIT 1;
+            """
+            params = (norm_ch, message_id)
+        else:
+            query = """
+                SELECT id, file_hash, file_name, file_size, mime_type,
+                       telegram_channel_id, telegram_message_id, telegram_file_id,
+                       width, height, duration_seconds, camera_make, camera_model,
+                       date_taken, thumbnail_path, created_at
+                FROM media_items
+                WHERE telegram_message_id = ? AND is_deleted = 0
+                LIMIT 1;
+            """
+            params = (message_id,)
+
         async with get_db_connection() as conn:
-            async with conn.execute(query, (message_id,)) as cursor:
+            async with conn.execute(query, params) as cursor:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
 
@@ -107,22 +137,55 @@ class MediaRepository:
     async def insert_media(item: dict[str, Any]) -> int:
         """
         Inserts new media record into the catalog and returns the new item ID.
-        Senior DBA Standard: Idempotent against concurrent uploads/sync by checking existing active telegram_message_id.
+        Senior DBA Standard: Idempotent against concurrent uploads/sync by checking existing active
+        (telegram_channel_id, telegram_message_id).
         If a synthetic/live-sync record exists, enriches it with true SHA-256 hash and EXIF metadata without duplicating.
         """
         msg_id = item.get("telegram_message_id")
+        channel_id = item.get("telegram_channel_id")
         file_hash = item.get("file_hash", "")
         is_alias = "#alias" in file_hash
 
+        norm_channel_id = normalize_channel_id(channel_id)
+        if norm_channel_id is not None:
+            item["telegram_channel_id"] = norm_channel_id
+
+        safe_params = {
+            "file_hash": item.get("file_hash", ""),
+            "file_name": item.get("file_name", "untitled"),
+            "file_size": item.get("file_size", 0),
+            "mime_type": item.get("mime_type", "application/octet-stream"),
+            "telegram_channel_id": norm_channel_id or 0,
+            "telegram_message_id": item.get("telegram_message_id", 0),
+            "telegram_file_id": item.get("telegram_file_id"),
+            "width": item.get("width"),
+            "height": item.get("height"),
+            "duration_seconds": item.get("duration_seconds"),
+            "camera_make": item.get("camera_make"),
+            "camera_model": item.get("camera_model"),
+            "date_taken": item.get("date_taken"),
+            "thumbnail_path": item.get("thumbnail_path"),
+        }
+
         async with get_db_connection() as conn:
             if msg_id and not is_alias:
-                # Check for existing active row for this Telegram message
-                check_query = """
-                    SELECT id, file_hash FROM media_items
-                    WHERE telegram_message_id = ? AND is_deleted = 0 AND file_hash NOT LIKE '%#alias%'
-                    LIMIT 1;
-                """
-                async with conn.execute(check_query, (msg_id,)) as cursor:
+                # Check for existing active row for this specific Telegram channel and message
+                if norm_channel_id is not None:
+                    check_query = """
+                        SELECT id, file_hash FROM media_items
+                        WHERE telegram_channel_id = ? AND telegram_message_id = ? AND is_deleted = 0 AND file_hash NOT LIKE '%#alias%'
+                        LIMIT 1;
+                    """
+                    check_params = (norm_channel_id, msg_id)
+                else:
+                    check_query = """
+                        SELECT id, file_hash FROM media_items
+                        WHERE telegram_message_id = ? AND is_deleted = 0 AND file_hash NOT LIKE '%#alias%'
+                        LIMIT 1;
+                    """
+                    check_params = (msg_id,)
+
+                async with conn.execute(check_query, check_params) as cursor:
                     existing = await cursor.fetchone()
                     if existing:
                         existing_id, existing_hash = existing[0], existing[1]
@@ -133,6 +196,7 @@ class MediaRepository:
                                 file_name = COALESCE(:file_name, file_name),
                                 file_size = CASE WHEN :file_size > 0 THEN :file_size ELSE file_size END,
                                 mime_type = COALESCE(:mime_type, mime_type),
+                                telegram_channel_id = COALESCE(:telegram_channel_id, telegram_channel_id),
                                 telegram_file_id = COALESCE(:telegram_file_id, telegram_file_id),
                                 width = COALESCE(:width, width),
                                 height = COALESCE(:height, height),
@@ -143,7 +207,7 @@ class MediaRepository:
                                 thumbnail_path = COALESCE(:thumbnail_path, thumbnail_path)
                             WHERE id = :id;
                         """
-                        params = {**item, "id": existing_id}
+                        params = {**safe_params, "id": existing_id}
                         await conn.execute(enrich_query, params)
                         await conn.commit()
                         return existing_id
@@ -161,7 +225,7 @@ class MediaRepository:
                     :date_taken, :thumbnail_path
                 );
             """
-            cursor = await conn.execute(query, item)
+            cursor = await conn.execute(query, safe_params)
             await conn.commit()
             return cursor.lastrowid or 0
 

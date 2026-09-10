@@ -1477,7 +1477,8 @@ export const App: React.FC = () => {
                 )
               );
             },
-            task.folderId
+            task.folderId,
+            activeVaultRef.current?.id ?? activeVault?.id
           );
 
           if (result && result.status === "duplicate") {
