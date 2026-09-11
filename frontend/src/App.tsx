@@ -22,16 +22,17 @@
  *          smart EXIF & metadata filtering (camera devices, orientation, resolution, calendar periods),
  *          chronological date-jump scrubber bar, full-window zero-flicker drag-and-drop global dropzone,
  *          deep recursive folder scanner (HTML5 FileSystem API) with batch deduplication and automatic album creation,
- *          search, lightbox, context-aware right-click menus, floating back-to-top button on noticeable scroll,
- *          media delete confirmation modals with 10-second undo countdown, Telegram vault uploads, and vault sync.
+ *          media delete confirmation modals with 10-second undo countdown, Telegram vault uploads,
+ *          vault sync, and floating bottom indexing toast notification banner.
  * Used by: frontend/src/main.tsx
  * Dependencies: React (Suspense, lazy), framer-motion, frontend/src/api.ts, frontend/src/types.ts, components, lucide-react,
- *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts, OnboardingWizard
+ *               frontend/src/utils/fileSystemScanner.ts, frontend/src/utils/navigation.ts, OnboardingWizard, SyncToast
  * Public Members: App
  * Side Effects: Fetches keyset-paginated timeline/folders/stats/trash/vaults/auth/filter-meta over HTTP, executes uploads,
  *                soft deletions, restorations, permanent purges, single/bulk folder deletions, ZIP exports/downloads,
  *                folder color & icon updates, favorites toggles, folder assignments, vault sync, updates browser
- *                window.location.hash history, handles MTProto auth session & disconnection, and persists theme/layout/batterySaver in localStorage.
+ *                window.location.hash history, handles MTProto auth session & disconnection, persists theme/layout/batterySaver in localStorage,
+ *                and renders floating bottom indexing toast during active vault sync.
  * =============================================================================
  */
 
@@ -83,6 +84,7 @@ import { AuroraBackground } from "./components/ui/AuroraBackground";
 import { CommandPalette } from "./components/ui/CommandPalette";
 import { UndoToast } from "./components/ui/UndoToast";
 import { AppToast, ToastNotification, ToastType } from "./components/ui/AppToast";
+import { SyncToast } from "./components/ui/SyncToast";
 import { ThemeId, applyTheme, getSavedTheme, getThemeById } from "./config/themes";
 
 // Dynamic code-splitting via React.lazy to reduce entry bundle size (<500 kB target)
@@ -3018,6 +3020,9 @@ export const App: React.FC = () => {
         )}
       </Suspense>
 
+
+      {/* Floating Bottom Sync Progress Toast */}
+      <SyncToast isSyncing={isSyncing} vaultTitle={activeVault?.title} />
 
       {/* Global In-App Notification Toasts */}
       <AppToast toasts={toasts} onDismiss={dismissToast} />
