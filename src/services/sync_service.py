@@ -3,15 +3,15 @@
 Module: src.services.sync_service
 Purpose: Telegram Channel Ingestion, Manual Sync (incremental & full-scan), and Real-time Live Message Ingest Engine.
          Indexes photos, videos, and raw documents sent directly to Telegram storage channels,
-         extracting technical attributes, generating WebP thumbnails with zero-network stripped thumbnail fast-paths,
+         extracting technical attributes, generating high-quality WebP thumbnails,
          canonicalizing channel IDs, and coordinating with ArchiveService to prevent in-flight duplicate ingestion.
 Used by: src.api.routes.sync, src.api.routes.vaults, src.api.app (lifespan background listener)
 Dependencies: telethon, datetime, pathlib, src.database.repository, src.database.connection,
               src.services.archive_service, src.services.thumbnail_service,
               src.storage.telegram_client, src.config
 Public Members: SyncService, get_sync_service()
-Side Effects: Extracts embedded stripped thumbnails or downloads preview thumbnails from Telegram MTProto,
-              generates WebP files in data/thumbnails/, writes rows to media_items and audit_logs in SQLite database.
+Side Effects: Downloads preview thumbnails from Telegram MTProto,
+              generates WebP files in .thumbnails/, writes rows to media_items and audit_logs in SQLite database.
 =============================================================================
 """
 
@@ -28,9 +28,7 @@ from telethon.tl.types import (
     DocumentAttributeVideo,
     MessageMediaDocument,
     MessageMediaPhoto,
-    PhotoStrippedSize,
 )
-from telethon.utils import stripped_photo_to_jpg
 from src.config import get_settings
 from src.database.connection import normalize_channel_id
 from src.database.repository import MediaRepository
@@ -160,33 +158,12 @@ class SyncService:
         if existing_hash:
             return {"status": "skipped", "reason": "duplicate_hash", "item": existing_hash}
 
-        # 3. Generate Local WebP Thumbnail (offline stripped fast-path first, fallback to preview download)
+        # 3. Generate Local WebP Thumbnail directly from Telegram preview bytes
         thumbnail_path: Optional[str] = None
         try:
-            thumb_bytes = None
-            # Fast-path: check for zero-network-latency embedded stripped thumbnail
-            if isinstance(message.media, MessageMediaPhoto) and message.photo and hasattr(message.photo, "sizes"):
-                for sz in message.photo.sizes:
-                    if isinstance(sz, PhotoStrippedSize) and getattr(sz, "bytes", None):
-                        try:
-                            thumb_bytes = stripped_photo_to_jpg(sz.bytes)
-                            break
-                        except Exception:
-                            pass
-            elif isinstance(message.media, MessageMediaDocument) and message.document and hasattr(message.document, "thumbs") and message.document.thumbs:
-                for sz in message.document.thumbs:
-                    if isinstance(sz, PhotoStrippedSize) and getattr(sz, "bytes", None):
-                        try:
-                            thumb_bytes = stripped_photo_to_jpg(sz.bytes)
-                            break
-                        except Exception:
-                            pass
-
-            if not thumb_bytes:
-                client = self.telegram_client.raw_client
-                # Download smallest thumbnail preview in memory
-                thumb_bytes = await client.download_media(message, thumb=-1, file=bytes)
-
+            client = self.telegram_client.raw_client
+            # Download full-resolution thumbnail preview in memory (PhotoSize, 320px/480px, NOT 30px stripped preview)
+            thumb_bytes = await client.download_media(message, thumb=-1, file=bytes)
             if thumb_bytes and isinstance(thumb_bytes, bytes) and len(thumb_bytes) > 0:
                 thumbnail_path = generate_thumbnail_from_bytes(thumb_bytes, file_hash)
         except Exception as e:

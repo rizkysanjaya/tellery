@@ -34,7 +34,8 @@ def generate_thumbnail_from_bytes(
     thumb_dir = settings.thumbnails_path
     target_thumb_file = thumb_dir / f"{file_hash}.webp"
 
-    if target_thumb_file.exists() and target_thumb_file.stat().st_size > 0:
+    # Require >= 1200 bytes to ensure file is a full-resolution thumbnail, not an ultra-low-res placeholder
+    if target_thumb_file.exists() and target_thumb_file.stat().st_size >= 1200:
         return str(target_thumb_file.as_posix())
 
     try:

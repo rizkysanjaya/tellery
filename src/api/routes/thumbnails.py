@@ -43,10 +43,10 @@ async def get_media_thumbnail(media_id: int):
     mime_type = item["mime_type"]
     thumb_path_str = item.get("thumbnail_path")
 
-    # 1. Check existing recorded thumbnail path
+    # 1. Check existing recorded thumbnail path (require >= 1200 bytes for full-res)
     if thumb_path_str:
         thumb_file = Path(thumb_path_str)
-        if thumb_file.exists() and thumb_file.stat().st_size > 0:
+        if thumb_file.exists() and thumb_file.stat().st_size >= 1200:
             return FileResponse(
                 path=thumb_file,
                 media_type="image/webp",
@@ -55,10 +55,12 @@ async def get_media_thumbnail(media_id: int):
                     "Content-Disposition": f"inline; filename={thumb_file.name}",
                 },
             )
+        elif thumb_file.exists():
+            thumb_file.unlink(missing_ok=True)
 
-    # 2. Check if thumbnail exists in standard directory by hash
+    # 2. Check if thumbnail exists in standard directory by hash (require >= 1200 bytes)
     candidate_thumb = settings.thumbnails_path / f"{file_hash}.webp"
-    if candidate_thumb.exists() and candidate_thumb.stat().st_size > 0:
+    if candidate_thumb.exists() and candidate_thumb.stat().st_size >= 1200:
         await MediaRepository.update_thumbnail_path(media_id, str(candidate_thumb.as_posix()))
         return FileResponse(
             path=candidate_thumb,
@@ -68,6 +70,8 @@ async def get_media_thumbnail(media_id: int):
                 "Content-Disposition": f"inline; filename={candidate_thumb.name}",
             },
         )
+    elif candidate_thumb.exists():
+        candidate_thumb.unlink(missing_ok=True)
 
     # 3. High-performance on-demand generation from Telegram vault
     telegram_client = get_telegram_client()
