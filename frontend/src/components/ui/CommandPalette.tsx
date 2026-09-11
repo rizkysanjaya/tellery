@@ -3,8 +3,8 @@
  * Module: frontend/src/components/ui/CommandPalette.tsx
  * Purpose: Precision spotlight command palette dialog triggered by Ctrl+K or header search.
  *          Enables rapid keyboard navigation (Timeline, Favorites, Albums), view switching,
- *          sorting, album jumps, upload actions, vault sync, instant VS Code-style color theme switching,
- *          and Ko-fi project support action.
+ *          sorting, album jumps, upload actions, vault sync (incremental & deep full-scan),
+ *          instant VS Code-style color theme switching, and Ko-fi project support action.
  * Used by: frontend/src/App.tsx, frontend/src/components/Header.tsx
  * Dependencies: React, framer-motion, lucide-react, frontend/src/types.ts, frontend/src/config/themes.ts
  * Public Members: CommandPalette
@@ -60,7 +60,7 @@ interface CommandPaletteProps {
   onDisplayLayoutChange: (layout: DisplayLayout) => void;
   onSortChange: (sort: SortOption) => void;
   onTriggerUpload: () => void;
-  onSyncVault?: () => Promise<void>;
+  onSyncVault?: (fullScan?: boolean) => Promise<void>;
   theme?: "dark" | "light";
   currentTheme?: ThemeId;
   onSelectTheme?: (themeId: ThemeId) => void;
@@ -156,13 +156,24 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     ...(onSyncVault
       ? [
           {
-            id: "action-sync",
+            id: "action-sync-incremental",
             category: "Actions" as const,
-            title: "Sync Vault",
-            subtitle: "Scan Telegram channel for new incoming files",
+            title: "Sync Active Vault",
+            subtitle: "Quickly scan for recent new files in the channel",
             icon: <RefreshCw className="w-4 h-4" />,
             action: () => {
-              onSyncVault();
+              onSyncVault(false);
+              onClose();
+            },
+          },
+          {
+            id: "action-sync-deep",
+            category: "Actions" as const,
+            title: "Deep Sync Active Vault (Full Scan)",
+            subtitle: "Comprehensive scan of entire Telegram channel message history",
+            icon: <RefreshCw className="w-4 h-4 text-primary" />,
+            action: () => {
+              onSyncVault(true);
               onClose();
             },
           },

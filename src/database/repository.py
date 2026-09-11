@@ -8,7 +8,7 @@ Used by: src.services.archive_service, src.services.sync_service, src.api.routes
          src.api.routes.folders, src.api.routes.vaults.
 Dependencies: aiosqlite, src.database.connection
 Public Members: MediaRepository (get_timeline, get_timeline_summary, get_stats, get_by_id, get_by_hash,
-                get_by_message_id, get_by_channel_message, insert_media, update_favorite, delete_media,
+                get_by_message_id, get_by_channel_message, get_channel_message_bounds, insert_media, update_favorite, delete_media,
                 restore_media, restore_batch, get_trash_items, get_trash_count, purge_media_permanently,
                 get_all_trash_media, get_all_folder_media, get_filter_metadata, delete_folder, bulk_delete_folders)
 Side Effects: Executes SQL SELECT, INSERT, UPDATE, DELETE statements on SQLite DB.
@@ -97,6 +97,29 @@ class MediaRepository:
             async with conn.execute(query, (norm_ch, message_id)) as cursor:
                 row = await cursor.fetchone()
                 return dict(row) if row else None
+
+    @staticmethod
+    async def get_channel_message_bounds(channel_id: Union[int, str]) -> tuple[Optional[int], Optional[int]]:
+        """
+        Retrieves the minimum and maximum telegram_message_id indexed for a channel.
+        Cost: O(1) via covered index idx_media_channel_msg.
+        Returns:
+            (min_message_id, max_message_id) or (None, None) if no items in catalog.
+        """
+        norm_ch = normalize_channel_id(channel_id)
+        if norm_ch is None:
+            return None, None
+        query = """
+            SELECT MIN(telegram_message_id), MAX(telegram_message_id)
+            FROM media_items
+            WHERE telegram_channel_id = ? AND is_deleted = 0;
+        """
+        async with get_db_connection() as conn:
+            async with conn.execute(query, (norm_ch,)) as cursor:
+                row = await cursor.fetchone()
+                if row and row[0] is not None:
+                    return row[0], row[1]
+                return None, None
 
     @staticmethod
     async def get_by_message_id(message_id: int, channel_id: Optional[Union[int, str]] = None) -> Optional[dict[str, Any]]:

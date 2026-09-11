@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/sync", tags=["Vault Synchronization"])
 
 class SyncRequest(BaseModel):
     channel_id: Optional[int] = Field(default=None, description="Target Telegram channel ID to synchronize. If omitted, uses active vault.")
-    limit: int = Field(default=200, ge=1, le=1000, description="Max messages to scan in channel")
+    limit: Optional[int] = Field(default=None, ge=1, le=100000, description="Max messages to scan in channel. If omitted, scans full channel history.")
     full_scan: bool = Field(default=False, description="Scan full history instead of early-stopping incremental sync")
 
 

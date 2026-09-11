@@ -5,14 +5,16 @@
  *          with media breakdown counters and cloud storage size indicator,
  *          animated MP4 video & static avatar support for vaults and user profiles,
  *          vault switcher, album tree, direct favorites navigation, trash,
- *          user account greeting badge with privacy toggle, and settings dialog trigger.
+ *          user account greeting badge with privacy toggle, incremental / full-scan sync trigger,
+ *          and settings dialog trigger.
  * Used by: frontend/src/App.tsx
  * Dependencies: React, lucide-react, frontend/src/types.ts, FolderIcon, FolderActionMenu,
  *               FolderCustomizeModal, FolderRenameModal, FolderCoverModal, FolderMoveModal
  * Public Members: Sidebar
  * Side Effects: Triggers view changes (timeline, albums, favorites, trash), settings modal,
  *                vault switcher modal, album selection, media drop-to-album assignments,
- *                vault synchronization, upload triggers, and album management modals.
+ *                vault synchronization (incremental or full scan via Shift+Click), upload triggers,
+ *                and album management modals.
  * =============================================================================
  */
 
@@ -75,7 +77,7 @@ interface SidebarProps {
   onMoveFolderToCollection?: (folderId: number, collectionId: number | null) => Promise<void>;
   onAddMediaToFolder: (folderId: number, mediaIds: number[]) => Promise<void>;
   onTriggerUpload: () => void;
-  onSyncVault?: () => Promise<void>;
+  onSyncVault?: (fullScan?: boolean) => Promise<void>;
   onExportFolderZip?: (folder: FolderItem) => void;
   onFolderContextMenu?: (e: React.MouseEvent, folder: FolderItem) => void;
   isSyncing?: boolean;
@@ -235,14 +237,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Sync Vault Action Button with Text */}
             {onSyncVault && (
               <button
-                onClick={() => onSyncVault()}
+                onClick={(e) => onSyncVault(e.shiftKey)}
                 disabled={isSyncing}
                 className={`px-2.5 py-1 rounded-md text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer border ${
                   isSyncing
                     ? "bg-primary/10 border-primary/20 text-primary cursor-wait"
                     : "border-outline-variant/15 text-on-surface-variant hover:text-on-surface hover:bg-white/[0.04]"
                 }`}
-                title={isSyncing ? "Syncing vault with Telegram..." : "Sync Vault (scan for new media)"}
+                title={
+                  isSyncing
+                    ? "Syncing vault with Telegram..."
+                    : "Sync Vault (Click for incremental, Shift+Click for full scan)"
+                }
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin text-primary" : ""}`} />
                 <span>{isSyncing ? "Syncing..." : "Sync"}</span>

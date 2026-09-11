@@ -553,10 +553,10 @@ export const App: React.FC = () => {
           "success"
         );
 
-        // 4. If newly selected vault has 0 items, trigger a quick auto-sync
+        // 4. If newly selected vault has 0 items, trigger a full auto-sync to index entire history
         if (matchingVault && matchingVault.media_count === 0) {
           setIsSyncing(true);
-          triggerVaultSync(channelId, false)
+          triggerVaultSync(channelId, true)
             .then(async (syncRes) => {
               const isFav = currentViewRef.current === "favorites";
               const refreshedTimeline = await fetchTimeline(

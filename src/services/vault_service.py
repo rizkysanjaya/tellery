@@ -172,7 +172,7 @@ class VaultService:
                 await self.telegram_client.start()
                 tc = self.telegram_client.raw_client
                 me = await tc.get_me()
-                dialogs = await tc.get_dialogs(limit=100)
+                dialogs = await tc.get_dialogs(limit=500)
 
                 discovered = []
                 for d in dialogs:

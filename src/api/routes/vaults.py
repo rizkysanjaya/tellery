@@ -100,9 +100,13 @@ async def set_active_vault(payload: SetActiveVaultRequest):
 
 
 @router.post("/{channel_id}/sync", status_code=status.HTTP_200_OK)
-async def sync_specific_vault(channel_id: int, limit: int = Query(default=200, ge=1, le=1000)):
+async def sync_specific_vault(
+    channel_id: int,
+    limit: Optional[int] = Query(default=None, ge=1, le=100000),
+    full_scan: bool = Query(default=False),
+):
     """
-    Triggers incremental synchronization for a specific Telegram vault.
+    Triggers synchronization for a specific Telegram vault.
     """
     sync_service = get_sync_service()
     if sync_service.get_status().get("is_syncing"):
@@ -111,7 +115,7 @@ async def sync_specific_vault(channel_id: int, limit: int = Query(default=200, g
             "message": "Synchronization is already in progress.",
         }
 
-    stats = await sync_service.sync_channel_history(channel_id=channel_id, limit=limit)
+    stats = await sync_service.sync_channel_history(channel_id=channel_id, limit=limit, full_scan=full_scan)
     return {
         "status": "success",
         "message": f"Sync completed for channel {channel_id}.",

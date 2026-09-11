@@ -160,8 +160,12 @@ export async function setActiveVault(channelId: number): Promise<any> {
   return response.json();
 }
 
-export async function triggerChannelSync(channelId: number, limit: number = 200): Promise<any> {
-  const response = await fetch(`${API_BASE}/api/vaults/${channelId}/sync?limit=${limit}`, {
+export async function triggerChannelSync(channelId: number, limit?: number | null, fullScan: boolean = false): Promise<any> {
+  const params = new URLSearchParams();
+  if (limit) params.set("limit", limit.toString());
+  if (fullScan) params.set("full_scan", "true");
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  const response = await fetch(`${API_BASE}/api/vaults/${channelId}/sync${qs}`, {
     method: "POST",
   });
   if (!response.ok) {
@@ -507,7 +511,7 @@ export async function fetchMediaFolders(mediaId: number): Promise<FolderItem[]> 
 export async function triggerVaultSync(
   channelId?: number | null,
   fullScan: boolean = false,
-  limit: number = 200
+  limit?: number | null
 ): Promise<{
   status: string;
   message: string;
@@ -525,7 +529,7 @@ export async function triggerVaultSync(
     body: JSON.stringify({
       channel_id: channelId ?? undefined,
       full_scan: fullScan,
-      limit,
+      limit: limit ?? undefined,
     }),
   });
 

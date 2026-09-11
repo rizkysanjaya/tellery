@@ -1,17 +1,17 @@
 """
 =============================================================================
 Module: src.services.sync_service
-Purpose: Telegram Channel Ingestion, Manual Sync, and Real-time Live Message Ingest Engine.
+Purpose: Telegram Channel Ingestion, Manual Sync (incremental & full-scan), and Real-time Live Message Ingest Engine.
          Indexes photos, videos, and raw documents sent directly to Telegram storage channels,
-         extracting technical attributes, generating WebP thumbnails, canonicalizing channel IDs,
-         and coordinating with ArchiveService to prevent in-flight duplicate ingestion.
-Used by: src.api.routes.sync, src.api.app (lifespan background listener)
+         extracting technical attributes, generating WebP thumbnails with zero-network stripped thumbnail fast-paths,
+         canonicalizing channel IDs, and coordinating with ArchiveService to prevent in-flight duplicate ingestion.
+Used by: src.api.routes.sync, src.api.routes.vaults, src.api.app (lifespan background listener)
 Dependencies: telethon, datetime, pathlib, src.database.repository, src.database.connection,
               src.services.archive_service, src.services.thumbnail_service,
               src.storage.telegram_client, src.config
 Public Members: SyncService, get_sync_service()
-Side Effects: Downloads preview thumbnails from Telegram MTProto, generates WebP files in data/thumbnails/,
-              writes rows to media_items and audit_logs in SQLite database.
+Side Effects: Extracts embedded stripped thumbnails or downloads preview thumbnails from Telegram MTProto,
+              generates WebP files in data/thumbnails/, writes rows to media_items and audit_logs in SQLite database.
 =============================================================================
 """
 
@@ -28,7 +28,9 @@ from telethon.tl.types import (
     DocumentAttributeVideo,
     MessageMediaDocument,
     MessageMediaPhoto,
+    PhotoStrippedSize,
 )
+from telethon.utils import stripped_photo_to_jpg
 from src.config import get_settings
 from src.database.connection import normalize_channel_id
 from src.database.repository import MediaRepository
@@ -55,6 +57,7 @@ class SyncService:
         self._last_sync_stats: Optional[dict[str, Any]] = None
         self._listener_active = False
         self._sync_lock = asyncio.Lock()
+        self._completed_origin_channels: set[int] = set()
 
     def get_status(self) -> dict[str, Any]:
         """Returns current sync status, listener health, and last sync timestamp."""
@@ -157,12 +160,33 @@ class SyncService:
         if existing_hash:
             return {"status": "skipped", "reason": "duplicate_hash", "item": existing_hash}
 
-        # 3. Generate Local WebP Thumbnail directly from Telegram preview bytes
+        # 3. Generate Local WebP Thumbnail (offline stripped fast-path first, fallback to preview download)
         thumbnail_path: Optional[str] = None
         try:
-            client = self.telegram_client.raw_client
-            # Download smallest thumbnail preview in memory
-            thumb_bytes = await client.download_media(message, thumb=-1, file=bytes)
+            thumb_bytes = None
+            # Fast-path: check for zero-network-latency embedded stripped thumbnail
+            if isinstance(message.media, MessageMediaPhoto) and message.photo and hasattr(message.photo, "sizes"):
+                for sz in message.photo.sizes:
+                    if isinstance(sz, PhotoStrippedSize) and getattr(sz, "bytes", None):
+                        try:
+                            thumb_bytes = stripped_photo_to_jpg(sz.bytes)
+                            break
+                        except Exception:
+                            pass
+            elif isinstance(message.media, MessageMediaDocument) and message.document and hasattr(message.document, "thumbs") and message.document.thumbs:
+                for sz in message.document.thumbs:
+                    if isinstance(sz, PhotoStrippedSize) and getattr(sz, "bytes", None):
+                        try:
+                            thumb_bytes = stripped_photo_to_jpg(sz.bytes)
+                            break
+                        except Exception:
+                            pass
+
+            if not thumb_bytes:
+                client = self.telegram_client.raw_client
+                # Download smallest thumbnail preview in memory
+                thumb_bytes = await client.download_media(message, thumb=-1, file=bytes)
+
             if thumb_bytes and isinstance(thumb_bytes, bytes) and len(thumb_bytes) > 0:
                 thumbnail_path = generate_thumbnail_from_bytes(thumb_bytes, file_hash)
         except Exception as e:
@@ -193,12 +217,15 @@ class SyncService:
     async def sync_channel_history(
         self,
         channel_id: Optional[Union[int, str]] = None,
-        limit: int = 200,
+        limit: Optional[int] = None,
         full_scan: bool = False,
     ) -> dict[str, Any]:
         """
         Scans channel messages and indexes any uncataloged media items.
-        Performs high-efficiency incremental scan (stops early after consecutive indexed items).
+        Senior DBA Standard:
+        - If limit is None: Scans without arbitrary truncation (supports 10,000+ items).
+        - If channel has never been synced to inception (origin min_msg_id > 2), scans until origin.
+        - If channel is already fully synced to origin and not full_scan, early-exits after 15 consecutive already-indexed items at or below max_msg_id.
         """
         async with self._sync_lock:
             self._is_syncing = True
@@ -220,7 +247,16 @@ class SyncService:
             try:
                 await self.telegram_client.start()
                 channel_entity = await self.telegram_client.get_target_entity(target_channel)
+
+                # Senior DBA: Check existing indexed bounds to determine if channel has historical gaps
+                min_db_msg, max_db_msg = await self.repository.get_channel_message_bounds(target_channel)
+                has_synced_to_origin = (
+                    (min_db_msg is not None and min_db_msg <= 25)
+                    or (target_channel in self._completed_origin_channels)
+                )
+
                 consecutive_indexed = 0
+                hit_early_break = False
 
                 active_ids = []
                 async for message in self.telegram_client.raw_client.iter_messages(
@@ -241,9 +277,18 @@ class SyncService:
                         stats["skipped"] += 1
                         consecutive_indexed += 1
 
-                    # Incremental fast-path: stop if we hit 10 consecutive already-indexed items
-                    if not full_scan and consecutive_indexed >= 10:
-                        break
+                    # Incremental fast-path: only stop early if:
+                    # 1. full_scan is False
+                    # 2. We hit 15 consecutive already-indexed items
+                    # 3. Message ID is at or below max known ID in database
+                    # 4. AND the channel has previously completed sync to its origin (no historical gaps!)
+                    if not full_scan and has_synced_to_origin and consecutive_indexed >= 15:
+                        if max_db_msg is not None and message.id <= max_db_msg:
+                            hit_early_break = True
+                            break
+
+                if not hit_early_break and limit is None:
+                    self._completed_origin_channels.add(target_channel)
 
                 # Deletion reconciliation: check cataloged messages in the scanned range
                 if active_ids:
