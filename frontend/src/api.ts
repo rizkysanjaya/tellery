@@ -149,6 +149,9 @@ export async function fetchActiveVault(): Promise<VaultItem> {
 }
 
 export async function setActiveVault(channelId: number): Promise<any> {
+  try {
+    localStorage.setItem("telegallery_active_vault_id", String(channelId));
+  } catch {}
   const response = await fetch(`${API_BASE}/api/vaults/active`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

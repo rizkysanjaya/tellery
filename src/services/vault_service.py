@@ -3,12 +3,14 @@
 Module: src.services.vault_service
 Purpose: Telegram Channel / Vault discovery, permission intelligence (Owner vs Viewer),
          owned-channel isolation harness, static & animated/video avatar caching,
-         and active vault state management for seamless multi-channel gallery switching.
+         and persistent active vault state management across server reloads and refreshes.
 Used by: src.api.routes.vaults, src.api.routes.media, src.services.sync_service
 Dependencies: telethon, pathlib, src.storage.telegram_client, src.database.repository, src.config
-Public Members: VaultService, get_vault_service(), get_vault_by_id(), download_channel_avatar()
+Public Members: VaultService, get_vault_service(), get_vault_by_id(), download_channel_avatar(),
+                get_active_channel_id(), set_active_channel_id()
 Side Effects: Calls Telegram MTProto get_dialogs(), download_profile_photo() & _download_photo(),
-              writes avatar JPG and MP4 files to data/avatars/, queries SQLite database for channel stats.
+              writes avatar JPG and MP4 files to data/avatars/, reads/writes data/.active_vault,
+              queries SQLite database for channel stats.
 =============================================================================
 """
 
@@ -27,7 +29,7 @@ logger = logging.getLogger(__name__)
 class VaultService:
     """
     Manages multi-vault channel discovery, permissions analysis,
-    and active vault state across the application lifecycle.
+    and persistent active vault state across the application lifecycle.
     """
 
     def __init__(
@@ -39,8 +41,9 @@ class VaultService:
         self.repository = repository or MediaRepository()
         self.settings = get_settings()
 
-        # Default active channel from environment / settings
-        self._active_channel_id: Optional[int] = self.settings.tg_channel_id
+        # Persistent active vault file
+        self._active_channel_file = Path("data/.active_vault")
+        self._active_channel_id: Optional[int] = self._load_persisted_active_channel()
         self._cached_vaults: list[dict[str, Any]] = []
         self._permissions_cache: dict[int, dict[str, Any]] = {}
         self._lock = asyncio.Lock()
@@ -108,14 +111,32 @@ class VaultService:
 
         return result
 
+    def _load_persisted_active_channel(self) -> Optional[int]:
+        """Loads previously active vault channel ID from data/.active_vault if available."""
+        try:
+            if self._active_channel_file.exists():
+                content = self._active_channel_file.read_text(encoding="utf-8").strip()
+                if content:
+                    ch_id = int(content)
+                    logger.info("Restored persisted active vault channel_id: %s", ch_id)
+                    return ch_id
+        except Exception as e:
+            logger.warning("Failed loading persisted active vault from %s: %s", self._active_channel_file, e)
+        return self.settings.tg_channel_id
+
     def get_active_channel_id(self) -> Optional[int]:
         """Returns the currently active Telegram channel ID."""
         return self._active_channel_id
 
     def set_active_channel_id(self, channel_id: int) -> None:
-        """Sets the currently active Telegram channel ID."""
+        """Sets and persists the currently active Telegram channel ID."""
         self._active_channel_id = channel_id
-        logger.info("Active vault switched to channel_id: %s", channel_id)
+        try:
+            self._active_channel_file.parent.mkdir(parents=True, exist_ok=True)
+            self._active_channel_file.write_text(str(channel_id), encoding="utf-8")
+        except Exception as e:
+            logger.warning("Failed persisting active vault channel_id %s: %s", channel_id, e)
+        logger.info("Active vault switched to channel_id: %s (persisted)", channel_id)
 
     async def get_vault_permissions(self, channel_id: int) -> dict[str, Any]:
         """
@@ -234,7 +255,7 @@ class VaultService:
 
                 # Ensure active vault is set if not already selected
                 if self._active_channel_id is None and discovered:
-                    self._active_channel_id = discovered[0]["id"]
+                    self.set_active_channel_id(discovered[0]["id"])
                     discovered[0]["is_active"] = True
 
                 self._cached_vaults = discovered

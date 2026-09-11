@@ -7,7 +7,7 @@
  *          Abyss, Amethyst, Vapor Lime, Sakura), Battery Saver / Low Power GPU conservation mode,
  *          centralized Preferences & Storage dialog (SettingsModal),
  *          normalized WCAG 2.2 AA contrast in Light & Dark modes,
- *          Multi-Vault Telegram channel switching & dialog discovery,
+ *          Multi-Vault Telegram channel switching, dialog discovery & active vault persistence (localStorage & backend),
  *          zero-config plug-and-play Silk Cloud dual-theme onboarding wizard & in-browser Telegram MTProto auth,
  *          on-demand Vault Strategy Hub (Step 5) modal overlay & hash-route invocation (#vault-setup),
  *          role permission gating (Read/Write for owned vaults vs. Read-Only for joined channels),
@@ -127,6 +127,44 @@ import {
 } from "./types";
 import { parseRouteFromHash, syncHashWithState } from "./utils/navigation";
 
+const ACTIVE_VAULT_STORAGE_KEY = "telegallery_active_vault_id";
+const ACTIVE_VAULT_CACHE_KEY = "telegallery_active_vault_cache";
+
+function getSavedActiveVault(): VaultItem | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_VAULT_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.id === "number") {
+      return parsed;
+    }
+  } catch {}
+  return null;
+}
+
+function getSavedActiveVaultId(): number | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_VAULT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed !== 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function persistActiveVault(vault: VaultItem | null): void {
+  try {
+    if (vault && typeof vault.id === "number") {
+      localStorage.setItem(ACTIVE_VAULT_STORAGE_KEY, String(vault.id));
+      localStorage.setItem(ACTIVE_VAULT_CACHE_KEY, JSON.stringify(vault));
+    } else {
+      localStorage.removeItem(ACTIVE_VAULT_STORAGE_KEY);
+      localStorage.removeItem(ACTIVE_VAULT_CACHE_KEY);
+    }
+  } catch {}
+}
+
 export const App: React.FC = () => {
   const initialRoute = useMemo(() => parseRouteFromHash(window.location.hash), []);
   const [currentView, setCurrentView] = useState<MainView>(initialRoute.view);
@@ -149,13 +187,16 @@ export const App: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<FolderItem | null>(null);
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [vaults, setVaults] = useState<VaultItem[]>([]);
-  const [activeVault, setActiveVaultState] = useState<VaultItem | null>(null);
+  const [activeVault, setActiveVaultState] = useState<VaultItem | null>(() => getSavedActiveVault());
   const [isVaultSwitcherOpen, setIsVaultSwitcherOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isRefreshingVaults, setIsRefreshingVaults] = useState(false);
-  const activeVaultRef = useRef<VaultItem | null>(null);
+  const activeVaultRef = useRef<VaultItem | null>(activeVault);
   useEffect(() => {
     activeVaultRef.current = activeVault;
+    if (activeVault) {
+      persistActiveVault(activeVault);
+    }
   }, [activeVault]);
 
   // Telegram MTProto Authentication & Zero-Config Onboarding State
@@ -467,11 +508,30 @@ export const App: React.FC = () => {
         fetchActiveVault().catch(() => null),
       ]);
       setVaults(vList);
-      if (activeV) {
+
+      const savedId = getSavedActiveVaultId();
+      let targetVault: VaultItem | null = null;
+      if (savedId !== null) {
+        targetVault = vList.find((v) => v.id === savedId) || null;
+      }
+
+      if (targetVault) {
+        const updatedVault: VaultItem = { ...targetVault, is_active: true };
+        setActiveVaultState(updatedVault);
+        activeVaultRef.current = updatedVault;
+        persistActiveVault(updatedVault);
+        if (activeV?.id !== targetVault.id) {
+          setActiveVault(targetVault.id).catch(console.error);
+        }
+      } else if (activeV) {
         setActiveVaultState(activeV);
+        activeVaultRef.current = activeV;
+        persistActiveVault(activeV);
       } else if (vList.length > 0) {
         const currentActive = vList.find((v) => v.is_active) || vList[0];
         setActiveVaultState(currentActive);
+        activeVaultRef.current = currentActive;
+        persistActiveVault(currentActive);
       }
     } catch (err) {
       console.error("Failed to load vaults:", err);
@@ -510,6 +570,7 @@ export const App: React.FC = () => {
         };
         setActiveVaultState(optimisticVault);
         activeVaultRef.current = optimisticVault;
+        persistActiveVault(optimisticVault);
 
         // Optimistic stats update so sidebar immediately reflects the newly active vault
         setStats((prev) =>
@@ -525,6 +586,8 @@ export const App: React.FC = () => {
               }
             : null
         );
+      } else {
+        localStorage.setItem(ACTIVE_VAULT_STORAGE_KEY, String(channelId));
       }
 
       try {
@@ -540,6 +603,7 @@ export const App: React.FC = () => {
           };
           setActiveVaultState(updatedActive);
           activeVaultRef.current = updatedActive;
+          persistActiveVault(updatedActive);
         } else {
           await loadVaults();
         }
