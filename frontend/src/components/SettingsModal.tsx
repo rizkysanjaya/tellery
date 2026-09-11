@@ -2,7 +2,7 @@
  * =============================================================================
  * Module: frontend/src/components/SettingsModal.tsx
  * Purpose: Precision pro-grade settings dialog providing local disk cache metering,
- *          cache limit configuration, 1-click cache purge, MTProto vault telemetry,
+ *          persistent cache limit configuration, 1-click cache purge, MTProto vault telemetry,
  *          animated MP4 video & static avatar support, Ko-fi sponsor support link,
  *          Battery Saver mode toggle, VS Code-style 10-theme gallery switcher, and session disconnect.
  *          Supports WCAG 2.2 AA visible focus rings and keyboard Escape key modal dismissal.
@@ -11,7 +11,8 @@
  *               frontend/src/components/ui/LiquidProgressBar.tsx, frontend/src/config/themes.ts
  * Public Members: SettingsModal, SettingsModalProps
  * Side Effects: Fetches cache statistics over HTTP, dispatches cache clearing & limit updates,
- *                toggles theme and battery saver preferences in localStorage, opens external Ko-fi sponsor link.
+ *                persists cache limit in localStorage, toggles theme and battery saver preferences in localStorage,
+ *                opens external Ko-fi sponsor link.
  * =============================================================================
  */
 
@@ -82,6 +83,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     setLoadingCache(true);
     try {
       const data = await fetchCacheStats();
+      const savedBytesStr = localStorage.getItem("telegallery_cache_limit_bytes");
+      if (savedBytesStr) {
+        const savedBytes = Number(savedBytesStr);
+        if (Number.isFinite(savedBytes) && savedBytes >= 100 * 1024 * 1024 && data.max_bytes !== savedBytes) {
+          const updated = await updateCacheLimit(savedBytes);
+          setCacheStats(updated);
+          const currentGb = (updated.max_bytes / (1024 * 1024 * 1024)).toFixed(1).replace(/\.0$/, "");
+          setCustomLimitGb(currentGb);
+          return;
+        }
+      }
       setCacheStats(data);
       const currentGb = (data.max_bytes / (1024 * 1024 * 1024)).toFixed(1).replace(/\.0$/, "");
       setCustomLimitGb(currentGb);
@@ -128,6 +140,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSaveCacheLimit = async (limitBytes: number) => {
     setIsUpdatingLimit(true);
     try {
+      localStorage.setItem("telegallery_cache_limit_bytes", String(limitBytes));
       await updateCacheLimit(limitBytes);
       await loadCache();
     } catch (err) {

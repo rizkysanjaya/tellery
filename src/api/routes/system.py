@@ -2,12 +2,13 @@
 =============================================================================
 Module: src.api.routes.system
 Purpose: System telemetry, local disk cache management, and storage diagnostics.
-         Provides REST endpoints for inspecting storage metrics and triggering
-         immediate cache purges to reclaim local disk space.
+         Provides REST endpoints for inspecting storage metrics, persisting cache limits,
+         and triggering immediate cache purges to reclaim local disk space.
 Used by: src.api.app, frontend/src/components/Sidebar, frontend/src/api
 Dependencies: fastapi, src.services.stream_cache, src.database.connection
-Public Members: router
-Side Effects: Deletes cached stream media files on disk during purge requests.
+Public Members: router, get_cache_info(), update_cache_limit(), clear_cache(), get_system_stats()
+Side Effects: Deletes cached stream media files on disk during purge requests,
+              persists user-configured cache limit to data/.cache_limit.
 =============================================================================
 """
 
@@ -37,12 +38,12 @@ async def get_cache_info():
 @router.post("/cache/limit")
 async def update_cache_limit(req: CacheLimitRequest):
     """
-    Updates the runtime maximum stream cache ceiling limit.
+    Updates and persists the runtime maximum stream cache ceiling limit across reloads.
     """
     if req.max_bytes < 100 * 1024 * 1024:  # Minimum 100 MB
         raise HTTPException(status_code=400, detail="Minimum cache limit is 100 MB")
     cache = get_stream_cache()
-    cache.max_cache_bytes = req.max_bytes
+    cache.set_cache_limit(req.max_bytes)
     return cache.get_cache_stats()
 
 

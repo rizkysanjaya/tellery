@@ -1,14 +1,16 @@
 """
 =============================================================================
 Module: src.services.stream_cache
-Purpose: High-performance progressive streaming cache manager with LRU auto-eviction.
+Purpose: High-performance progressive streaming cache manager with LRU auto-eviction
+         and persistent cache size ceiling limits across server reloads and page refreshes.
          Provides 0ms seekable media playback from disk cache, C++ TDLib 16-parallel-stream
          hardware background caching, sub-300ms direct MTProto HTTP 206 slice streaming,
          and non-blocking cache purge with active TDLib/task cancellation.
 Used by: src.api.routes.stream, src.api.routes.system, src.services.archive_service
 Dependencies: asyncio, pathlib, shutil, src.config, src.storage.telegram_client, src.storage.tdlib_client
-Public Members: StreamCacheManager, get_stream_cache()
-Side Effects: Reads, writes, and evicts cached media binary files in data/cache/.
+Public Members: StreamCacheManager, get_stream_cache(), set_cache_limit()
+Side Effects: Reads, writes, and evicts cached media binary files in data/cache/,
+              reads and writes persistent cache limit ceiling in data/.cache_limit.
 =============================================================================
 """
 
@@ -24,22 +26,49 @@ from src.storage.tdlib_client import get_tdlib_client
 class StreamCacheManager:
     """
     Manages progressive local disk caching for media streams to provide 0ms latency video playback.
-    Coalesces concurrent range requests and enforces LRU auto-eviction to protect local disk space.
+    Coalesces concurrent range requests, persists user-defined cache limits across reboots,
+    and enforces LRU auto-eviction to protect local disk space.
     """
 
     def __init__(
         self,
         cache_dir: Optional[Union[str, Path]] = None,
-        max_cache_bytes: int = 1500 * 1024 * 1024,
+        max_cache_bytes: Optional[int] = None,
     ) -> None:
         self.cache_dir = Path(cache_dir or "data/cache")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.max_cache_bytes = max_cache_bytes  # 1.5 GB default ceiling
+        self._cache_limit_file = Path("data/.cache_limit")
+        self.max_cache_bytes = max_cache_bytes if max_cache_bytes is not None else self._load_persisted_cache_limit()
         self._inflight_downloads: Dict[str, asyncio.Task] = {}
         self._active_tdlib_downloads: Dict[str, int] = {}
         self._progress_events: Dict[str, asyncio.Event] = {}
         self._bytes_downloaded: Dict[str, int] = {}
         self._lock = asyncio.Lock()
+
+    def _load_persisted_cache_limit(self) -> int:
+        """Loads persistent cache limit from data/.cache_limit if available."""
+        default_limit = 1500 * 1024 * 1024  # 1.5 GB default
+        try:
+            if self._cache_limit_file.exists():
+                content = self._cache_limit_file.read_text(encoding="utf-8").strip()
+                if content:
+                    val = int(content)
+                    if val >= 100 * 1024 * 1024:
+                        return val
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed loading persisted cache limit: %s", e)
+        return default_limit
+
+    def set_cache_limit(self, max_bytes: int) -> None:
+        """Sets and persists the maximum stream cache ceiling limit to disk."""
+        self.max_cache_bytes = max_bytes
+        try:
+            self._cache_limit_file.parent.mkdir(parents=True, exist_ok=True)
+            self._cache_limit_file.write_text(str(max_bytes), encoding="utf-8")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed persisting cache limit to %s: %s", self._cache_limit_file, e)
 
     def touch_cache(self, cache_path: Path) -> None:
         """Updates file modification/access time for LRU tracking."""

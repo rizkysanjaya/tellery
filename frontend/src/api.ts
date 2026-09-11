@@ -575,6 +575,9 @@ export async function fetchCacheStats(): Promise<CacheStats> {
 }
 
 export async function updateCacheLimit(maxBytes: number): Promise<CacheStats> {
+  try {
+    localStorage.setItem("telegallery_cache_limit_bytes", String(maxBytes));
+  } catch {}
   const response = await fetch(`${API_BASE}/api/system/cache/limit`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
