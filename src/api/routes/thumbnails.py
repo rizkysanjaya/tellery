@@ -51,7 +51,7 @@ async def get_media_thumbnail(media_id: int):
                 path=thumb_file,
                 media_type="image/webp",
                 headers={
-                    "Cache-Control": "public, max-age=31536000, immutable",
+                    "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
                     "Content-Disposition": f"inline; filename={thumb_file.name}",
                 },
             )
@@ -66,7 +66,7 @@ async def get_media_thumbnail(media_id: int):
             path=candidate_thumb,
             media_type="image/webp",
             headers={
-                "Cache-Control": "public, max-age=31536000, immutable",
+                "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
                 "Content-Disposition": f"inline; filename={candidate_thumb.name}",
             },
         )
@@ -98,7 +98,7 @@ async def get_media_thumbnail(media_id: int):
                             path=Path(generated),
                             media_type="image/webp",
                             headers={
-                                "Cache-Control": "public, max-age=31536000, immutable",
+                                "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
                                 "Content-Disposition": f"inline; filename={Path(generated).name}",
                             },
                         )
@@ -132,7 +132,7 @@ async def get_media_thumbnail(media_id: int):
                         path=Path(generated),
                         media_type="image/webp",
                         headers={
-                            "Cache-Control": "public, max-age=31536000, immutable",
+                            "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
                             "Content-Disposition": f"inline; filename={Path(generated).name}",
                         },
                     )
@@ -164,7 +164,7 @@ async def get_media_thumbnail(media_id: int):
                         path=Path(generated),
                         media_type="image/webp",
                         headers={
-                            "Cache-Control": "public, max-age=31536000, immutable",
+                            "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
                             "Content-Disposition": f"inline; filename={Path(generated).name}",
                         },
                     )

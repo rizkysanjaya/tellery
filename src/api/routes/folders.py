@@ -34,7 +34,7 @@ def _to_folder_response(f: dict) -> FolderResponse:
     """Formats database row into FolderResponse schema with cover thumbnail URL."""
     cover_media_id = f.get("cover_media_id")
     cover_thumb_url = (
-        f"/api/media/{cover_media_id}/thumbnail" if cover_media_id else None
+        f"/api/media/{cover_media_id}/thumbnail?v=2" if cover_media_id else None
     )
     return FolderResponse(
         id=f["id"],
@@ -128,7 +128,7 @@ async def get_folder_media_options(folder_id: int):
             file_name=item["file_name"],
             mime_type=item["mime_type"],
             file_size=item["file_size"],
-            thumbnail_url=f"/api/media/{item['id']}/thumbnail" if item.get("thumbnail_path") else None,
+            thumbnail_url=f"/api/media/{item['id']}/thumbnail?v=2" if item.get("thumbnail_path") else None,
             added_at=item["added_at"],
         )
         for item in items

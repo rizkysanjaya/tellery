@@ -101,7 +101,7 @@ def _compute_group_key_and_title(item: dict, sort_by: str) -> tuple[str, str]:
 def _to_media_response(item: dict) -> MediaItemResponse:
     """Maps database row dict to MediaItemResponse with computed API endpoints."""
     item_id = item["id"]
-    thumb_url = f"/api/media/{item_id}/thumbnail"
+    thumb_url = f"/api/media/{item_id}/thumbnail?v=2"
     return MediaItemResponse(
         id=item_id,
         file_name=item["file_name"],
