@@ -5,9 +5,11 @@ Purpose: FastAPI application factory, non-blocking lifespan startup/shutdown,
          and secure CORS middleware configuration for gallery & onboarding.
 Used by: src.main, Uvicorn ASGI server.
 Dependencies: fastapi, src.database.connection, src.storage.telegram_client,
-              src.storage.tdlib_client, src.services.sync_service, src.api.routes
+              src.storage.tdlib_client, src.services.sync_service,
+              src.services.background_thumbnail_worker, src.api.routes
 Public Members: create_app()
-Side Effects: Initializes DB, MTProto client, TDLib C++ engine, and live channel sync listener on server startup.
+Side Effects: Initializes DB, MTProto client, TDLib C++ engine, live channel sync listener,
+              and background video thumbnail generator on server startup.
 =============================================================================
 """
 
@@ -75,6 +77,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await sync_service.setup_channel_live_listener()
         except Exception as e:
             print(f"[!] Warning: Could not initialize live Telegram channel listener: {e}")
+
+        # Start Background Video Thumbnail Generator (non-blocking, zero socket lag)
+        try:
+            from src.services.background_thumbnail_worker import get_thumbnail_worker
+            get_thumbnail_worker().start_worker_task()
+        except Exception as e:
+            print(f"[!] Warning: Could not start background thumbnail worker: {e}")
     else:
         print("[*] Telegram Client is NOT authorized yet. Awaiting in-browser onboarding.")
 

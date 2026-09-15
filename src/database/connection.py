@@ -1,7 +1,7 @@
 """
 =============================================================================
 Module: src.database.connection
-Purpose: Async SQLite connection lifecycle manager with WAL, PRAGMA tuning,
+Purpose: Async SQLite connection lifecycle manager with WAL, PRAGMA tuning (busy_timeout 30s),
          lightweight schema migrations, and Telegram channel ID canonicalization.
 Used by: src.database.repository, src.services, src.api, CLI scripts.
 Dependencies: aiosqlite, src.config, typing
@@ -56,12 +56,13 @@ async def get_db_connection() -> AsyncIterator[aiosqlite.Connection]:
     settings = get_settings()
     db_path = settings.db_file_path
 
-    async with aiosqlite.connect(db_path) as conn:
+    async with aiosqlite.connect(db_path, timeout=30.0) as conn:
         conn.row_factory = aiosqlite.Row
         await conn.execute("PRAGMA journal_mode = WAL;")
         await conn.execute("PRAGMA synchronous = NORMAL;")
         await conn.execute("PRAGMA foreign_keys = ON;")
         await conn.execute("PRAGMA cache_size = -64000;")
+        await conn.execute("PRAGMA busy_timeout = 30000;")
         yield conn
 
 

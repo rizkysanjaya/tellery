@@ -1,10 +1,11 @@
 """
 =============================================================================
 Module: src.storage.telegram_client
-Purpose: Telegram MTProto Client wrapper for raw document storage, non-blocking onboarding auth, & chunked streaming.
+Purpose: Telegram MTProto Client wrapper for raw document storage, non-blocking onboarding auth,
+         batch document deletion (chunks of 100), & chunked streaming.
 Used by: src.services.archive_service, src.services.sync_service, src.services.auth_service, src.api.app
 Dependencies: telethon, src.config
-Public Members: TelegramStorageClient, get_telegram_client()
+Public Members: TelegramStorageClient (delete_document, delete_documents, iter_document_chunks, fast_upload, etc.), get_telegram_client()
 Side Effects: Network MTProto calls to Telegram servers, reads/writes session file.
 =============================================================================
 """
@@ -254,6 +255,36 @@ class TelegramStorageClient:
         entity = await self.get_target_entity(channel_id)
         await self._client.delete_messages(entity, [message_id])
         return True
+
+    async def delete_documents(
+        self,
+        message_ids: list[int],
+        channel_id: Union[int, str],
+    ) -> int:
+        """
+        Permanently deletes multiple messages/documents from the Telegram storage channel in batches.
+        Telegram MTProto allows a maximum of 100 message IDs per delete_messages call.
+
+        Args:
+            message_ids: List of Telegram message IDs to delete.
+            channel_id: Target channel ID or username.
+
+        Returns:
+            int: Count of message IDs successfully submitted for deletion.
+        """
+        if not message_ids:
+            return 0
+        await self.start()
+        entity = await self.get_target_entity(channel_id)
+        deleted_count = 0
+        for i in range(0, len(message_ids), 100):
+            batch = message_ids[i : i + 100]
+            try:
+                await self._client.delete_messages(entity, batch)
+                deleted_count += len(batch)
+            except Exception as e:
+                logger.warning(f"[TelegramStorageClient] Batch delete error for {len(batch)} messages: {e}")
+        return deleted_count
 
     async def iter_document_chunks(
         self,

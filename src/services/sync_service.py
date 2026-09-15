@@ -4,12 +4,15 @@ Module: src.services.sync_service
 Purpose: Telegram Channel Ingestion, Manual Sync (incremental & full-scan), and Real-time Live Message Ingest Engine.
          Indexes photos, videos, and raw documents sent directly to Telegram storage channels,
          extracting technical attributes, generating high-quality WebP thumbnails,
-         canonicalizing channel IDs, and coordinating with ArchiveService to prevent in-flight duplicate ingestion.
+         canonicalizing channel IDs, trash-aware deduplication, and full/incremental deletion reconciliation.
+         Equipped with resilient MTProto FloodWait backoff, offset-based pagination resumption,
+         and strict media format whitelisting (preventing non-media/RAW file ingestion).
 Used by: src.api.routes.sync, src.api.routes.vaults, src.api.app (lifespan background listener)
-Dependencies: telethon, datetime, pathlib, src.database.repository, src.database.connection,
+Dependencies: telethon, telethon.errors.FloodWaitError, datetime, pathlib,
+              src.database.repository, src.database.connection,
               src.services.archive_service, src.services.thumbnail_service,
               src.storage.telegram_client, src.config
-Public Members: SyncService, get_sync_service()
+Public Members: SyncService, get_sync_service(), SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS, SUPPORTED_MEDIA_EXTENSIONS
 Side Effects: Downloads preview thumbnails from Telegram MTProto,
               generates WebP files in .thumbnails/, writes rows to media_items and audit_logs in SQLite database.
 =============================================================================
@@ -21,6 +24,7 @@ import hashlib
 from pathlib import Path
 from typing import Any, Optional, Union
 from telethon import events
+from telethon.errors import FloodWaitError
 from telethon.tl.custom.message import Message
 from telethon.tl.types import (
     DocumentAttributeFilename,
@@ -34,6 +38,12 @@ from src.database.connection import normalize_channel_id
 from src.database.repository import MediaRepository
 from src.services.thumbnail_service import generate_thumbnail_from_bytes
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
+
+# Strict Media Whitelists (Tellery v1 Core Specification)
+# Only web-compatible media formats are ingested to prevent UI freezes and broken tiles.
+SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic"}
+SUPPORTED_VIDEO_EXTENSIONS = {".mp4", ".webm", ".mov", ".mkv", ".m4v"}
+SUPPORTED_MEDIA_EXTENSIONS = SUPPORTED_IMAGE_EXTENSIONS | SUPPORTED_VIDEO_EXTENSIONS
 
 
 class SyncService:
@@ -87,13 +97,15 @@ class SyncService:
             return {"status": "skipped", "reason": "upload_in_flight", "item": None}
 
         if isinstance(target_channel_id, int):
-            existing = await self.repository.get_by_channel_message(target_channel_id, message.id)
-            if existing:
-                return {"status": "skipped", "reason": "already_indexed", "item": existing}
+            existing = await self.repository.get_by_channel_message(target_channel_id, message.id, include_deleted=True)
         else:
-            existing = await self.repository.get_by_message_id(message.id)
-            if existing:
-                return {"status": "skipped", "reason": "already_indexed", "item": existing}
+            existing = await self.repository.get_by_message_id(message.id, include_deleted=True)
+
+        if existing:
+            if existing.get("is_deleted"):
+                # Item is in Trash: do NOT duplicate or resurrect into active timeline!
+                return {"status": "skipped", "reason": "in_trash", "item": existing}
+            return {"status": "skipped", "reason": "already_indexed", "item": existing}
 
         file_name = "untitled_media"
         mime_type = "application/octet-stream"
@@ -150,12 +162,44 @@ class SyncService:
         else:
             return None
 
+        # Strict Whitelist Gatekeeper: Only ingest recognized standard photo and video formats.
+        # Dropping unknown binary files, documents (.zip, .pdf, .apk), and camera RAW files (.RAF, .CR2, .NEF)
+        # protects the database, avoids UI socket starvation, and guarantees 100% browser rendering compatibility.
+        ext = Path(file_name).suffix.lower()
+        if ext not in SUPPORTED_MEDIA_EXTENSIONS:
+            return {"status": "skipped", "reason": "unsupported_extension", "file_name": file_name}
+
+        # Normalize generic MIME types for whitelisted extensions
+        if mime_type == "application/octet-stream":
+            if ext in {".jpg", ".jpeg"}:
+                mime_type = "image/jpeg"
+            elif ext == ".png":
+                mime_type = "image/png"
+            elif ext == ".webp":
+                mime_type = "image/webp"
+            elif ext == ".gif":
+                mime_type = "image/gif"
+            elif ext == ".bmp":
+                mime_type = "image/bmp"
+            elif ext == ".heic":
+                mime_type = "image/heic"
+            elif ext in {".mp4", ".m4v"}:
+                mime_type = "video/mp4"
+            elif ext == ".webm":
+                mime_type = "video/webm"
+            elif ext == ".mov":
+                mime_type = "video/quicktime"
+            elif ext == ".mkv":
+                mime_type = "video/x-matroska"
+
         # Compute deterministic SHA-256 hash for database catalog indexing
         file_hash = hashlib.sha256(raw_hash_seed.encode("utf-8")).hexdigest()
 
-        # Check if hash already exists in target channel (e.g. uploaded previously via web)
-        existing_hash = await self.repository.get_by_hash(file_hash, channel_id=target_channel_id)
+        # Check if hash already exists in target channel (e.g. uploaded previously via web or in trash)
+        existing_hash = await self.repository.get_by_hash(file_hash, channel_id=target_channel_id, include_deleted=True)
         if existing_hash:
+            if existing_hash.get("is_deleted"):
+                return {"status": "skipped", "reason": "in_trash", "item": existing_hash}
             return {"status": "skipped", "reason": "duplicate_hash", "item": existing_hash}
 
         # 3. Generate Local WebP Thumbnail directly from Telegram preview bytes
@@ -166,8 +210,28 @@ class SyncService:
             thumb_bytes = await client.download_media(message, thumb=-1, file=bytes)
             if thumb_bytes and isinstance(thumb_bytes, bytes) and len(thumb_bytes) > 0:
                 thumbnail_path = generate_thumbnail_from_bytes(thumb_bytes, file_hash)
+        except FloodWaitError as e:
+            wait_s = int(getattr(e, "seconds", 5)) + 2
+            print(f"[SyncService] ⚠️ FloodWait ({wait_s}s) during thumbnail preview for msg {message.id}. Waiting before retry...")
+            await asyncio.sleep(wait_s)
+            try:
+                thumb_bytes = await client.download_media(message, thumb=-1, file=bytes)
+                if thumb_bytes and isinstance(thumb_bytes, bytes) and len(thumb_bytes) > 0:
+                    thumbnail_path = generate_thumbnail_from_bytes(thumb_bytes, file_hash)
+            except Exception as retry_err:
+                print(f"[SyncService] Failed thumbnail retry for msg {message.id}: {retry_err}")
         except Exception as e:
             print(f"[SyncService] Could not generate direct Telegram thumbnail for msg {message.id}: {e}")
+
+        # Extract dimensions from generated thumbnail if Telegram document attributes lacked them
+        if thumbnail_path and (not width or not height):
+            try:
+                from PIL import Image
+                with Image.open(thumbnail_path) as thumb_img:
+                    width = thumb_img.width
+                    height = thumb_img.height
+            except Exception:
+                pass
 
         # 4. Insert into SQLite Database
         item = {
@@ -234,62 +298,108 @@ class SyncService:
 
                 consecutive_indexed = 0
                 hit_early_break = False
-
                 active_ids = []
-                async for message in self.telegram_client.raw_client.iter_messages(
-                    channel_entity,
-                    limit=limit,
-                ):
-                    active_ids.append(message.id)
-                    if not message.media:
-                        continue
+                current_offset_id = 0
+                max_flood_retries = 5
+                flood_retries = 0
 
-                    stats["scanned"] += 1
-                    res = await self.ingest_telegram_message(message, target_channel)
-
-                    if res and res.get("status") == "indexed":
-                        stats["added"] += 1
-                        consecutive_indexed = 0
-                    elif res and res.get("status") == "skipped":
-                        stats["skipped"] += 1
-                        consecutive_indexed += 1
-
-                    # Incremental fast-path: only stop early if:
-                    # 1. full_scan is False
-                    # 2. We hit 15 consecutive already-indexed items
-                    # 3. Message ID is at or below max known ID in database
-                    # 4. AND the channel has previously completed sync to its origin (no historical gaps!)
-                    if not full_scan and has_synced_to_origin and consecutive_indexed >= 15:
-                        if max_db_msg is not None and message.id <= max_db_msg:
-                            hit_early_break = True
+                while True:
+                    try:
+                        remaining_limit = (limit - len(active_ids)) if limit is not None else None
+                        if limit is not None and remaining_limit <= 0:
                             break
+
+                        async for message in self.telegram_client.raw_client.iter_messages(
+                            channel_entity,
+                            limit=remaining_limit,
+                            offset_id=current_offset_id,
+                        ):
+                            current_offset_id = message.id
+                            active_ids.append(message.id)
+                            if not message.media:
+                                continue
+
+                            stats["scanned"] += 1
+                            res = await self.ingest_telegram_message(message, target_channel)
+
+                            if res and res.get("status") == "indexed":
+                                stats["added"] += 1
+                                consecutive_indexed = 0
+                            elif res and res.get("status") == "skipped":
+                                stats["skipped"] += 1
+                                if res.get("reason") == "already_indexed":
+                                    consecutive_indexed += 1
+                                else:
+                                    consecutive_indexed = 0
+
+                            # Micro-pause to prevent MTProto burst flood
+                            await asyncio.sleep(0.02)
+
+                            # Incremental fast-path: only stop early if:
+                            # 1. full_scan is False
+                            # 2. We hit 15 consecutive already-indexed items
+                            # 3. Message ID is at or below max known ID in database
+                            # 4. AND the channel has previously completed sync to its origin (no historical gaps!)
+                            if not full_scan and has_synced_to_origin and consecutive_indexed >= 15:
+                                if max_db_msg is not None and message.id <= max_db_msg:
+                                    hit_early_break = True
+                                    break
+
+                        # Iterator finished normally or broke out due to early break
+                        break
+
+                    except FloodWaitError as e:
+                        flood_retries += 1
+                        wait_seconds = int(getattr(e, "seconds", 5)) + 2
+                        print(
+                            f"[SyncService] ⚠️ MTProto FloodWait encountered during sync "
+                            f"(attempt {flood_retries}/{max_flood_retries}): waiting {wait_seconds}s..."
+                        )
+                        if flood_retries > max_flood_retries:
+                            print(f"[SyncService] ❌ Exceeded max FloodWait retries ({max_flood_retries}). Stopping sync.")
+                            stats["error"] = f"FloodWait limit exceeded: {e}"
+                            break
+                        await asyncio.sleep(wait_seconds)
+                        print(f"[SyncService] 🔄 Resuming sync from offset_id={current_offset_id}...")
+                        continue
 
                 if not hit_early_break and limit is None:
                     self._completed_origin_channels.add(target_channel)
 
-                # Deletion reconciliation: check cataloged messages in the scanned range
-                if active_ids:
-                    min_mid = min(active_ids)
-                    max_mid = max(active_ids)
-                    from src.database.connection import get_db_connection
-                    async with get_db_connection() as conn:
+                # Deletion reconciliation: reconcile database items against scanned Telegram messages
+                active_set = set(active_ids)
+                from src.database.connection import get_db_connection
+                async with get_db_connection() as conn:
+                    # In a full scan or scan to origin (limit is None and not hit_early_break),
+                    # active_set represents the complete universe of messages in the channel.
+                    # Even if active_set is empty (0 messages in Telegram), all items in DB no longer exist in Telegram!
+                    if not hit_early_break and limit is None:
                         async with conn.execute(
-                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND (telegram_channel_id = ? OR telegram_channel_id = ?) AND telegram_message_id BETWEEN ? AND ?",
-                            (target_channel, int(str(target_channel).replace("-100", "")), min_mid, max_mid),
+                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND (telegram_channel_id = ? OR telegram_channel_id = ?)",
+                            (target_channel, int(str(target_channel).replace("-100", ""))),
                         ) as cursor:
                             db_items = await cursor.fetchall()
+                    elif active_ids:
+                        min_mid = min(active_ids)
+                        async with conn.execute(
+                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND (telegram_channel_id = ? OR telegram_channel_id = ?) AND telegram_message_id >= ?",
+                            (target_channel, int(str(target_channel).replace("-100", "")), min_mid),
+                        ) as cursor:
+                            db_items = await cursor.fetchall()
+                    else:
+                        db_items = []
 
-                        active_set = set(active_ids)
-                        deleted_in_tg = [r[0] for r in db_items if r[1] not in active_set]
-                        if deleted_in_tg:
-                            placeholders = ",".join("?" for _ in deleted_in_tg)
-                            await conn.execute(
-                                f"UPDATE media_items SET is_deleted = 1 WHERE id IN ({placeholders})",
-                                tuple(deleted_in_tg),
-                            )
-                            await conn.commit()
-                            stats["reconciled_deleted"] = len(deleted_in_tg)
-                            print(f"[SyncService] 🗑️ Reconciled {len(deleted_in_tg)} deleted items missing from Telegram")
+                    deleted_in_tg = [r[0] for r in db_items if r[1] not in active_set]
+                    if deleted_in_tg:
+                        placeholders = ",".join("?" for _ in deleted_in_tg)
+                        now_iso = datetime.now(timezone.utc).isoformat()
+                        await conn.execute(
+                            f"UPDATE media_items SET is_deleted = 1, deleted_at = ? WHERE id IN ({placeholders})",
+                            (now_iso, *deleted_in_tg),
+                        )
+                        await conn.commit()
+                        stats["reconciled_deleted"] = len(deleted_in_tg)
+                        print(f"[SyncService] 🗑️ Reconciled {len(deleted_in_tg)} deleted items missing from Telegram")
 
             except Exception as e:
                 print(f"[SyncService] Error during channel synchronization: {e}")
@@ -299,6 +409,13 @@ class SyncService:
                 self._is_syncing = False
                 self._last_sync_time = datetime.now(timezone.utc)
                 self._last_sync_stats = stats
+
+                # Trigger background thumbnail generation for any videos lacking embedded previews
+                try:
+                    from src.services.background_thumbnail_worker import get_thumbnail_worker
+                    get_thumbnail_worker().trigger_scan()
+                except Exception as w_err:
+                    pass
 
             return stats
 
@@ -335,15 +452,16 @@ class SyncService:
                         norm_ch = normalize_channel_id(target_channel)
                         async with get_db_connection() as conn:
                             placeholders = ",".join("?" for _ in event.deleted_ids)
+                            now_iso = datetime.now(timezone.utc).isoformat()
                             if norm_ch:
                                 await conn.execute(
-                                    f"UPDATE media_items SET is_deleted = 1 WHERE telegram_channel_id = ? AND telegram_message_id IN ({placeholders}) AND is_deleted = 0",
-                                    (norm_ch, *event.deleted_ids),
+                                    f"UPDATE media_items SET is_deleted = 1, deleted_at = ? WHERE telegram_channel_id = ? AND telegram_message_id IN ({placeholders}) AND is_deleted = 0",
+                                    (now_iso, norm_ch, *event.deleted_ids),
                                 )
                             else:
                                 await conn.execute(
-                                    f"UPDATE media_items SET is_deleted = 1 WHERE telegram_message_id IN ({placeholders}) AND is_deleted = 0",
-                                    tuple(event.deleted_ids),
+                                    f"UPDATE media_items SET is_deleted = 1, deleted_at = ? WHERE telegram_message_id IN ({placeholders}) AND is_deleted = 0",
+                                    (now_iso, *event.deleted_ids),
                                 )
                             await conn.commit()
                         print(f"[LiveSync] 🗑️ Auto-soft-deleted {len(event.deleted_ids)} items removed from Telegram channel: {event.deleted_ids}")

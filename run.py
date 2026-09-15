@@ -1,9 +1,10 @@
-﻿"""
+"""
 =============================================================================
 Module: run.py
 Purpose: 1-Command zero-friction launcher for Tellery (Gallery Vault).
          Verifies environment, ensures compiled frontend assets exist,
-         launches the unified FastAPI/Uvicorn server, and opens the web browser.
+         launches the unified FastAPI/Uvicorn server with scoped src/ hot-reload,
+         and opens the default web browser.
 Used by: End-users and developers for 1-command startup.
 Dependencies: sys, os, time, threading, webbrowser, pathlib, uvicorn
 Public Members: main()
@@ -25,6 +26,10 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
+
+# Silence internal FFmpeg/OpenCV stderr diagnostic warnings during sparse range thumbnail decoding
+os.environ.setdefault("OPENCV_FFMPEG_LOGLEVEL", "-8")
+os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
 
 
 def open_browser(url: str, delay: float = 1.5) -> None:
@@ -76,8 +81,15 @@ def main() -> None:
     # Launch browser in background thread
     threading.Thread(target=open_browser, args=(url,), daemon=True).start()
 
+    reload_enabled = os.environ.get("TELLERY_RELOAD", "1").lower() in ("1", "true", "yes")
     import uvicorn
-    uvicorn.run("src.main:app", host=host, port=port, reload=False)
+    uvicorn.run(
+        "src.main:app",
+        host=host,
+        port=port,
+        reload=reload_enabled,
+        reload_dirs=["src"] if reload_enabled else None,
+    )
 
 
 if __name__ == "__main__":

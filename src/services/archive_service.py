@@ -2,8 +2,8 @@
 =============================================================================
 Module: src.services.archive_service
 Purpose: High-level media archival orchestration, deduplication, EXIF extraction, WebP thumbnails,
-         safe soft-delete (Trash), 1-click restore, permanent vault purging, channel ID canonicalization,
-         and in-flight upload coordination.
+         safe soft-delete (Trash), 1-click restore, permanent vault purging with batch MTProto deletions,
+         channel ID canonicalization, and in-flight upload coordination.
 Used by: src.cli.verify_pipeline, src.cli.import_folder, FastAPI routes (media, sync, stream).
 Dependencies: src.database.repository, src.database.connection, src.storage.telegram_client,
               src.storage.tdlib_client, src.services.hasher, src.services.metadata_extractor,
@@ -392,21 +392,40 @@ class ArchiveService:
         """
         Permanently purges all items currently in Trash from Telegram storage and database,
         optionally scoped to a specific channel.
+        Uses batch MTProto message deletion (up to 100 messages per call) to maximize throughput.
         """
         target_ch = normalize_channel_id(channel_id)
         items = await self.repository.get_all_trash_media(channel_id=target_ch)
+        if not items:
+            return {
+                "status": "emptied",
+                "purged_count": 0,
+                "message": "Trash is already empty.",
+            }
+
+        # 1. Group Telegram message IDs by channel for batch deletion
+        by_channel: dict[int, list[int]] = {}
+        for media in items:
+            ch_id = media.get("telegram_channel_id")
+            mid = media.get("telegram_message_id")
+            if ch_id and mid:
+                by_channel.setdefault(ch_id, []).append(mid)
+
+        for ch_id, msg_ids in by_channel.items():
+            try:
+                await self.telegram_client.delete_documents(
+                    message_ids=msg_ids,
+                    channel_id=ch_id,
+                )
+            except Exception as e:
+                print(f"[Warning] Batch Telegram delete failed for channel {ch_id}: {e}")
+
+        # 2. Disk cache & thumbnail cleanup, plus atomic database purging
+        from src.services.stream_cache import get_stream_cache
+        cache = get_stream_cache()
         purged_count = 0
 
         for media in items:
-            try:
-                # Delete Telegram document
-                await self.telegram_client.delete_document(
-                    message_id=media["telegram_message_id"],
-                    channel_id=media["telegram_channel_id"],
-                )
-            except Exception as e:
-                print(f"[Warning] Telegram delete failed for message {media['telegram_message_id']}: {e}")
-
             # Delete thumbnail
             thumb_path = media.get("thumbnail_path")
             if thumb_path:
@@ -419,15 +438,13 @@ class ArchiveService:
 
             # Clean cache file
             try:
-                from src.services.stream_cache import get_stream_cache
-                cache = get_stream_cache()
                 bin_path = cache.get_cache_path(media["file_hash"])
                 if bin_path.exists():
                     bin_path.unlink()
             except Exception:
                 pass
 
-            # Purge from DB
+            # Purge from DB (atomically purges any duplicate rows for the same message)
             await self.repository.purge_media_permanently(media["id"])
             purged_count += 1
 

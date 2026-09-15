@@ -2,6 +2,8 @@
  * =============================================================================
  * Module: frontend/src/components/MediaCard.tsx
  * Purpose: High-performance gallery grid tile with instant WebP thumbnail,
+ *          automatic backoff retry for asynchronous background-generated video thumbnails,
+ *          fallback error handling for unsupported raw files,
  *          WCAG 2.2 AA accessible keyboard navigation (Enter to view, Space to select),
  *          visible focus rings (:focus-visible), screen-reader aria-labels,
  *          constantly looping animated GIFs, 4-corner ergonomic layout (top-left selection,
@@ -11,7 +13,8 @@
  * Used by: frontend/src/components/TimelineGrid.tsx
  * Dependencies: lucide-react, frontend/src/types.ts, frontend/src/utils/fileTypes.ts
  * Public Members: MediaCard
- * Side Effects: Triggers lightbox click, selection toggle, favorite toggle, drag start, and context menu events.
+ * Side Effects: Triggers lightbox click, selection toggle, favorite toggle, drag start,
+ *               context menu events, and thumbnail retry timers.
  * =============================================================================
  */
 
@@ -49,10 +52,26 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   onContextMenu,
 }) => {
   const [loaded, setLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
 
   const isVideo = item.mime_type.startsWith("video/");
   const isGif = item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif");
   const isAnimatedVideo = isVideo && (item.file_name.toLowerCase().includes(".gif.mp4") || (Boolean(item.duration_seconds && item.duration_seconds <= 15) && item.file_name.toLowerCase().includes("gif")));
+
+  const handleImageError = () => {
+    // For videos whose thumbnail is currently compiling in the background worker,
+    // retry automatically up to 6 times with exponential backoff before showing fallback.
+    if (isVideo && retryCount < 6) {
+      const delay = Math.min(2000 * Math.pow(1.35, retryCount), 8000);
+      setTimeout(() => {
+        setRetryCount((prev) => prev + 1);
+      }, delay);
+    } else {
+      setHasError(true);
+    }
+  };
 
   useEffect(() => {
     return () => {
@@ -164,8 +183,14 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   };
 
   const aspectRatioStyle: React.CSSProperties =
-    aspectMode === "natural" && item.width && item.height
-      ? { aspectRatio: `${item.width} / ${item.height}` }
+    aspectMode === "natural"
+      ? item.width && item.height
+        ? { aspectRatio: `${item.width} / ${item.height}` }
+        : naturalRatio
+          ? { aspectRatio: `${naturalRatio}` }
+          : isVideo
+            ? { aspectRatio: "9 / 16" }
+            : { aspectRatio: "1 / 1" }
       : {};
 
   const fileBadge = getFileTypeBadge(item.file_name, item.mime_type);
@@ -253,22 +278,38 @@ export const MediaCard: React.FC<MediaCardProps> = ({
               onLoad={() => setLoaded(true)}
               className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none"
             />
-          ) : item.thumbnail_url ? (
+          ) : item.thumbnail_url && !hasError ? (
             /* Instant Local WebP Thumbnail (0ms) - Standard & Battery Saver Fallback */
             <img
-              src={item.thumbnail_url}
+              key={`${item.id}-${retryCount}`}
+              src={retryCount > 0 ? `${item.thumbnail_url}&r=${retryCount}` : item.thumbnail_url}
               alt={item.file_name}
               draggable={false}
               loading="lazy"
-              onLoad={() => setLoaded(true)}
+              onLoad={(e) => {
+                setLoaded(true);
+                setHasError(false);
+                const w = e.currentTarget.naturalWidth;
+                const h = e.currentTarget.naturalHeight;
+                if (w && h && (!item.width || !item.height)) {
+                  setNaturalRatio(w / h);
+                }
+              }}
+              onError={handleImageError}
               className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 pointer-events-none select-none ${
                 loaded ? "opacity-100" : "opacity-0"
               }`}
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-on-surface-variant bg-surface-container">
-              <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
-              <span className="text-[10px] truncate max-w-[80%]">
+            <div className="w-full h-full flex flex-col items-center justify-center p-3 text-on-surface-variant bg-surface-container/60 border border-white/[0.04]">
+              {isVideo ? (
+                <div className="w-10 h-10 rounded-full bg-surface-container-high/80 border border-white/10 flex items-center justify-center mb-2 text-primary shadow-sm">
+                  <Play className="w-5 h-5 ml-0.5 fill-current" />
+                </div>
+              ) : (
+                <ImageIcon className="w-8 h-8 mb-1 opacity-50" />
+              )}
+              <span className="text-[11px] font-mono truncate max-w-[90%] text-center text-on-surface">
                 {item.file_name}
               </span>
             </div>

@@ -2,19 +2,24 @@
 =============================================================================
 Module: src.api.routes.thumbnails
 Purpose: High-performance WebP thumbnail & animated WebP video preview delivery
-         endpoints with ultra-lightweight on-demand extraction and structured logging.
+         endpoints with ultra-lightweight on-demand extraction, concurrency throttling
+         via asyncio.Semaphore(6), strict MIME/extension filtering (preventing 20MB RAW file stalls),
+         instant fast-fail (<1ms) for videos lacking embedded thumbs to prevent socket starvation,
+         double-checked caching, and structured logging.
 Used by: Gallery UI Grid, Lightbox previews, Folder Cover Cards, Video Hover Previews.
-Dependencies: fastapi, pathlib, tempfile, logging, src.database.repository, src.config,
+Dependencies: asyncio, fastapi, pathlib, tempfile, logging, src.database.repository, src.config,
               src.services.thumbnail_service, src.storage.telegram_client
-Public Members: router, get_media_thumbnail(), get_media_preview()
+Public Members: router, get_media_thumbnail(), get_media_preview(), get_thumbnail_semaphore()
 Side Effects: Serves cached WebP files from disk; writes extracted WebP to disk
               and updates SQLite thumbnail_path for instant sub-20ms subsequent reads.
 =============================================================================
 """
 
+import asyncio
 import logging
-import tempfile
 from pathlib import Path
+import tempfile
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from src.config import get_settings
@@ -25,6 +30,21 @@ from src.storage.telegram_client import get_telegram_client
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/media", tags=["Thumbnails"])
+
+# Concurrency throttle: Allow at most 6 simultaneous on-demand thumbnail extractions from MTProto
+# to prevent socket starvation, DC FloodWaitError, and CPU exhaustion while maximizing throughput.
+_thumbnail_semaphore: Optional[asyncio.Semaphore] = None
+
+# Extensions safely decodable by standard Pillow for on-demand thumbnail generation
+SUPPORTED_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tiff", ".tif", ".ico"}
+
+
+def get_thumbnail_semaphore() -> asyncio.Semaphore:
+    """Returns the process-wide Semaphore for throttling on-demand thumbnail extractions."""
+    global _thumbnail_semaphore
+    if _thumbnail_semaphore is None:
+        _thumbnail_semaphore = asyncio.Semaphore(6)
+    return _thumbnail_semaphore
 
 
 @router.get("/{media_id:int}/thumbnail")
@@ -73,25 +93,75 @@ async def get_media_thumbnail(media_id: int):
     elif candidate_thumb.exists():
         candidate_thumb.unlink(missing_ok=True)
 
-    # 3. High-performance on-demand generation from Telegram vault
-    telegram_client = get_telegram_client()
-    channel_id = item["telegram_channel_id"]
-    message_id = item["telegram_message_id"]
+    # 3. High-performance on-demand generation from Telegram vault (throttled by semaphore)
+    async with get_thumbnail_semaphore():
+        # Double-check: another concurrent worker may have generated this thumbnail while we waited in queue
+        if candidate_thumb.exists() and candidate_thumb.stat().st_size >= 1200:
+            await MediaRepository.update_thumbnail_path(media_id, str(candidate_thumb.as_posix()))
+            return FileResponse(
+                path=candidate_thumb,
+                media_type="image/webp",
+                headers={
+                    "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+                    "Content-Disposition": f"inline; filename={candidate_thumb.name}",
+                },
+            )
 
-    try:
-        await telegram_client.start()
-        entity = await telegram_client.get_target_entity(channel_id)
-        message = await telegram_client.raw_client.get_messages(entity, ids=message_id)
+        telegram_client = get_telegram_client()
+        channel_id = item["telegram_channel_id"]
+        message_id = item["telegram_message_id"]
 
-        # 3a. Check for Telegram native preview bytes first (instant <10ms)
-        if message and message.media:
-            try:
-                native_thumb_bytes = await telegram_client.raw_client.download_media(
-                    message.media, thumb=-1, file=bytes
-                )
-                if native_thumb_bytes:
-                    from src.services.thumbnail_service import generate_thumbnail_from_bytes
-                    generated = generate_thumbnail_from_bytes(native_thumb_bytes, file_hash)
+        try:
+            await telegram_client.start()
+            entity = await telegram_client.get_target_entity(channel_id)
+            message = await telegram_client.raw_client.get_messages(entity, ids=message_id)
+
+            # 3a. Check for Telegram native preview bytes first (instant <10ms for photos & videos with embedded thumbs)
+            if message and message.media:
+                try:
+                    native_thumb_bytes = await telegram_client.raw_client.download_media(
+                        message, thumb=-1, file=bytes
+                    )
+                    if native_thumb_bytes:
+                        from src.services.thumbnail_service import generate_thumbnail_from_bytes
+                        generated = generate_thumbnail_from_bytes(native_thumb_bytes, file_hash)
+                        if generated and Path(generated).exists():
+                            await MediaRepository.update_thumbnail_path(media_id, generated)
+                            return FileResponse(
+                                path=Path(generated),
+                                media_type="image/webp",
+                                headers={
+                                    "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
+                                    "Content-Disposition": f"inline; filename={Path(generated).name}",
+                                },
+                            )
+                except Exception as e:
+                    logger.warning(f"[Thumbnail] Native thumb extraction failed for media {media_id}: {e}")
+
+            # 3b. For regular photos, ONLY download if it's a standard web image and <= 5MB.
+            # Never download camera RAW files (.RAF, .CR2, .NEF, etc.) or large files on-the-fly,
+            # as they stall network connections and cannot be decoded by standard Pillow.
+            # For videos without native Telegram thumbnails, do NOT stream multi-MB chunks synchronously;
+            # they fail-fast to 404 instantly (<1ms) to eliminate browser socket starvation.
+            file_name = item.get("file_name", "")
+            ext = Path(file_name).suffix.lower()
+            file_size = item.get("file_size", 0)
+            if ext in SUPPORTED_IMAGE_EXTS and file_size <= 5 * 1024 * 1024:
+                suffix = ext or ".tmp"
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+                    tmp_path = Path(tmp.name)
+                
+                try:
+                    await telegram_client.download_document(
+                        channel_id=channel_id,
+                        message_id=message_id,
+                        destination=tmp_path,
+                    )
+                    generated = generate_thumbnail(
+                        file_path=tmp_path,
+                        file_hash=file_hash,
+                        mime_type=mime_type,
+                    )
                     if generated and Path(generated).exists():
                         await MediaRepository.update_thumbnail_path(media_id, generated)
                         return FileResponse(
@@ -102,80 +172,41 @@ async def get_media_thumbnail(media_id: int):
                                 "Content-Disposition": f"inline; filename={Path(generated).name}",
                             },
                         )
-            except Exception as e:
-                logger.warning(f"[Thumbnail] Native thumb extraction failed for media {media_id}: {e}")
+                finally:
+                    if tmp_path.exists():
+                        tmp_path.unlink()
 
-        # 3b. For video items, stream only the first 3MB header to extract frame 0 (never download full 800MB video)
-        if mime_type.startswith("video/"):
-            suffix = Path(item["file_name"]).suffix or ".mp4"
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                tmp_path = Path(tmp.name)
-            
-            try:
-                buffer = bytearray()
-                async for chunk in telegram_client.iter_document_chunks(
-                    channel_id=channel_id,
-                    message_id=message_id,
-                    offset=0,
-                    limit=3 * 1024 * 1024,
-                ):
-                    buffer.extend(chunk)
-                    if len(buffer) >= 3 * 1024 * 1024:
-                        break
-                
-                tmp_path.write_bytes(buffer)
-                from src.services.thumbnail_service import generate_video_thumbnail
-                generated = generate_video_thumbnail(tmp_path, file_hash)
-                if generated and Path(generated).exists():
-                    await MediaRepository.update_thumbnail_path(media_id, generated)
-                    return FileResponse(
-                        path=Path(generated),
-                        media_type="image/webp",
-                        headers={
-                            "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
-                            "Content-Disposition": f"inline; filename={Path(generated).name}",
-                        },
-                    )
-            finally:
-                if tmp_path.exists():
-                    tmp_path.unlink()
+        except Exception as e:
+            logger.error(f"[Thumbnail] On-demand thumbnail generation failed for media {media_id}: {e}")
 
-        # 3c. For regular photos < 20MB, download and generate
-        file_size = item.get("file_size", 0)
-        if file_size < 20 * 1024 * 1024:
-            suffix = Path(item["file_name"]).suffix or ".tmp"
-            with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-                tmp_path = Path(tmp.name)
-            
-            try:
-                await telegram_client.download_document(
-                    channel_id=channel_id,
-                    message_id=message_id,
-                    destination=tmp_path,
-                )
-                generated = generate_thumbnail(
-                    file_path=tmp_path,
-                    file_hash=file_hash,
-                    mime_type=mime_type,
-                )
-                if generated and Path(generated).exists():
-                    await MediaRepository.update_thumbnail_path(media_id, generated)
-                    return FileResponse(
-                        path=Path(generated),
-                        media_type="image/webp",
-                        headers={
-                            "Cache-Control": "public, max-age=604800, stale-while-revalidate=86400",
-                            "Content-Disposition": f"inline; filename={Path(generated).name}",
-                        },
-                    )
-            finally:
-                if tmp_path.exists():
-                    tmp_path.unlink()
+    raise HTTPException(
+        status_code=404,
+        detail="Thumbnail not available for this item yet",
+        headers={"Cache-Control": "no-cache, max-age=10, must-revalidate"},
+    )
 
+
+@router.post("/generate-missing")
+async def trigger_missing_thumbnails():
+    """Triggers asynchronous background thumbnail generation for any videos missing thumbnails."""
+    from src.services.background_thumbnail_worker import get_thumbnail_worker
+    worker = get_thumbnail_worker()
+    worker.start_worker_task()
+    worker.trigger_scan()
+    return {"status": "triggered", "message": "Background thumbnail generator started"}
+
+
+@router.post("/process-videos-sync")
+async def process_videos_sync():
+    """Directly executes pending video thumbnail generation and returns the result."""
+    from src.services.background_thumbnail_worker import get_thumbnail_worker
+    worker = get_thumbnail_worker()
+    try:
+        await worker._process_pending_videos()
+        return {"status": "success"}
     except Exception as e:
-        logger.error(f"[Thumbnail] On-demand thumbnail generation failed for media {media_id}: {e}")
-
-    raise HTTPException(status_code=404, detail="Thumbnail not available for this item")
+        import traceback
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
 
 
 @router.get("/{media_id:int}/preview")
@@ -216,7 +247,15 @@ async def get_media_preview(media_id: int):
             cached_source = td_anim
 
     if cached_source.exists() and cached_source.stat().st_size > 0:
-        from src.services.thumbnail_service import generate_video_preview
+        from src.services.thumbnail_service import generate_video_preview, generate_video_thumbnail
+
+        # Proactively ensure static WebP thumbnail also exists for the gallery grid
+        static_thumb = settings.thumbnails_path / f"{file_hash}.webp"
+        if not (static_thumb.exists() and static_thumb.stat().st_size >= 1200):
+            created_thumb = generate_video_thumbnail(cached_source, file_hash)
+            if created_thumb and Path(created_thumb).exists():
+                await MediaRepository.update_thumbnail_path(media_id, created_thumb)
+
         gen = generate_video_preview(cached_source, file_hash)
         if gen and Path(gen).exists():
             return FileResponse(

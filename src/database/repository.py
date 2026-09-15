@@ -4,6 +4,7 @@ Module: src.database.repository
 Purpose: Data access layer for media catalog, multi-vault channel partitioning, folders/albums,
          favorites, trash/recovery, smart EXIF filtering, timeline scrubber, keyset cursor pagination,
          aggregated timeline summaries, and audit logging with senior DBA minimum-cost query plans.
+         Features include_deleted filters for deduplication and duplicate-purging atomicity.
 Used by: src.services.archive_service, src.services.sync_service, src.api.routes.media,
          src.api.routes.folders, src.api.routes.vaults.
 Dependencies: aiosqlite, src.database.connection
@@ -24,31 +25,36 @@ class MediaRepository:
     """Repository handling database queries for media catalog, folders, and audit log."""
 
     @staticmethod
-    async def get_by_hash(file_hash: str, channel_id: Optional[Union[int, str]] = None) -> Optional[dict[str, Any]]:
+    async def get_by_hash(
+        file_hash: str,
+        channel_id: Optional[Union[int, str]] = None,
+        include_deleted: bool = False,
+    ) -> Optional[dict[str, Any]]:
         """
-        Retrieves active media item by cryptographic file hash, optionally scoped by Telegram channel.
+        Retrieves media item by cryptographic file hash, optionally scoped by Telegram channel.
         Cost: O(log N) point lookup via covered index idx_media_channel_file_hash / idx_media_file_hash.
         """
         norm_ch = normalize_channel_id(channel_id)
+        condition = "" if include_deleted else " AND is_deleted = 0"
         if norm_ch is not None:
-            query = """
+            query = f"""
                 SELECT id, file_hash, file_name, file_size, mime_type,
                        telegram_channel_id, telegram_message_id, telegram_file_id,
                        width, height, duration_seconds, camera_make, camera_model,
-                       date_taken, thumbnail_path, created_at
+                       date_taken, thumbnail_path, created_at, is_deleted, deleted_at
                 FROM media_items
-                WHERE telegram_channel_id = ? AND file_hash = ? AND is_deleted = 0
+                WHERE telegram_channel_id = ? AND file_hash = ?{condition}
                 LIMIT 1;
             """
             params = (norm_ch, file_hash)
         else:
-            query = """
+            query = f"""
                 SELECT id, file_hash, file_name, file_size, mime_type,
                        telegram_channel_id, telegram_message_id, telegram_file_id,
                        width, height, duration_seconds, camera_make, camera_model,
-                       date_taken, thumbnail_path, created_at
+                       date_taken, thumbnail_path, created_at, is_deleted, deleted_at
                 FROM media_items
-                WHERE file_hash = ? AND is_deleted = 0
+                WHERE file_hash = ?{condition}
                 LIMIT 1;
             """
             params = (file_hash,)
@@ -78,18 +84,23 @@ class MediaRepository:
                 return dict(row) if row else None
 
     @staticmethod
-    async def get_by_channel_message(channel_id: int, message_id: int) -> Optional[dict[str, Any]]:
+    async def get_by_channel_message(
+        channel_id: int,
+        message_id: int,
+        include_deleted: bool = False,
+    ) -> Optional[dict[str, Any]]:
         """
-        Retrieves active media item by Telegram channel ID and message ID.
+        Retrieves media item by Telegram channel ID and message ID.
         Cost: O(log N) point lookup via composite index idx_media_channel_msg.
         """
-        query = """
+        condition = "" if include_deleted else " AND is_deleted = 0"
+        query = f"""
             SELECT id, file_hash, file_name, file_size, mime_type,
                    telegram_channel_id, telegram_message_id, telegram_file_id,
                    width, height, duration_seconds, camera_make, camera_model,
-                   date_taken, thumbnail_path, created_at
+                   date_taken, thumbnail_path, created_at, is_deleted, deleted_at
             FROM media_items
-            WHERE telegram_channel_id = ? AND telegram_message_id = ? AND is_deleted = 0
+            WHERE telegram_channel_id = ? AND telegram_message_id = ?{condition}
             LIMIT 1;
         """
         norm_ch = normalize_channel_id(channel_id)
@@ -122,31 +133,36 @@ class MediaRepository:
                 return None, None
 
     @staticmethod
-    async def get_by_message_id(message_id: int, channel_id: Optional[Union[int, str]] = None) -> Optional[dict[str, Any]]:
+    async def get_by_message_id(
+        message_id: int,
+        channel_id: Optional[Union[int, str]] = None,
+        include_deleted: bool = False,
+    ) -> Optional[dict[str, Any]]:
         """
-        Retrieves active media item by Telegram message ID, optionally scoped by Telegram channel.
+        Retrieves media item by Telegram message ID, optionally scoped by Telegram channel.
         Cost: O(log N) point lookup via idx_media_channel_msg_active or idx_media_channel_msg.
         """
         norm_ch = normalize_channel_id(channel_id)
+        condition = "" if include_deleted else " AND is_deleted = 0"
         if norm_ch is not None:
-            query = """
+            query = f"""
                 SELECT id, file_hash, file_name, file_size, mime_type,
                        telegram_channel_id, telegram_message_id, telegram_file_id,
                        width, height, duration_seconds, camera_make, camera_model,
-                       date_taken, thumbnail_path, created_at
+                       date_taken, thumbnail_path, created_at, is_deleted, deleted_at
                 FROM media_items
-                WHERE telegram_channel_id = ? AND telegram_message_id = ? AND is_deleted = 0
+                WHERE telegram_channel_id = ? AND telegram_message_id = ?{condition}
                 LIMIT 1;
             """
             params = (norm_ch, message_id)
         else:
-            query = """
+            query = f"""
                 SELECT id, file_hash, file_name, file_size, mime_type,
                        telegram_channel_id, telegram_message_id, telegram_file_id,
                        width, height, duration_seconds, camera_make, camera_model,
-                       date_taken, thumbnail_path, created_at
+                       date_taken, thumbnail_path, created_at, is_deleted, deleted_at
                 FROM media_items
-                WHERE telegram_message_id = ? AND is_deleted = 0
+                WHERE telegram_message_id = ?{condition}
                 LIMIT 1;
             """
             params = (message_id,)
@@ -591,13 +607,29 @@ class MediaRepository:
     @staticmethod
     async def purge_media_permanently(media_id: int) -> bool:
         """
-        Permanently removes a media record from SQLite catalog and cleans up folder links.
+        Permanently removes a media record from SQLite catalog, cleans up folder links,
+        and atomically purges any duplicate records associated with the same channel message.
         Cost: Atomic transaction with FK cleanup.
         """
         async with get_db_connection() as conn:
+            cursor = await conn.execute(
+                "SELECT telegram_channel_id, telegram_message_id FROM media_items WHERE id = ?;",
+                (media_id,),
+            )
+            row = await cursor.fetchone()
+            ch_id, msg_id = (row[0], row[1]) if row else (None, None)
+
             await conn.execute("DELETE FROM media_folders WHERE media_id = ?;", (media_id,))
-            async with conn.execute("DELETE FROM media_items WHERE id = ?;", (media_id,)) as cursor:
-                affected = cursor.rowcount > 0
+            if ch_id is not None and msg_id is not None:
+                async with conn.execute(
+                    "DELETE FROM media_items WHERE id = ? OR (telegram_channel_id = ? AND telegram_message_id = ?);",
+                    (media_id, ch_id, msg_id),
+                ) as del_cursor:
+                    affected = del_cursor.rowcount > 0
+            else:
+                async with conn.execute("DELETE FROM media_items WHERE id = ?;", (media_id,)) as del_cursor:
+                    affected = del_cursor.rowcount > 0
+
             await conn.commit()
             return affected
 
