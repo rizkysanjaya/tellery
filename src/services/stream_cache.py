@@ -15,12 +15,50 @@ Side Effects: Reads, writes, and evicts cached media binary files in data/cache/
 """
 
 import asyncio
+import gc
 import shutil
+import sys
+import time
 from pathlib import Path
 from typing import AsyncIterator, Dict, Optional, Union
 from src.config import get_settings
 from src.storage.telegram_client import TelegramStorageClient, get_telegram_client
 from src.storage.tdlib_client import get_tdlib_client
+
+if sys.platform == "win32":
+    import ctypes
+    from ctypes import POINTER, byref, wintypes
+    _k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _GetCompressedFileSizeW = _k32.GetCompressedFileSizeW
+    _GetCompressedFileSizeW.argtypes = [wintypes.LPCWSTR, POINTER(wintypes.DWORD)]
+    _GetCompressedFileSizeW.restype = wintypes.DWORD
+
+    def get_file_allocated_size(file_path: Path) -> int:
+        """Returns physical bytes allocated on disk (handles NTFS sparse files)."""
+        try:
+            high = wintypes.DWORD(0)
+            low = _GetCompressedFileSizeW(str(file_path), byref(high))
+            if low == 0xFFFFFFFF:
+                err = ctypes.get_last_error()
+                if err != 0:
+                    return file_path.stat().st_size
+            return (high.value << 32) | low
+        except Exception:
+            try:
+                return file_path.stat().st_size
+            except Exception:
+                return 0
+else:
+    def get_file_allocated_size(file_path: Path) -> int:
+        """Returns physical blocks allocated on disk for POSIX systems."""
+        try:
+            st = file_path.stat()
+            return getattr(st, "st_blocks", 0) * 512 or st.st_size
+        except Exception:
+            try:
+                return file_path.stat().st_size
+            except Exception:
+                return 0
 
 
 class StreamCacheManager:
@@ -90,9 +128,7 @@ class StreamCacheManager:
 
         td_files = Path("data/tdlib/files")
         if td_files.exists():
-            for sub in td_files.iterdir():
-                if sub.is_dir():
-                    dirs.append(sub)
+            dirs.append(td_files)
 
         return dirs
 
@@ -101,10 +137,10 @@ class StreamCacheManager:
         total_bytes = 0
         file_count = 0
         for d in self._get_disposable_cache_dirs():
-            for f in d.glob("*"):
+            for f in d.rglob("*"):
                 if f.is_file():
                     try:
-                        total_bytes += f.stat().st_size
+                        total_bytes += get_file_allocated_size(f)
                         file_count += 1
                     except Exception:
                         pass
@@ -119,7 +155,7 @@ class StreamCacheManager:
             "file_count": file_count,
         }
 
-    def clear_all_cache(self) -> dict:
+    async def clear_all_cache(self) -> dict:
         """Purges 100% of stream cache and temporary files to immediately free local disk storage."""
         # Cancel any active background download tasks
         for task in list(self._inflight_downloads.values()):
@@ -133,29 +169,47 @@ class StreamCacheManager:
                 td = get_tdlib_client()
                 for fid in list(self._active_tdlib_downloads.values()):
                     try:
-                        asyncio.create_task(td.send_request({
+                        await td.send_request({
                             "@type": "cancelDownloadFile",
                             "file_id": fid,
                             "only_if_pending": False,
-                        }))
+                        })
                     except Exception:
                         pass
             except Exception:
                 pass
             self._active_tdlib_downloads.clear()
 
-        freed_bytes = 0
-        files_deleted = 0
-        for d in self._get_disposable_cache_dirs():
-            for f in list(d.glob("*")):
-                if f.is_file():
-                    try:
-                        size = f.stat().st_size
-                        f.unlink()
-                        freed_bytes += size
-                        files_deleted += 1
-                    except Exception:
-                        pass
+        # Release open file handles from garbage collector
+        gc.collect()
+        await asyncio.sleep(0.05)
+
+        def _do_file_deletion():
+            freed_bytes = 0
+            files_deleted = 0
+            for d in self._get_disposable_cache_dirs():
+                if not d.exists():
+                    continue
+                for f in list(d.rglob("*")):
+                    if f.is_file():
+                        try:
+                            size = get_file_allocated_size(f)
+                            deleted = False
+                            for _ in range(3):
+                                try:
+                                    f.unlink()
+                                    deleted = True
+                                    break
+                                except (PermissionError, OSError):
+                                    time.sleep(0.05)
+                            if deleted:
+                                freed_bytes += size
+                                files_deleted += 1
+                        except Exception:
+                            pass
+            return freed_bytes, files_deleted
+
+        freed_bytes, files_deleted = await asyncio.to_thread(_do_file_deletion)
 
         return {
             "freed_bytes": freed_bytes,
@@ -171,14 +225,15 @@ class StreamCacheManager:
         files = []
         total_size = 0
         for d in self._get_disposable_cache_dirs():
-            for f in d.glob("*"):
+            for f in d.rglob("*"):
                 if f.is_file():
                     if any(f.name.startswith(h) for h in self._inflight_downloads.keys()):
                         continue
                     try:
                         stat = f.stat()
-                        files.append((stat.st_mtime, stat.st_size, f))
-                        total_size += stat.st_size
+                        alloc_size = get_file_allocated_size(f)
+                        files.append((stat.st_mtime, alloc_size, f))
+                        total_size += alloc_size
                     except Exception:
                         pass
 
@@ -317,6 +372,7 @@ class StreamCacheManager:
 
                 if file_info and file_info.get("id"):
                     file_id = file_info["id"]
+                    self._active_tdlib_downloads[file_hash] = file_id
                     # Trigger async download
                     await td_client.download_file_fast(file_id=file_id, priority=32, synchronous=False)
 
@@ -338,6 +394,7 @@ class StreamCacheManager:
             print(f"[StreamCache] TDLib C++ download background note: {e}")
 
         if tdlib_success:
+            self._active_tdlib_downloads.pop(file_hash, None)
             async with self._lock:
                 self._inflight_downloads.pop(file_hash, None)
             return
@@ -391,6 +448,7 @@ class StreamCacheManager:
         except Exception as e:
             print(f"[StreamCache] Progressive download error for {file_hash}: {e}")
         finally:
+            self._active_tdlib_downloads.pop(file_hash, None)
             async with self._lock:
                 self._inflight_downloads.pop(file_hash, None)
 

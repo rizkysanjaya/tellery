@@ -54,7 +54,7 @@ async def clear_cache():
     instantly reclaiming local drive storage asynchronously.
     """
     cache = get_stream_cache()
-    result = await asyncio.to_thread(cache.clear_all_cache)
+    result = await cache.clear_all_cache()
     return {
         "status": "success",
         "message": f"Purged {result['files_deleted']} cached files ({result['freed_formatted']} reclaimed)",
