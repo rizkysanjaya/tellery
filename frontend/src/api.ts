@@ -196,7 +196,8 @@ export function uploadMediaFile(
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
     const uploadId = "upl_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
-    formData.append("file", file);
+
+    // Append metadata first so backend receives upload_id before large binary body
     formData.append("upload_id", uploadId);
     if (folderId !== undefined && folderId !== null) {
       formData.append("folder_id", folderId.toString());
@@ -204,6 +205,7 @@ export function uploadMediaFile(
     if (channelId !== undefined && channelId !== null) {
       formData.append("channel_id", channelId.toString());
     }
+    formData.append("file", file);
 
     let pollInterval: any = null;
     let isFinished = false;
@@ -217,18 +219,23 @@ export function uploadMediaFile(
     };
 
     let maxReportedBytes = 0;
+    const uploadStartTime = Date.now();
 
     // 1. Initial browser-to-server spool progress
-    xhr.upload.addEventListener("progress", () => {
+    xhr.upload.addEventListener("progress", (e) => {
       if (isFinished) return;
-      if (onProgress) {
-        onProgress(1, 0, file.size, 0);
+      if (onProgress && e.lengthComputable && e.total > 0) {
+        const elapsedSec = Math.max(0.1, (Date.now() - uploadStartTime) / 1000);
+        const speedMbps = Number(((e.loaded / (1024 * 1024)) / elapsedSec).toFixed(1));
+        const percent = Math.min(99, Math.max(1, Math.round((e.loaded / e.total) * 100)));
+        onProgress(percent, e.loaded, e.total, speedMbps);
       }
     });
 
     // 2. Actively poll real-time MTProto upload to Telegram Cloud
     xhr.upload.addEventListener("load", () => {
       if (isFinished) return;
+      maxReportedBytes = 0;
       if (onProcessing) {
         onProcessing();
       }
@@ -254,6 +261,13 @@ export function uploadMediaFile(
                 file.size,
                 data.speed_mbps || 0
               );
+            } else if (data.status === "error") {
+              stopPolling();
+              try {
+                xhr.abort();
+              } catch {}
+              reject(new Error(data.error || "Upload to Telegram failed"));
+              return;
             }
           }
         } catch {}

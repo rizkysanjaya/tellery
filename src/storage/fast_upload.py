@@ -17,6 +17,7 @@ import random
 from pathlib import Path
 from typing import Callable, Optional, Union
 from telethon import TelegramClient
+from telethon.errors import FloodWaitError
 from telethon.tl.functions.upload import SaveBigFilePartRequest, SaveFilePartRequest
 from telethon.tl.types import InputFile, InputFileBig
 from src.storage.client_pool import get_connection_pool
@@ -66,6 +67,7 @@ async def fast_upload_file(
 
     uploaded_bytes = 0
     lock = asyncio.Lock()
+    main_fallback_lock = asyncio.Lock()
 
     async def worker(sub_client: TelegramClient):
         nonlocal uploaded_bytes
@@ -82,6 +84,12 @@ async def fast_upload_file(
             max_retries = 3
             for attempt in range(max_retries):
                 try:
+                    if not sub_client.is_connected():
+                        try:
+                            await asyncio.wait_for(sub_client.connect(), timeout=5.0)
+                        except Exception:
+                            pass
+
                     if is_big:
                         req = SaveBigFilePartRequest(
                             file_id=file_id,
@@ -97,7 +105,24 @@ async def fast_upload_file(
                         )
                     await sub_client(req)
                     break
+                except FloodWaitError:
+                    # Never swallow or retry FloodWait without respecting Telegram cooldown
+                    raise
                 except Exception as e:
+                    # Fall back to main client if sub-client socket was reset or closed by DC
+                    # Serialized to avoid thunderous fallback on main socket
+                    if sub_client != client:
+                        try:
+                            async with main_fallback_lock:
+                                if not client.is_connected():
+                                    await asyncio.wait_for(client.connect(), timeout=5.0)
+                                await client(req)
+                            break
+                        except FloodWaitError:
+                            raise
+                        except Exception:
+                            pass
+
                     if attempt == max_retries - 1:
                         raise e
                     await asyncio.sleep(0.5)
@@ -119,7 +144,16 @@ async def fast_upload_file(
         asyncio.create_task(worker(client_pool[i % len(client_pool)]))
         for i in range(max(1, worker_count))
     ]
-    await asyncio.gather(*worker_tasks)
+    try:
+        await asyncio.gather(*worker_tasks)
+    except Exception:
+        # Cancel all sibling workers so caller's finally block doesn't unlink
+        # files while active worker coroutines are still reading
+        for t in worker_tasks:
+            if not t.done():
+                t.cancel()
+        await asyncio.gather(*worker_tasks, return_exceptions=True)
+        raise
 
     if is_big:
         return InputFileBig(id=file_id, parts=total_parts, name=file_name)

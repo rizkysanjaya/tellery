@@ -14,7 +14,6 @@ Side Effects: Database reads/writes, MTProto network uploads/downloads/deletes, 
 """
 
 import asyncio
-import shutil
 from pathlib import Path
 from typing import Any, Callable, Optional, Union
 from telethon.errors import FloodWaitError
@@ -23,7 +22,6 @@ from src.database.connection import normalize_channel_id
 from src.database.repository import MediaRepository
 from src.services.hasher import compute_bytes_sha256, compute_file_sha256
 from src.services.metadata_extractor import extract_media_metadata
-from src.services.stream_cache import get_stream_cache
 from src.services.thumbnail_service import generate_thumbnail
 from src.services.transcoder_service import ensure_web_stream_ready
 from src.storage.tdlib_client import get_tdlib_client
@@ -108,14 +106,11 @@ class ArchiveService:
         # 4. Generate local WebP thumbnail (photos and videos)
         thumbnail_path = generate_thumbnail(target_path, file_hash, final_mime_type)
 
-        # 5. Populate stream cache for instant local playback
-        cache_manager = get_stream_cache()
-        cached_stream_file = cache_manager.get_cache_path(file_hash)
-        if not cached_stream_file.exists() or cached_stream_file.stat().st_size != file_size:
-            try:
-                shutil.copy2(target_path, cached_stream_file)
-            except Exception as e:
-                print(f"[Archive] Stream cache pre-population warning: {e}")
+        # 5. Ephemeral upload architecture:
+        # The file remains in its transient buffer strictly for hashing, metadata extraction,
+        # and MTProto chunk upload. We do NOT retain the full binary in local stream cache,
+        # preserving the zero-storage footprint invariant for cloud-backed vaults.
+        # Once upload succeeds, the route's finally block unlinks the transient buffer cleanly.
 
         # 6. Upload uncompressed document to Telegram Vault
         uploaded_msg_id: Optional[int] = None
