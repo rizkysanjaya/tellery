@@ -20,7 +20,6 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from telethon.tl.functions.upload import SaveBigFilePartRequest, SaveFilePartRequest
 from telethon.tl.types import InputFile, InputFileBig
-from src.storage.client_pool import get_connection_pool
 
 
 async def fast_upload_file(
@@ -62,14 +61,11 @@ async def fast_upload_file(
         length = min(part_size, file_size - offset)
         queue.put_nowait((part_idx, offset, length))
 
-    pool = get_connection_pool()
-    client_pool = await pool.get_clients(client)
-
     uploaded_bytes = 0
     lock = asyncio.Lock()
-    main_fallback_lock = asyncio.Lock()
+    reconnect_lock = asyncio.Lock()
 
-    async def worker(sub_client: TelegramClient):
+    async def worker():
         nonlocal uploaded_bytes
         while not queue.empty():
             try:
@@ -81,14 +77,16 @@ async def fast_upload_file(
                 f.seek(offset)
                 chunk = f.read(length)
 
+            if len(chunk) != length:
+                raise IOError(f"Truncated read on part {part_idx}: expected {length} bytes, got {len(chunk)}")
+
             max_retries = 3
             for attempt in range(max_retries):
                 try:
-                    if not sub_client.is_connected():
-                        try:
-                            await asyncio.wait_for(sub_client.connect(), timeout=5.0)
-                        except Exception:
-                            pass
+                    if not client.is_connected():
+                        async with reconnect_lock:
+                            if not client.is_connected():
+                                await asyncio.wait_for(client.connect(), timeout=5.0)
 
                     if is_big:
                         req = SaveBigFilePartRequest(
@@ -103,26 +101,12 @@ async def fast_upload_file(
                             file_part=part_idx,
                             bytes=chunk,
                         )
-                    await sub_client(req)
+                    await client(req)
                     break
                 except FloodWaitError:
-                    # Never swallow or retry FloodWait without respecting Telegram cooldown
+                    # Never swallow FloodWait; bubble up to archive service for global cooldown
                     raise
                 except Exception as e:
-                    # Fall back to main client if sub-client socket was reset or closed by DC
-                    # Serialized to avoid thunderous fallback on main socket
-                    if sub_client != client:
-                        try:
-                            async with main_fallback_lock:
-                                if not client.is_connected():
-                                    await asyncio.wait_for(client.connect(), timeout=5.0)
-                                await client(req)
-                            break
-                        except FloodWaitError:
-                            raise
-                        except Exception:
-                            pass
-
                     if attempt == max_retries - 1:
                         raise e
                     await asyncio.sleep(0.5)
@@ -139,11 +123,13 @@ async def fast_upload_file(
 
             queue.task_done()
 
-    worker_count = min(len(client_pool), total_parts)
+    worker_count = min(workers, total_parts)
     worker_tasks = [
-        asyncio.create_task(worker(client_pool[i % len(client_pool)]))
-        for i in range(max(1, worker_count))
+        asyncio.create_task(worker())
+        for _ in range(max(1, worker_count))
     ]
+    old_flood_threshold = client.flood_sleep_threshold
+    client.flood_sleep_threshold = 0
     try:
         await asyncio.gather(*worker_tasks)
     except Exception:
@@ -154,6 +140,8 @@ async def fast_upload_file(
                 t.cancel()
         await asyncio.gather(*worker_tasks, return_exceptions=True)
         raise
+    finally:
+        client.flood_sleep_threshold = old_flood_threshold
 
     if is_big:
         return InputFileBig(id=file_id, parts=total_parts, name=file_name)
