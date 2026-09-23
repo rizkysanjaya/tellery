@@ -63,7 +63,20 @@ def extract_media_metadata(file_path: Union[str, Path]) -> MediaMetadata:
     path_obj = Path(file_path)
     file_size = path_obj.stat().st_size
     mime_type, _ = mimetypes.guess_type(path_obj.name)
-    mime_type = mime_type or "application/octet-stream"
+    if not mime_type or mime_type == "application/octet-stream":
+        ext = path_obj.suffix.lower()
+        ext_map = {
+            ".mov": "video/quicktime",
+            ".mp4": "video/mp4",
+            ".m4v": "video/mp4",
+            ".mkv": "video/x-matroska",
+            ".webm": "video/webm",
+            ".avi": "video/x-msvideo",
+            ".heic": "image/heic",
+            ".heif": "image/heif",
+            ".webp": "image/webp",
+        }
+        mime_type = ext_map.get(ext, mime_type or "application/octet-stream")
 
     # Default fallback capture time: file modification time
     fallback_time = datetime.fromtimestamp(

@@ -28,6 +28,12 @@ const FILE_TYPE_COLORS: Record<string, { textColor: string; badgeClass: string; 
     pillClass: "text-indigo-400 bg-indigo-500/15 border border-indigo-500/25",
     category: "video",
   },
+  m4v: {
+    textColor: "text-indigo-400",
+    badgeClass: "bg-indigo-950/80 border border-indigo-500/30 text-indigo-300",
+    pillClass: "text-indigo-400 bg-indigo-500/15 border border-indigo-500/25",
+    category: "video",
+  },
   mov: {
     textColor: "text-purple-400",
     badgeClass: "bg-purple-950/80 border border-purple-500/30 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.2)]",

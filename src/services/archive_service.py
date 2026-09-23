@@ -101,7 +101,11 @@ class ArchiveService:
 
         # 3. Extract deep EXIF and technical metadata
         meta = extract_media_metadata(target_path)
-        final_mime_type = mime_type or meta.mime_type
+        cleaned_mime = (mime_type or "").strip().lower()
+        if not cleaned_mime or cleaned_mime in ("application/octet-stream", "binary/octet-stream"):
+            final_mime_type = meta.mime_type
+        else:
+            final_mime_type = mime_type
 
         # 4. Generate local WebP thumbnail (photos and videos)
         thumbnail_path = generate_thumbnail(target_path, file_hash, final_mime_type)

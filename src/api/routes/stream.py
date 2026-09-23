@@ -72,6 +72,30 @@ async def stream_media(
     target_mime_type = mime_type
     target_file_hash = file_hash
 
+    # Defensive MIME correction: Recover video/image MIME from extension if database record has generic octet-stream
+    cleaned_mime = (mime_type or "").strip().lower()
+    if not cleaned_mime or cleaned_mime in ("application/octet-stream", "binary/octet-stream"):
+        ext = Path(file_name).suffix.lower()
+        ext_map = {
+            ".mov": "video/quicktime",
+            ".mp4": "video/mp4",
+            ".m4v": "video/mp4",
+            ".mkv": "video/x-matroska",
+            ".webm": "video/webm",
+            ".avi": "video/x-msvideo",
+            ".heic": "image/heic",
+            ".heif": "image/heif",
+            ".webp": "image/webp",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+        }
+        detected_mime = ext_map.get(ext)
+        if detected_mime:
+            mime_type = detected_mime
+            target_mime_type = detected_mime
+
     # Check if a web-compatible transcoded version already exists in cache
     web_cached = cache_manager.cache_dir / f"{file_hash}_web.mp4"
     if web_cached.exists() and web_cached.stat().st_size > 0:

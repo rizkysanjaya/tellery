@@ -56,7 +56,8 @@ export const MediaCard: React.FC<MediaCardProps> = ({
   const [retryCount, setRetryCount] = useState(0);
   const [naturalRatio, setNaturalRatio] = useState<number | null>(null);
 
-  const isVideo = item.mime_type.startsWith("video/");
+  const fileBadge = getFileTypeBadge(item.file_name, item.mime_type);
+  const isVideo = item.mime_type.startsWith("video/") || fileBadge.category === "video";
   const isGif = item.mime_type === "image/gif" || item.file_name.toLowerCase().endsWith(".gif");
   const isAnimatedVideo = isVideo && (item.file_name.toLowerCase().includes(".gif.mp4") || (Boolean(item.duration_seconds && item.duration_seconds <= 15) && item.file_name.toLowerCase().includes("gif")));
 
@@ -192,8 +193,6 @@ export const MediaCard: React.FC<MediaCardProps> = ({
             ? { aspectRatio: "9 / 16" }
             : { aspectRatio: "1 / 1" }
       : {};
-
-  const fileBadge = getFileTypeBadge(item.file_name, item.mime_type);
 
   return (
     <div

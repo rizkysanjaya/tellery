@@ -62,7 +62,8 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showNavButtons, setShowNavButtons] = useState(true);
   const navTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const isVideo = item.mime_type.startsWith("video/");
+  const fileBadge = getFileTypeBadge(item.file_name, item.mime_type);
+  const isVideo = item.mime_type.startsWith("video/") || fileBadge.category === "video";
 
   const resetNavTimer = useCallback(() => {
     setShowNavButtons(true);
@@ -95,7 +96,9 @@ export const MediaLightbox: React.FC<MediaLightboxProps> = ({
   useEffect(() => {
     const targets = [nextItem, prevItem].filter(Boolean) as MediaItem[];
     for (const target of targets) {
-      if (!target.mime_type.startsWith("video/")) {
+      const targetBadge = getFileTypeBadge(target.file_name, target.mime_type);
+      const targetIsVideo = target.mime_type.startsWith("video/") || targetBadge.category === "video";
+      if (!targetIsVideo) {
         const img = new Image();
         img.src = target.stream_url;
       }
