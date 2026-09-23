@@ -375,31 +375,32 @@ class SyncService:
                     # Even if active_set is empty (0 messages in Telegram), all items in DB no longer exist in Telegram!
                     if not hit_early_break and limit is None:
                         async with conn.execute(
-                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND (telegram_channel_id = ? OR telegram_channel_id = ?)",
+                            "SELECT id, telegram_message_id, file_hash, thumbnail_path FROM media_items WHERE (telegram_channel_id = ? OR telegram_channel_id = ?)",
                             (target_channel, int(str(target_channel).replace("-100", ""))),
                         ) as cursor:
                             db_items = await cursor.fetchall()
                     elif active_ids:
                         min_mid = min(active_ids)
                         async with conn.execute(
-                            "SELECT id, telegram_message_id FROM media_items WHERE is_deleted = 0 AND (telegram_channel_id = ? OR telegram_channel_id = ?) AND telegram_message_id >= ?",
+                            "SELECT id, telegram_message_id, file_hash, thumbnail_path FROM media_items WHERE (telegram_channel_id = ? OR telegram_channel_id = ?) AND telegram_message_id >= ?",
                             (target_channel, int(str(target_channel).replace("-100", "")), min_mid),
                         ) as cursor:
                             db_items = await cursor.fetchall()
                     else:
                         db_items = []
 
-                    deleted_in_tg = [r[0] for r in db_items if r[1] not in active_set]
+                    deleted_in_tg = [r for r in db_items if r["telegram_message_id"] not in active_set]
                     if deleted_in_tg:
-                        placeholders = ",".join("?" for _ in deleted_in_tg)
-                        now_iso = datetime.now(timezone.utc).isoformat()
-                        await conn.execute(
-                            f"UPDATE media_items SET is_deleted = 1, deleted_at = ? WHERE id IN ({placeholders})",
-                            (now_iso, *deleted_in_tg),
-                        )
-                        await conn.commit()
-                        stats["reconciled_deleted"] = len(deleted_in_tg)
-                        print(f"[SyncService] 🗑️ Reconciled {len(deleted_in_tg)} deleted items missing from Telegram")
+                        from src.services.archive_service import ArchiveService
+                        del_ids = [r["id"] for r in deleted_in_tg]
+                        # 1. Purge database rows transactionally first
+                        await self.repository.purge_media_batch_permanently(del_ids)
+                        # 2. Clean up disk caches
+                        for r in deleted_in_tg:
+                            ArchiveService.cleanup_local_cache(r["file_hash"], r["thumbnail_path"])
+
+                        stats["reconciled_deleted"] = len(del_ids)
+                        print(f"[SyncService] 🗑️ Reconciled and permanently purged {len(del_ids)} deleted items missing from Telegram")
 
             except Exception as e:
                 print(f"[SyncService] Error during channel synchronization: {e}")
@@ -449,22 +450,33 @@ class SyncService:
                 if event.deleted_ids:
                     try:
                         from src.database.connection import get_db_connection
+                        from src.services.archive_service import ArchiveService
                         norm_ch = normalize_channel_id(target_channel)
-                        async with get_db_connection() as conn:
-                            placeholders = ",".join("?" for _ in event.deleted_ids)
-                            now_iso = datetime.now(timezone.utc).isoformat()
-                            if norm_ch:
-                                await conn.execute(
-                                    f"UPDATE media_items SET is_deleted = 1, deleted_at = ? WHERE telegram_channel_id = ? AND telegram_message_id IN ({placeholders}) AND is_deleted = 0",
-                                    (now_iso, norm_ch, *event.deleted_ids),
-                                )
-                            else:
-                                await conn.execute(
-                                    f"UPDATE media_items SET is_deleted = 1, deleted_at = ? WHERE telegram_message_id IN ({placeholders}) AND is_deleted = 0",
-                                    (now_iso, *event.deleted_ids),
-                                )
-                            await conn.commit()
-                        print(f"[LiveSync] 🗑️ Auto-soft-deleted {len(event.deleted_ids)} items removed from Telegram channel: {event.deleted_ids}")
+
+                        all_deleted_rows: list[dict[str, Any]] = []
+                        # Chunk message IDs by 100 to prevent SQL bind overflow
+                        for i in range(0, len(event.deleted_ids), 100):
+                            chunk_ids = event.deleted_ids[i:i + 100]
+                            placeholders = ",".join("?" for _ in chunk_ids)
+                            async with get_db_connection() as conn:
+                                if norm_ch:
+                                    query = f"SELECT id, file_hash, thumbnail_path FROM media_items WHERE (telegram_channel_id = ? OR telegram_channel_id = ?) AND telegram_message_id IN ({placeholders})"
+                                    params = (norm_ch, int(str(norm_ch).replace("-100", "")), *chunk_ids)
+                                else:
+                                    query = f"SELECT id, file_hash, thumbnail_path FROM media_items WHERE telegram_message_id IN ({placeholders})"
+                                    params = tuple(chunk_ids)
+                                async with conn.execute(query, params) as cursor:
+                                    rows = await cursor.fetchall()
+                                    all_deleted_rows.extend(rows)
+
+                        if all_deleted_rows:
+                            del_ids = [r["id"] for r in all_deleted_rows]
+                            # 1. Purge database records transactionally first
+                            await self.repository.purge_media_batch_permanently(del_ids)
+                            # 2. Safely unlink disk caches
+                            for r in all_deleted_rows:
+                                ArchiveService.cleanup_local_cache(r["file_hash"], r["thumbnail_path"])
+                            print(f"[LiveSync] 🗑️ Permanently purged {len(del_ids)} items removed from Telegram channel: {event.deleted_ids}")
                     except Exception as err:
                         print(f"[LiveSync] Failed to process message deletion event: {err}")
 

@@ -294,17 +294,82 @@ class ArchiveService:
             "message": "Media item moved to Trash.",
         }
 
+    @staticmethod
+    def cleanup_local_cache(file_hash: str, thumbnail_path: Optional[str] = None) -> None:
+        """
+        Deletes all local disk artifacts (thumbnail, animated preview, stream cache, web transcoded MP4)
+        associated with a media item. Safely restricts path unlinking to designated cache directories.
+        """
+        settings = get_settings()
+        allowed_thumb_dir = settings.thumbnails_path.resolve()
+
+        if thumbnail_path:
+            try:
+                p = Path(thumbnail_path).resolve()
+                if allowed_thumb_dir in p.parents or p.parent == allowed_thumb_dir:
+                    p.unlink(missing_ok=True)
+            except Exception:
+                pass
+
+        try:
+            (allowed_thumb_dir / f"{file_hash}_preview.webp").unlink(missing_ok=True)
+            (allowed_thumb_dir / f"{file_hash}.webp").unlink(missing_ok=True)
+        except Exception:
+            pass
+
+        try:
+            from src.services.stream_cache import get_stream_cache
+            cache = get_stream_cache()
+            bin_path = cache.get_cache_path(file_hash)
+            if bin_path.exists():
+                bin_path.unlink(missing_ok=True)
+            web_cached = cache.cache_dir / f"{file_hash}_web.mp4"
+            if web_cached.exists():
+                web_cached.unlink(missing_ok=True)
+        except Exception:
+            pass
+
     async def restore_media_item(self, media_id: int) -> dict[str, Any]:
         """
         Restores a soft-deleted media item from Trash back to the active gallery.
+        Verifies backing Telegram message exists before restoring to prevent broken ghost media.
         """
         media = await self.repository.get_by_id(media_id, include_deleted=True)
         if not media:
             raise ValueError(f"Media item with ID {media_id} not found.")
 
+        if not media.get("is_deleted"):
+            return {
+                "status": "restored",
+                "media_id": media_id,
+                "file_name": media["file_name"],
+                "message": "Media item is already active.",
+            }
+
+        channel_id = media.get("telegram_channel_id")
+        message_id = media.get("telegram_message_id")
+        if not channel_id or not message_id:
+            await self.repository.purge_media_permanently(media_id)
+            self.cleanup_local_cache(media["file_hash"], media.get("thumbnail_path"))
+            raise ValueError(f"Cannot restore '{media['file_name']}': Missing Telegram cloud reference.")
+
+        try:
+            target_entity = await self.telegram_client.get_target_entity(channel_id)
+            tg_msg = await self.telegram_client.raw_client.get_messages(target_entity, ids=message_id)
+        except Exception as e:
+            raise RuntimeError(f"Telegram cloud verification failed: {e}")
+
+        if not tg_msg or not getattr(tg_msg, "media", None):
+            # Backing cloud message is permanently deleted from Telegram!
+            await self.repository.purge_media_permanently(media_id)
+            self.cleanup_local_cache(media["file_hash"], media.get("thumbnail_path"))
+            raise ValueError(
+                f"Cannot restore '{media['file_name']}': This item was permanently deleted from the Telegram cloud vault."
+            )
+
         success = await self.repository.restore_media(media_id)
         if not success:
-            raise RuntimeError(f"Failed to restore media item {media_id}.")
+            raise RuntimeError(f"Failed to restore media item {media_id} (item may have been concurrently purged).")
 
         await self.repository.log_audit(
             action="RESTORE",
@@ -323,12 +388,69 @@ class ArchiveService:
     async def restore_batch(self, media_ids: list[int]) -> dict[str, Any]:
         """
         Restores multiple media items from Trash in bulk.
+        Verifies backing Telegram messages exist before restoring.
         """
-        count = await self.repository.restore_batch(media_ids)
+        if not media_ids:
+            return {"status": "restored", "count": 0, "message": "No items to restore."}
+
+        items = []
+        for mid in media_ids:
+            m = await self.repository.get_by_id(mid, include_deleted=True)
+            if m:
+                items.append(m)
+
+        restorable_ids: list[int] = []
+        dead_items: list[dict[str, Any]] = []
+
+        by_channel: dict[int, list[dict[str, Any]]] = {}
+        for m in items:
+            ch_id = m.get("telegram_channel_id")
+            msg_id = m.get("telegram_message_id")
+            if not ch_id or not msg_id:
+                dead_items.append(m)
+            else:
+                by_channel.setdefault(ch_id, []).append(m)
+
+        for ch_id, ch_items in by_channel.items():
+            target_entity = await self.telegram_client.get_target_entity(ch_id)
+            # Chunk Telegram RPC in 100-ID windows
+            for i in range(0, len(ch_items), 100):
+                chunk = ch_items[i:i + 100]
+                msg_ids = [m["telegram_message_id"] for m in chunk]
+                try:
+                    tg_msgs = await self.telegram_client.raw_client.get_messages(target_entity, ids=msg_ids)
+                except Exception as e:
+                    raise RuntimeError(f"Telegram verification failed for channel {ch_id}: {e}")
+
+                msg_map = {msg.id: msg for msg in (tg_msgs or []) if msg}
+
+                for m in chunk:
+                    tg_msg = msg_map.get(m["telegram_message_id"])
+                    if tg_msg and getattr(tg_msg, "media", None):
+                        restorable_ids.append(m["id"])
+                    else:
+                        dead_items.append(m)
+
+        if dead_items:
+            dead_ids = [m["id"] for m in dead_items]
+            await self.repository.purge_media_batch_permanently(dead_ids)
+            for m in dead_items:
+                self.cleanup_local_cache(m["file_hash"], m.get("thumbnail_path"))
+
+        count = 0
+        if restorable_ids:
+            count = await self.repository.restore_batch(restorable_ids)
+
+        if dead_items and not restorable_ids:
+            raise ValueError(
+                f"Cannot restore {len(dead_items)} item(s): They were permanently deleted from the Telegram cloud vault."
+            )
+
         return {
             "status": "restored",
             "count": count,
-            "message": f"Successfully restored {count} item(s) to gallery.",
+            "purged_dead_count": len(dead_items),
+            "message": f"Successfully restored {count} item(s) to gallery." + (f" ({len(dead_items)} dead item(s) permanently purged)" if dead_items else ""),
         }
 
     async def purge_media_permanently(self, media_id: int) -> dict[str, Any]:
@@ -349,30 +471,13 @@ class ArchiveService:
         except Exception as e:
             print(f"[Warning] Failed to delete message {media['telegram_message_id']} from Telegram: {e}")
 
-        # 2. Delete local WebP thumbnail from disk
-        thumb_path = media.get("thumbnail_path")
-        if thumb_path:
-            p = Path(thumb_path)
-            if p.exists():
-                try:
-                    p.unlink()
-                except Exception:
-                    pass
+        # 2. Delete local WebP thumbnail and disk caches
+        self.cleanup_local_cache(media["file_hash"], media.get("thumbnail_path"))
 
-        # 3. Clean up streaming disk cache if exists
-        try:
-            from src.services.stream_cache import get_stream_cache
-            cache = get_stream_cache()
-            bin_path = cache.get_cache_path(media["file_hash"])
-            if bin_path.exists():
-                bin_path.unlink()
-        except Exception:
-            pass
-
-        # 4. Permanently purge from database
+        # 3. Permanently purge from database
         await self.repository.purge_media_permanently(media_id)
 
-        # 5. Audit log
+        # 4. Audit log
         await self.repository.log_audit(
             action="PURGE_PERMANENT",
             media_id=media_id,
@@ -420,32 +525,11 @@ class ArchiveService:
                 print(f"[Warning] Batch Telegram delete failed for channel {ch_id}: {e}")
 
         # 2. Disk cache & thumbnail cleanup, plus atomic database purging
-        from src.services.stream_cache import get_stream_cache
-        cache = get_stream_cache()
-        purged_count = 0
-
         for media in items:
-            # Delete thumbnail
-            thumb_path = media.get("thumbnail_path")
-            if thumb_path:
-                p = Path(thumb_path)
-                if p.exists():
-                    try:
-                        p.unlink()
-                    except Exception:
-                        pass
+            self.cleanup_local_cache(media["file_hash"], media.get("thumbnail_path"))
 
-            # Clean cache file
-            try:
-                bin_path = cache.get_cache_path(media["file_hash"])
-                if bin_path.exists():
-                    bin_path.unlink()
-            except Exception:
-                pass
-
-            # Purge from DB (atomically purges any duplicate rows for the same message)
-            await self.repository.purge_media_permanently(media["id"])
-            purged_count += 1
+        item_ids = [m["id"] for m in items]
+        purged_count = await self.repository.purge_media_batch_permanently(item_ids)
 
         return {
             "status": "emptied",

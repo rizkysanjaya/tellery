@@ -663,7 +663,11 @@ async def restore_media_item(media_id: int):
         result = await archive_service.restore_media_item(media_id)
         return result
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        status_code = 410 if "permanently deleted" in str(e).lower() else 404
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except RuntimeError as e:
+        status_code = 503 if "telegram" in str(e).lower() else 500
+        raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to restore media item: {e}")
 
@@ -677,6 +681,12 @@ async def restore_trash_batch(body: RestoreMediaBatchRequest):
     try:
         result = await archive_service.restore_batch(body.media_ids)
         return result
+    except ValueError as e:
+        status_code = 410 if "permanently deleted" in str(e).lower() else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except RuntimeError as e:
+        status_code = 503 if "telegram" in str(e).lower() else 500
+        raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to restore batch: {e}")
 

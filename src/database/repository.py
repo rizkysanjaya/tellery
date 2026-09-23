@@ -73,7 +73,8 @@ class MediaRepository:
                    telegram_channel_id, telegram_message_id, telegram_file_id,
                    width, height, duration_seconds, camera_make, camera_model,
                    date_taken, thumbnail_path, created_at, deleted_at,
-                   COALESCE(is_favorite, 0) as is_favorite
+                   COALESCE(is_favorite, 0) as is_favorite,
+                   COALESCE(is_deleted, 0) as is_deleted
             FROM media_items
             {condition}
             LIMIT 1;
@@ -532,9 +533,9 @@ class MediaRepository:
     async def restore_media(media_id: int) -> bool:
         """
         Restores a soft-deleted media item back to active timeline and original albums.
-        Cost: O(1) point update on primary key id.
+        Cost: O(1) point update on primary key id with TOCTOU lock.
         """
-        query = "UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id = ?;"
+        query = "UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id = ? AND is_deleted = 1;"
         async with get_db_connection() as conn:
             cursor = await conn.execute(query, (media_id,))
             await conn.commit()
@@ -543,17 +544,21 @@ class MediaRepository:
     @staticmethod
     async def restore_batch(media_ids: list[int]) -> int:
         """
-        Restores multiple soft-deleted media items in a single atomic statement.
+        Restores multiple soft-deleted media items in atomic chunked statements.
         Cost: O(M) where M is batch size.
         """
         if not media_ids:
             return 0
-        placeholders = ",".join("?" for _ in media_ids)
-        query = f"UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id IN ({placeholders});"
-        async with get_db_connection() as conn:
-            cursor = await conn.execute(query, media_ids)
-            await conn.commit()
-            return cursor.rowcount
+        total_restored = 0
+        for i in range(0, len(media_ids), 100):
+            chunk = media_ids[i:i + 100]
+            placeholders = ",".join("?" for _ in chunk)
+            query = f"UPDATE media_items SET is_deleted = 0, deleted_at = NULL WHERE id IN ({placeholders}) AND is_deleted = 1;"
+            async with get_db_connection() as conn:
+                cursor = await conn.execute(query, tuple(chunk))
+                await conn.commit()
+                total_restored += cursor.rowcount
+        return total_restored
 
     @staticmethod
     async def get_trash_items(channel_id: Optional[int] = None, limit: int = 100, offset: int = 0) -> list[dict[str, Any]]:
@@ -632,6 +637,49 @@ class MediaRepository:
 
             await conn.commit()
             return affected
+
+    @staticmethod
+    async def purge_media_batch_permanently(media_ids: list[int]) -> int:
+        """
+        Permanently removes multiple media records from SQLite catalog and cleans up folder links.
+        Atomically resolves and deletes duplicate rows sharing (telegram_channel_id, telegram_message_id)
+        to prevent orphaned legacy duplicates. Operates in 100-item chunks.
+        """
+        if not media_ids:
+            return 0
+
+        total_deleted = 0
+        for i in range(0, len(media_ids), 100):
+            chunk = media_ids[i:i + 100]
+            placeholders = ",".join("?" for _ in chunk)
+            async with get_db_connection() as conn:
+                # Find all distinct channel/message pairs for the target IDs
+                async with conn.execute(
+                    f"SELECT DISTINCT telegram_channel_id, telegram_message_id FROM media_items WHERE id IN ({placeholders}) AND telegram_channel_id IS NOT NULL AND telegram_message_id IS NOT NULL;",
+                    tuple(chunk),
+                ) as cur:
+                    pairs = await cur.fetchall()
+
+                target_ids = set(chunk)
+                if pairs:
+                     pair_clauses = " OR ".join("(telegram_channel_id = ? AND telegram_message_id = ?)" for _ in pairs)
+                     pair_params = [val for pair in pairs for val in (pair[0], pair[1])]
+                     async with conn.execute(
+                         f"SELECT id FROM media_items WHERE {pair_clauses};",
+                         tuple(pair_params),
+                     ) as pair_cur:
+                         matched_rows = await pair_cur.fetchall()
+                         for r in matched_rows:
+                             target_ids.add(r[0])
+
+                final_ids = list(target_ids)
+                final_placeholders = ",".join("?" for _ in final_ids)
+                await conn.execute(f"DELETE FROM media_folders WHERE media_id IN ({final_placeholders});", tuple(final_ids))
+                async with conn.execute(f"DELETE FROM media_items WHERE id IN ({final_placeholders});", tuple(final_ids)) as del_cursor:
+                    total_deleted += del_cursor.rowcount
+                await conn.commit()
+
+        return total_deleted
 
     @staticmethod
     async def get_all_trash_media(channel_id: Optional[int] = None) -> list[dict[str, Any]]:

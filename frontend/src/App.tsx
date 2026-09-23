@@ -912,6 +912,12 @@ export const App: React.FC = () => {
       loadData();
     } catch (err: any) {
       showToast(err.message || "Failed to restore media", "error");
+      const isGone = err.status === 410 || /permanently deleted/i.test(err.message || "");
+      if (isGone) {
+        setTrashItems((prev) => prev.filter((i) => i.id !== mediaId));
+        setTrashTotal((prev) => Math.max(0, prev - 1));
+      }
+      loadData();
     }
   }, [showToast, loadData]);
 
@@ -925,6 +931,7 @@ export const App: React.FC = () => {
       loadData();
     } catch (err: any) {
       showToast(err.message || "Failed to restore items", "error");
+      loadData();
     }
   }, [showToast, loadData]);
 
