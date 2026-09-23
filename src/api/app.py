@@ -15,8 +15,9 @@ Side Effects: Initializes DB, MTProto client, TDLib C++ engine, live channel syn
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from src.api.routes import (
     auth_router,
     folders_router,
@@ -129,6 +130,29 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def enforce_max_upload_size(request: Request, call_next):
+        """
+        Fast-path guard against oversized uploads.
+        Intercepts POST /api/media/upload BEFORE Starlette/FastAPI multipart body
+        parsing or disk spooling occurs.
+        Telegram MTProto maximum document limit is 2048 MB. With multipart headers
+        and form boundaries, allow up to 2060 MB before early rejecting with HTTP 413.
+        """
+        if request.method == "POST" and request.url.path == "/api/media/upload":
+            content_length = request.headers.get("content-length")
+            if content_length:
+                try:
+                    cl_bytes = int(content_length.strip())
+                    if cl_bytes > 2060 * 1024 * 1024:
+                        return JSONResponse(
+                            status_code=413,
+                            content={"detail": "Uploaded file exceeds maximum allowed limit of 2048 MB."},
+                        )
+                except ValueError:
+                    pass
+        return await call_next(request)
 
     # Register API Routers
     app.include_router(auth_router)

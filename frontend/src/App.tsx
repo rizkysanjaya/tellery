@@ -1490,23 +1490,36 @@ export const App: React.FC = () => {
         ? activeFolderRef.current.name
         : undefined;
 
-    const newTasks: UploadTask[] = fileArray.map((f, idx) => ({
-      id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-      file: f,
-      name: f.name,
-      size: f.size,
-      type: f.type,
-      progress: 0,
-      loadedBytes: 0,
-      status: "pending",
-      folderId: assignedFolderId,
-      folderName: assignedFolderName,
-    }));
+    // Telegram MTProto hard limit: 2048 MB (2.0 GB) per file for non-premium bots/users
+    const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+
+    const newTasks: UploadTask[] = fileArray.map((f, idx) => {
+      const isOversized = f.size > MAX_UPLOAD_BYTES;
+      const sizeGB = (f.size / (1024 * 1024 * 1024)).toFixed(2);
+      return {
+        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+        file: f,
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        progress: 0,
+        loadedBytes: 0,
+        status: isOversized ? "error" : "pending",
+        errorMessage: isOversized
+          ? `File exceeds Telegram maximum limit of 2048 MB (${sizeGB} GB)`
+          : undefined,
+        folderId: assignedFolderId,
+        folderName: assignedFolderName,
+      };
+    });
 
     setUploadTasks((prev) => [...newTasks, ...prev]);
 
-    // Process tasks concurrently with real-time byte tracking
-    processUploadQueue(newTasks);
+    // Only process tasks within the valid size limit
+    const validTasks = newTasks.filter((t) => t.status === "pending");
+    if (validTasks.length > 0) {
+      processUploadQueue(validTasks);
+    }
   };
 
   const processUploadQueue = async (tasksToProcess: UploadTask[]) => {
