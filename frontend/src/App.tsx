@@ -94,6 +94,8 @@ const TrashView = React.lazy(() => import("./components/TrashView").then((m) => 
 const MediaLightbox = React.lazy(() => import("./components/MediaLightbox").then((m) => ({ default: m.MediaLightbox })));
 const ExifFilterDrawer = React.lazy(() => import("./components/ExifFilterDrawer").then((m) => ({ default: m.ExifFilterDrawer })));
 const DuplicateConflictModal = React.lazy(() => import("./components/DuplicateConflictModal").then((m) => ({ default: m.DuplicateConflictModal })));
+const OversizedFilesModal = React.lazy(() => import("./components/OversizedFilesModal").then((m) => ({ default: m.OversizedFilesModal })));
+import type { OversizedFileItem } from "./components/OversizedFilesModal";
 const MoveConfirmationModal = React.lazy(() => import("./components/MoveConfirmationModal").then((m) => ({ default: m.MoveConfirmationModal })));
 const VaultSwitcherModal = React.lazy(() => import("./components/VaultSwitcherModal").then((m) => ({ default: m.VaultSwitcherModal })));
 const SettingsModal = React.lazy(() => import("./components/SettingsModal").then((m) => ({ default: m.SettingsModal })));
@@ -417,6 +419,9 @@ export const App: React.FC = () => {
     mediaIds: number[];
     conflictedItems: MoveConflictItem[];
   } | null>(null);
+
+  // Oversized File Notice Modal State
+  const [oversizedFiles, setOversizedFiles] = useState<OversizedFileItem[] | null>(null);
 
   // Flat list of all media items in current view order
   const flatItems = useMemo(() => {
@@ -1518,17 +1523,25 @@ export const App: React.FC = () => {
         ? activeFolderRef.current.name
         : undefined;
 
-    const newTasks: UploadTask[] = fileArray.map((f, idx) =>
+    // Filter out oversized files before creating upload tasks
+    const oversized = fileArray.filter((f) => f.size > MAX_UPLOAD_BYTES);
+    const validFiles = fileArray.filter((f) => f.size <= MAX_UPLOAD_BYTES);
+
+    if (oversized.length > 0) {
+      setOversizedFiles((prev) => {
+        const newItems = oversized.map((f) => ({ name: f.name, size: f.size }));
+        return prev ? [...prev, ...newItems] : newItems;
+      });
+    }
+
+    if (validFiles.length === 0) return;
+
+    const newTasks: UploadTask[] = validFiles.map((f, idx) =>
       createUploadTask(f, idx, assignedFolderId, assignedFolderName)
     );
 
     setUploadTasks((prev) => [...newTasks, ...prev]);
-
-    // Only process tasks within the valid size limit
-    const validTasks = newTasks.filter((t) => t.status === "pending");
-    if (validTasks.length > 0) {
-      processUploadQueue(validTasks);
-    }
+    processUploadQueue(newTasks);
   };
 
   const processUploadQueue = async (tasksToProcess: UploadTask[]) => {
@@ -1759,6 +1772,19 @@ export const App: React.FC = () => {
 
     if (deduplicatedItems.length === 0) return;
 
+    // 3. Catch and separate oversized files exceeding Telegram's 2048 MB limit
+    const oversizedDropped = deduplicatedItems.filter((item) => item.file.size > MAX_UPLOAD_BYTES);
+    const validDroppedItems = deduplicatedItems.filter((item) => item.file.size <= MAX_UPLOAD_BYTES);
+
+    if (oversizedDropped.length > 0) {
+      setOversizedFiles((prev) => {
+        const newItems = oversizedDropped.map((item) => ({ name: item.file.name, size: item.file.size }));
+        return prev ? [...prev, ...newItems] : newItems;
+      });
+    }
+
+    if (validDroppedItems.length === 0) return;
+
     const currentActiveFolder = activeFolderRef.current;
 
     // Case A: User is currently viewing an Album
@@ -1767,7 +1793,7 @@ export const App: React.FC = () => {
       if (currentActiveFolder.is_collection) {
         const distinctFolderNames = Array.from(
           new Set(
-            deduplicatedItems
+            validDroppedItems
               .map((item) => item.rootFolderName)
               .filter((name): name is string => Boolean(name && name.trim()))
           )
@@ -1798,7 +1824,7 @@ export const App: React.FC = () => {
           }
         }
 
-        const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) => {
+        const newTasks: UploadTask[] = validDroppedItems.map((item, idx) => {
           let targetFolderId = currentActiveFolder.id;
           let targetFolderName = currentActiveFolder.name;
 
@@ -1813,25 +1839,19 @@ export const App: React.FC = () => {
 
         batchConflictPreferenceRef.current = null;
         setUploadTasks((prev) => [...newTasks, ...prev]);
-        const validTasks = newTasks.filter((t) => t.status === "pending");
-        if (validTasks.length > 0) {
-          processUploadQueue(validTasks);
-        }
+        processUploadQueue(newTasks);
         return;
       }
 
       // Normal Album: User dropped files or a folder INTO this active album.
       // Every photo and video goes directly into this opened album!
-      const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) =>
+      const newTasks: UploadTask[] = validDroppedItems.map((item, idx) =>
         createUploadTask(item.file, idx, currentActiveFolder.id, currentActiveFolder.name)
       );
 
       batchConflictPreferenceRef.current = null;
       setUploadTasks((prev) => [...newTasks, ...prev]);
-      const validTasks = newTasks.filter((t) => t.status === "pending");
-      if (validTasks.length > 0) {
-        processUploadQueue(validTasks);
-      }
+      processUploadQueue(newTasks);
       return;
     }
 
@@ -1839,7 +1859,7 @@ export const App: React.FC = () => {
     // Dropped folders automatically become new root Albums!
     const distinctFolderNames = Array.from(
       new Set(
-        deduplicatedItems
+        validDroppedItems
           .map((item) => item.rootFolderName)
           .filter((name): name is string => Boolean(name && name.trim()))
       )
@@ -1868,7 +1888,7 @@ export const App: React.FC = () => {
       }
     }
 
-    const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) => {
+    const newTasks: UploadTask[] = validDroppedItems.map((item, idx) => {
       let targetFolderId: number | null = null;
       let targetFolderName: string | undefined = undefined;
 
@@ -1883,10 +1903,7 @@ export const App: React.FC = () => {
 
     batchConflictPreferenceRef.current = null;
     setUploadTasks((prev) => [...newTasks, ...prev]);
-    const validTasks = newTasks.filter((t) => t.status === "pending");
-    if (validTasks.length > 0) {
-      processUploadQueue(validTasks);
-    }
+    processUploadQueue(newTasks);
   };
 
   const handleDroppedItemsRef = useRef(handleDroppedItems);
@@ -2409,6 +2426,8 @@ export const App: React.FC = () => {
           if (e.target.files) {
             handleUploadFiles(e.target.files);
           }
+          // Reset file input so re-selecting identical files still triggers change event
+          e.currentTarget.value = "";
         }}
         className="hidden"
       />
@@ -2915,6 +2934,16 @@ export const App: React.FC = () => {
               }
               setActiveConflict(null);
             }}
+          />
+        </Suspense>
+      )}
+
+      {/* Informative Modal for Files Exceeding Telegram 2.0 GB Upload Ceiling */}
+      {oversizedFiles && oversizedFiles.length > 0 && (
+        <Suspense fallback={null}>
+          <OversizedFilesModal
+            files={oversizedFiles}
+            onClose={() => setOversizedFiles(null)}
           />
         </Suspense>
       )}
