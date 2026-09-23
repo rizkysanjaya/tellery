@@ -24,7 +24,7 @@ from src.services.transcoder_service import ensure_web_stream_ready
 
 router = APIRouter(prefix="/api/media", tags=["Media Streaming"])
 
-RANGE_HEADER_REGEX = re.compile(r"^bytes=(\d+)-(\d*)$")
+RANGE_HEADER_REGEX = re.compile(r"^bytes=(?:(\d+)-(\d*)|-(\d+))$")
 
 
 def _encode_content_disposition(file_name: str, disposition: str = "inline") -> str:
@@ -181,9 +181,20 @@ async def stream_media(
             headers={"Content-Range": f"bytes */{stream_file_size}"},
         )
 
-    raw_start, raw_end = match.groups()
-    start = int(raw_start)
-    end = int(raw_end) if raw_end else stream_file_size - 1
+    raw_start, raw_end, suffix = match.groups()
+    if suffix is not None:
+        suffix_len = int(suffix)
+        if suffix_len <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                detail="Invalid suffix range length",
+                headers={"Content-Range": f"bytes */{stream_file_size}"},
+            )
+        start = max(0, stream_file_size - suffix_len)
+        end = stream_file_size - 1
+    else:
+        start = int(raw_start)
+        end = int(raw_end) if raw_end else stream_file_size - 1
 
     if start >= stream_file_size or end >= stream_file_size or start > end:
         raise HTTPException(
@@ -192,13 +203,16 @@ async def stream_media(
             headers={"Content-Range": f"bytes */{stream_file_size}"},
         )
 
-    # Window open-ended ranges on uncached files to 2 MB
-    if not raw_end:
-        max_chunk_window = 2 * 1024 * 1024  # 2 MB
+    # For uncached files, window open-ended ranges only for hover previews to conserve bandwidth.
+    # Full player requests stream continuously to EOF to prevent buffer starvation on high-bitrate media.
+    if not raw_end and preview:
+        max_chunk_window = 4 * 1024 * 1024  # 4 MB for hover previews
         end = min(start + max_chunk_window - 1, stream_file_size - 1)
 
+    content_length = (end - start) + 1
     headers = {
         "Content-Range": f"bytes {start}-{end}/{stream_file_size}",
+        "Content-Length": str(content_length),
         "Accept-Ranges": "bytes",
         "Content-Type": target_mime_type,
         "Content-Disposition": content_disp,

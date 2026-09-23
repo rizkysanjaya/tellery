@@ -612,7 +612,11 @@ class StreamCacheManager:
                 return
             except Exception as e:
                 print(f"[StreamCache] MTProto fallback stream exception: {e}")
-            return
+                raise
+
+        if bytes_sent < bytes_to_send:
+            raise IOError(f"Stream truncated: delivered {bytes_sent} of {bytes_to_send} requested bytes")
+        return
 
 
 _cache_manager_instance: Optional[StreamCacheManager] = None

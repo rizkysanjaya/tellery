@@ -63,6 +63,24 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   const [hasError, setHasError] = useState(false);
   const [duration, setDuration] = useState(item.duration_seconds || 0);
 
+  const waitingTimerRef = useRef<number | null>(null);
+
+  const clearWaitingTimer = useCallback(() => {
+    if (waitingTimerRef.current !== null) {
+      window.clearTimeout(waitingTimerRef.current);
+      waitingTimerRef.current = null;
+    }
+  }, []);
+
+  const handleWaiting = useCallback(() => {
+    // Only schedule debounce once per buffering episode; avoid resetting if already active or loading
+    if (waitingTimerRef.current !== null || isLoading) return;
+    waitingTimerRef.current = window.setTimeout(() => {
+      setIsLoading(true);
+      waitingTimerRef.current = null;
+    }, 150);
+  }, [isLoading]);
+
   // Audio / Volume States
   const [volume, setVolume] = useState(() => {
     const saved = localStorage.getItem("telegallery_volume");
@@ -119,17 +137,23 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
         setShowSpeedSubmenu(false);
       }
     };
+    const handleScroll = () => {
+      setContextMenu(null);
+      setShowSpeedSubmenu(false);
+    };
     if (contextMenu) {
       window.addEventListener("mousedown", handleOutsideClick);
-      window.addEventListener("scroll", () => setContextMenu(null), true);
+      window.addEventListener("scroll", handleScroll, true);
     }
     return () => {
       window.removeEventListener("mousedown", handleOutsideClick);
+      window.removeEventListener("scroll", handleScroll, true);
     };
   }, [contextMenu]);
 
   // Reset states on item change
   useEffect(() => {
+    clearWaitingTimer();
     setIsLoading(true);
     setIsPlaying(false);
     setIsEnded(false);
@@ -142,7 +166,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     if (bufferedBarRef.current) bufferedBarRef.current.style.width = "0%";
     if (currentTimeDisplayRef.current) currentTimeDisplayRef.current.textContent = "00:00";
     if (durationDisplayRef.current) durationDisplayRef.current.textContent = formatTime(item.duration_seconds || 0);
-  }, [item.id, item.stream_url, item.duration_seconds, isAnimation]);
+    return () => clearWaitingTimer();
+  }, [item.id, item.stream_url, item.duration_seconds, isAnimation, clearWaitingTimer]);
 
   // Sync volume with video element
   useEffect(() => {
@@ -614,26 +639,36 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
         onTimeUpdate={handleTimeUpdate}
         onProgress={handleProgress}
         onLoadedMetadata={handleLoadedMetadata}
-        onLoadedData={() => setIsLoading(false)}
+        onLoadedData={() => {
+          clearWaitingTimer();
+          setIsLoading(false);
+        }}
         onCanPlay={() => {
+          clearWaitingTimer();
           setIsLoading(false);
           if (isAnimation && videoRef.current && videoRef.current.paused) {
             videoRef.current.muted = true;
             videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
           }
         }}
-        onCanPlayThrough={() => setIsLoading(false)}
-        onWaiting={() => setIsLoading(true)}
+        onCanPlayThrough={() => {
+          clearWaitingTimer();
+          setIsLoading(false);
+        }}
+        onWaiting={handleWaiting}
         onPlaying={() => {
+          clearWaitingTimer();
           setIsPlaying(true);
           setIsEnded(false);
           setIsLoading(false);
         }}
         onPause={() => {
+          clearWaitingTimer();
           setIsPlaying(false);
           setIsLoading(false);
         }}
         onEnded={() => {
+          clearWaitingTimer();
           if (isLooping) {
             handleReplay();
             return;
@@ -644,6 +679,7 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           setShowControls(true);
         }}
         onError={(e) => {
+          clearWaitingTimer();
           console.error("Video error:", e);
           setIsLoading(false);
           setHasError(true);
