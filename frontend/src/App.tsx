@@ -1462,6 +1462,34 @@ export const App: React.FC = () => {
   // Upload Handlers
   // =========================================================================
 
+  // Telegram MTProto hard limit: 2048 MB (2.0 GB) per file for non-premium bots/users
+  const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+
+  const createUploadTask = (
+    f: File,
+    idx: number,
+    folderId?: number | null,
+    folderName?: string
+  ): UploadTask => {
+    const isOversized = f.size > MAX_UPLOAD_BYTES;
+    const sizeGB = (f.size / (1024 * 1024 * 1024)).toFixed(2);
+    return {
+      id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+      file: f,
+      name: f.name,
+      size: f.size,
+      type: f.type,
+      progress: 0,
+      loadedBytes: 0,
+      status: isOversized ? "error" : "pending",
+      errorMessage: isOversized
+        ? `File exceeds Telegram maximum limit of 2048 MB (${sizeGB} GB)`
+        : undefined,
+      folderId: folderId ?? null,
+      folderName,
+    };
+  };
+
   const handleUploadFiles = (
     files: FileList | File[],
     targetFolderId?: number | null,
@@ -1490,28 +1518,9 @@ export const App: React.FC = () => {
         ? activeFolderRef.current.name
         : undefined;
 
-    // Telegram MTProto hard limit: 2048 MB (2.0 GB) per file for non-premium bots/users
-    const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
-
-    const newTasks: UploadTask[] = fileArray.map((f, idx) => {
-      const isOversized = f.size > MAX_UPLOAD_BYTES;
-      const sizeGB = (f.size / (1024 * 1024 * 1024)).toFixed(2);
-      return {
-        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-        file: f,
-        name: f.name,
-        size: f.size,
-        type: f.type,
-        progress: 0,
-        loadedBytes: 0,
-        status: isOversized ? "error" : "pending",
-        errorMessage: isOversized
-          ? `File exceeds Telegram maximum limit of 2048 MB (${sizeGB} GB)`
-          : undefined,
-        folderId: assignedFolderId,
-        folderName: assignedFolderName,
-      };
-    });
+    const newTasks: UploadTask[] = fileArray.map((f, idx) =>
+      createUploadTask(f, idx, assignedFolderId, assignedFolderName)
+    );
 
     setUploadTasks((prev) => [...newTasks, ...prev]);
 
@@ -1530,6 +1539,23 @@ export const App: React.FC = () => {
       while (queue.length > 0) {
         const task = queue.shift();
         if (!task) break;
+
+        // Immediate pre-flight check before initiating any network transmission
+        if (task.size > MAX_UPLOAD_BYTES) {
+          const sizeGB = (task.size / (1024 * 1024 * 1024)).toFixed(2);
+          setUploadTasks((prev) =>
+            prev.map((t) =>
+              t.id === task.id
+                ? {
+                    ...t,
+                    status: "error",
+                    errorMessage: `File exceeds Telegram maximum limit of 2048 MB (${sizeGB} GB)`,
+                  }
+                : t
+            )
+          );
+          continue;
+        }
 
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "uploading" } : t))
@@ -1782,44 +1808,30 @@ export const App: React.FC = () => {
             targetFolderName = target.name;
           }
 
-          return {
-            id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-            file: item.file,
-            name: item.file.name,
-            size: item.file.size,
-            type: item.file.type,
-            progress: 0,
-            loadedBytes: 0,
-            status: "pending",
-            folderId: targetFolderId,
-            folderName: targetFolderName,
-          };
+          return createUploadTask(item.file, idx, targetFolderId, targetFolderName);
         });
 
         batchConflictPreferenceRef.current = null;
         setUploadTasks((prev) => [...newTasks, ...prev]);
-        processUploadQueue(newTasks);
+        const validTasks = newTasks.filter((t) => t.status === "pending");
+        if (validTasks.length > 0) {
+          processUploadQueue(validTasks);
+        }
         return;
       }
 
       // Normal Album: User dropped files or a folder INTO this active album.
       // Every photo and video goes directly into this opened album!
-      const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) => ({
-        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-        file: item.file,
-        name: item.file.name,
-        size: item.file.size,
-        type: item.file.type,
-        progress: 0,
-        loadedBytes: 0,
-        status: "pending",
-        folderId: currentActiveFolder.id,
-        folderName: currentActiveFolder.name,
-      }));
+      const newTasks: UploadTask[] = deduplicatedItems.map((item, idx) =>
+        createUploadTask(item.file, idx, currentActiveFolder.id, currentActiveFolder.name)
+      );
 
       batchConflictPreferenceRef.current = null;
       setUploadTasks((prev) => [...newTasks, ...prev]);
-      processUploadQueue(newTasks);
+      const validTasks = newTasks.filter((t) => t.status === "pending");
+      if (validTasks.length > 0) {
+        processUploadQueue(validTasks);
+      }
       return;
     }
 
@@ -1866,24 +1878,15 @@ export const App: React.FC = () => {
         targetFolderName = target.name;
       }
 
-      return {
-        id: `${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-        file: item.file,
-        name: item.file.name,
-        size: item.file.size,
-        type: item.file.type,
-        progress: 0,
-        loadedBytes: 0,
-        status: "pending",
-        folderId: targetFolderId,
-        folderName: targetFolderName,
-      };
+      return createUploadTask(item.file, idx, targetFolderId, targetFolderName);
     });
 
     batchConflictPreferenceRef.current = null;
     setUploadTasks((prev) => [...newTasks, ...prev]);
-
-    processUploadQueue(newTasks);
+    const validTasks = newTasks.filter((t) => t.status === "pending");
+    if (validTasks.length > 0) {
+      processUploadQueue(validTasks);
+    }
   };
 
   const handleDroppedItemsRef = useRef(handleDroppedItems);

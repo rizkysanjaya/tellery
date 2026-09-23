@@ -192,6 +192,12 @@ export function uploadMediaFile(
   folderId?: number | null,
   channelId?: number | null
 ): Promise<any> {
+  const MAX_UPLOAD_BYTES = 2 * 1024 * 1024 * 1024;
+  if (file.size > MAX_UPLOAD_BYTES) {
+    const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+    return Promise.reject(new Error(`File exceeds Telegram maximum limit of 2048 MB (${sizeGB} GB)`));
+  }
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const formData = new FormData();
