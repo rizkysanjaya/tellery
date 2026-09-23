@@ -180,7 +180,10 @@ class TDLibStorageClient:
         self._pending_requests[req_id] = fut
 
         tdjson.td_send(self.client_id, json.dumps(request).encode("utf-8"))
-        return await fut
+        try:
+            return await fut
+        finally:
+            self._pending_requests.pop(req_id, None)
 
     def add_event_handler(self, handler: Callable[[dict], Any]) -> None:
         """Registers a callback for incoming global TDLib updates."""

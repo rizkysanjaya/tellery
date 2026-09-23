@@ -376,8 +376,10 @@ class StreamCacheManager:
                     # Trigger async download
                     await td_client.download_file_fast(file_id=file_id, priority=32, synchronous=False)
 
-                    # Poll until TDLib finishes downloading file
-                    for _ in range(120): # up to 60s
+                    # Poll while TDLib is actively downloading or making forward progress (up to 15s stall window)
+                    last_downloaded = 0
+                    stall_count = 0
+                    while stall_count < 30:  # 30 * 0.5s = 15 seconds of stalled progress
                         f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
                         local = f_stat.get("local", {})
                         if local.get("is_downloading_completed"):
@@ -389,6 +391,16 @@ class StreamCacheManager:
                                 tdlib_success = True
                                 print(f"[StreamCache] TDLib C++ fully cached media {file_hash} ({expected_size} bytes)")
                             break
+
+                        curr_downloaded = local.get("downloaded_size", 0)
+                        if curr_downloaded > last_downloaded or local.get("is_downloading_active"):
+                            if curr_downloaded > last_downloaded:
+                                last_downloaded = curr_downloaded
+                                stall_count = 0
+                            else:
+                                stall_count += 1
+                        else:
+                            stall_count += 1
                         await asyncio.sleep(0.5)
         except Exception as e:
             print(f"[StreamCache] TDLib C++ download background note: {e}")
@@ -396,7 +408,9 @@ class StreamCacheManager:
         if tdlib_success:
             self._active_tdlib_downloads.pop(file_hash, None)
             async with self._lock:
-                self._inflight_downloads.pop(file_hash, None)
+                current_t = asyncio.current_task()
+                if self._inflight_downloads.get(file_hash) is current_t:
+                    self._inflight_downloads.pop(file_hash, None)
             return
 
         # 2. Fallback Engine: Telethon sequential append
@@ -450,7 +464,9 @@ class StreamCacheManager:
         finally:
             self._active_tdlib_downloads.pop(file_hash, None)
             async with self._lock:
-                self._inflight_downloads.pop(file_hash, None)
+                current_t = asyncio.current_task()
+                if self._inflight_downloads.get(file_hash) is current_t:
+                    self._inflight_downloads.pop(file_hash, None)
 
     async def stream_file_range(
         self,
@@ -564,20 +580,63 @@ class StreamCacheManager:
                             current_offset = start + bytes_sent
                             part_data = None
 
-                            for _ in range(30):  # Wait up to 600ms per 512KB slice
+                            # Check if TDLib already wrote this byte slice to its local download file on disk
+                            f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
+                            local = f_stat.get("local", {})
+                            prefix_size = local.get("downloaded_prefix_size", 0)
+                            download_offset = local.get("download_offset", 0)
+                            local_path_str = local.get("path")
+                            slice_end = current_offset + req_count
+                            ready_end = download_offset + prefix_size
+
+                            if (
+                                local_path_str
+                                and Path(local_path_str).exists()
+                                and download_offset <= current_offset
+                                and slice_end <= ready_end
+                            ):
                                 try:
-                                    res = await td_client.send_request({
-                                        "@type": "readFilePart",
-                                        "file_id": file_id,
-                                        "offset": current_offset,
-                                        "count": req_count,
-                                    })
-                                    if res.get("@type") == "data" and res.get("data"):
-                                        part_data = base64.b64decode(res["data"])
-                                        break
+                                    with open(local_path_str, "rb") as f_sparse:
+                                        f_sparse.seek(current_offset)
+                                        raw_read = f_sparse.read(req_count)
+                                        if len(raw_read) == req_count:
+                                            part_data = raw_read
                                 except Exception:
-                                    pass
-                                await asyncio.sleep(0.02)
+                                    part_data = None
+
+                            if not part_data:
+                                # Adaptive wait: poll while download is active, up to 5.0 seconds (100 * 50ms)
+                                retry_count = 0
+                                is_active = local.get("is_downloading_active", False)
+
+                                while retry_count < 100:
+                                    try:
+                                        res = await td_client.send_request({
+                                            "@type": "readFilePart",
+                                            "file_id": file_id,
+                                            "offset": current_offset,
+                                            "count": req_count,
+                                        })
+                                        if res.get("@type") == "data" and res.get("data"):
+                                            decoded = base64.b64decode(res["data"])
+                                            if len(decoded) == req_count:
+                                                part_data = decoded
+                                                break
+                                    except Exception:
+                                        pass
+
+                                    await asyncio.sleep(0.05)
+                                    retry_count += 1
+
+                                    # Dynamically refresh active download state every 1.0s (20 retries)
+                                    if retry_count % 20 == 0:
+                                        try:
+                                            cur_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
+                                            is_active = cur_stat.get("local", {}).get("is_downloading_active", False)
+                                        except Exception:
+                                            pass
+                                        if not is_active and retry_count >= 30:
+                                            break
 
                             if not part_data:
                                 break
