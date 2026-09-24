@@ -692,6 +692,7 @@ export const App: React.FC = () => {
     }
 
     let isMounted = true;
+    const controller = new AbortController();
     setLoading(true);
     // Clear items immediately on active vault or filter switch to prevent lingering state
     setGroups([]);
@@ -707,7 +708,9 @@ export const App: React.FC = () => {
       sortBy,
       isFavoritesView,
       activeExifFilters,
-      activeVault?.id
+      activeVault?.id,
+      null,
+      controller.signal
     )
       .then((res) => {
         if (isMounted) {
@@ -718,6 +721,7 @@ export const App: React.FC = () => {
         }
       })
       .catch((err) => {
+        if (err.name === "AbortError") return;
         if (isMounted) {
           console.error(err);
           setLoading(false);
@@ -726,6 +730,7 @@ export const App: React.FC = () => {
 
     return () => {
       isMounted = false;
+      controller.abort();
     };
   }, [
     activeFilter,
@@ -1561,6 +1566,7 @@ export const App: React.FC = () => {
               t.id === task.id
                 ? {
                     ...t,
+                    file: undefined,
                     status: "error",
                     errorMessage: `File exceeds Telegram maximum limit of 2048 MB (${sizeGB} GB)`,
                   }
@@ -1569,6 +1575,8 @@ export const App: React.FC = () => {
           );
           continue;
         }
+
+        if (!task.file) continue;
 
         setUploadTasks((prev) =>
           prev.map((t) => (t.id === task.id ? { ...t, status: "uploading" } : t))
@@ -1652,6 +1660,7 @@ export const App: React.FC = () => {
                   t.id === task.id
                     ? {
                         ...t,
+                        file: undefined,
                         status: "duplicate",
                         progress: 100,
                         loadedBytes: task.size,
@@ -1672,6 +1681,7 @@ export const App: React.FC = () => {
                   t.id === task.id
                     ? {
                         ...t,
+                        file: undefined,
                         name: aliasName,
                         status: "duplicate",
                         progress: 100,
@@ -1694,6 +1704,7 @@ export const App: React.FC = () => {
                   t.id === task.id
                     ? {
                         ...t,
+                        file: undefined,
                         name: renamedName,
                         status: "duplicate",
                         progress: 100,
@@ -1713,7 +1724,7 @@ export const App: React.FC = () => {
             setUploadTasks((prev) =>
               prev.map((t) =>
                 t.id === task.id
-                  ? { ...t, status: "completed", progress: 100, loadedBytes: task.size }
+                  ? { ...t, file: undefined, status: "completed", progress: 100, loadedBytes: task.size }
                   : t
               )
             );
@@ -1724,7 +1735,7 @@ export const App: React.FC = () => {
           setUploadTasks((prev) =>
             prev.map((t) =>
               t.id === task.id
-                ? { ...t, status: "error", errorMessage: err?.message || "Upload failed" }
+                ? { ...t, file: undefined, status: "error", errorMessage: err?.message || "Upload failed" }
                 : t
             )
           );
@@ -2896,7 +2907,11 @@ export const App: React.FC = () => {
       <UploadManager
         tasks={uploadTasks}
         onDismiss={() => setUploadTasks([])}
-        onClearCompleted={() => setUploadTasks((prev) => prev.filter((t) => t.status !== "completed"))}
+        onClearCompleted={() =>
+          setUploadTasks((prev) =>
+            prev.filter((t) => t.status !== "completed" && t.status !== "duplicate")
+          )
+        }
       />
 
       {/* Fullscreen Lightbox Modal */}
@@ -3022,16 +3037,18 @@ export const App: React.FC = () => {
       />
 
       {/* Smart EXIF & Date Filters Popover Drawer */}
-      <Suspense fallback={null}>
-        <ExifFilterDrawer
-          isOpen={isExifDrawerOpen}
-          onClose={() => setIsExifDrawerOpen(false)}
-          metadata={filterMetadata}
-          activeFilters={activeExifFilters}
-          onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
-          onResetFilters={() => setActiveExifFilters({})}
-        />
-      </Suspense>
+      {isExifDrawerOpen && (
+        <Suspense fallback={null}>
+          <ExifFilterDrawer
+            isOpen={isExifDrawerOpen}
+            onClose={() => setIsExifDrawerOpen(false)}
+            metadata={filterMetadata}
+            activeFilters={activeExifFilters}
+            onFilterChange={(newFilters) => setActiveExifFilters(newFilters)}
+            onResetFilters={() => setActiveExifFilters({})}
+          />
+        </Suspense>
+      )}
 
       {/* 10-Second Undo Delete Toast */}
       <UndoToast

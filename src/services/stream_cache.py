@@ -82,6 +82,7 @@ class StreamCacheManager:
         self._progress_events: Dict[str, asyncio.Event] = {}
         self._bytes_downloaded: Dict[str, int] = {}
         self._lock = asyncio.Lock()
+        self._prune_lock = asyncio.Lock()
 
     def _load_persisted_cache_limit(self) -> int:
         """Loads persistent cache limit from data/.cache_limit if available."""
@@ -217,17 +218,22 @@ class StreamCacheManager:
             "files_deleted": files_deleted,
         }
 
-    def prune_lru_cache(self, target_reduction_ratio: float = 0.7) -> int:
+    def prune_lru_cache(
+        self,
+        target_reduction_ratio: float = 0.7,
+        active_hashes: Optional[set[str]] = None,
+    ) -> int:
         """
         Evicts oldest cached files if cache size exceeds max_cache_bytes.
         Returns total bytes freed.
         """
         files = []
         total_size = 0
+        ignore_hashes = active_hashes if active_hashes is not None else set(self._inflight_downloads.keys())
         for d in self._get_disposable_cache_dirs():
             for f in d.rglob("*"):
                 if f.is_file():
-                    if any(f.name.startswith(h) for h in self._inflight_downloads.keys()):
+                    if any(f.name.startswith(h) for h in ignore_hashes):
                         continue
                     try:
                         stat = f.stat()
@@ -255,6 +261,16 @@ class StreamCacheManager:
                 pass
 
         return freed_bytes
+
+    async def async_prune_lru_cache(self, target_reduction_ratio: float = 0.7) -> int:
+        """
+        Asynchronously evicts oldest cached files in a serialized worker thread
+        to prevent blocking the async event loop during active media streaming.
+        """
+        async with self._prune_lock:
+            async with self._lock:
+                active_hashes = set(self._inflight_downloads.keys())
+            return await asyncio.to_thread(self.prune_lru_cache, target_reduction_ratio, active_hashes)
 
     @staticmethod
     def _format_bytes(size: int) -> str:
@@ -304,7 +320,7 @@ class StreamCacheManager:
 
         return cache_path
 
-    def trigger_background_caching(
+    async def trigger_background_caching(
         self,
         message_id: int,
         channel_id: Union[int, str],
@@ -319,13 +335,14 @@ class StreamCacheManager:
         if cache_path.exists() and cache_path.stat().st_size == file_size:
             return
 
-        if file_hash not in self._inflight_downloads:
-            task = asyncio.create_task(
-                self._do_progressive_download(
-                    message_id, channel_id, cache_path, file_hash, file_size
+        async with self._lock:
+            if file_hash not in self._inflight_downloads:
+                task = asyncio.create_task(
+                    self._do_progressive_download(
+                        message_id, channel_id, cache_path, file_hash, file_size
+                    )
                 )
-            )
-            self._inflight_downloads[file_hash] = task
+                self._inflight_downloads[file_hash] = task
 
     async def _do_progressive_download(
         self,
@@ -343,122 +360,126 @@ class StreamCacheManager:
         td_client = get_tdlib_client()
         tdlib_success = False
 
-        # 1. Primary Engine: Official C++ TDLib
         try:
-            await td_client.start()
-            if td_client.auth_state == "authorizationStateReady":
-                cid_raw = str(channel_id).lstrip("-").lstrip("100")
-                chat_id = int(f"-100{cid_raw}")
-                td_msg_id = message_id * (1 << 20)
+            # 1. Primary Engine: Official C++ TDLib
+            try:
+                await td_client.start()
+                if td_client.auth_state == "authorizationStateReady":
+                    cid_raw = str(channel_id).lstrip("-").lstrip("100")
+                    chat_id = int(f"-100{cid_raw}")
+                    td_msg_id = message_id * (1 << 20)
 
-                msg = await td_client.send_request({
-                    "@type": "getMessage",
-                    "chat_id": chat_id,
-                    "message_id": td_msg_id,
-                })
+                    msg = await td_client.send_request({
+                        "@type": "getMessage",
+                        "chat_id": chat_id,
+                        "message_id": td_msg_id,
+                    })
 
-                content = msg.get("content", {})
-                file_info = None
-                if content.get("@type") == "messageVideo":
-                    file_info = content.get("video", {}).get("video")
-                elif content.get("@type") == "messageDocument":
-                    file_info = content.get("document", {}).get("document")
-                elif content.get("@type") == "messageAnimation":
-                    file_info = content.get("animation", {}).get("animation")
-                elif content.get("@type") == "messagePhoto":
-                    sizes = content.get("photo", {}).get("sizes", [])
-                    if sizes:
-                        file_info = sizes[-1].get("photo")
+                    content = msg.get("content", {})
+                    file_info = None
+                    if content.get("@type") == "messageVideo":
+                        file_info = content.get("video", {}).get("video")
+                    elif content.get("@type") == "messageDocument":
+                        file_info = content.get("document", {}).get("document")
+                    elif content.get("@type") == "messageAnimation":
+                        file_info = content.get("animation", {}).get("animation")
+                    elif content.get("@type") == "messagePhoto":
+                        sizes = content.get("photo", {}).get("sizes", [])
+                        if sizes:
+                            file_info = sizes[-1].get("photo")
 
-                if file_info and file_info.get("id"):
-                    file_id = file_info["id"]
-                    self._active_tdlib_downloads[file_hash] = file_id
-                    # Trigger async download
-                    await td_client.download_file_fast(file_id=file_id, priority=32, synchronous=False)
+                    if file_info and file_info.get("id"):
+                        file_id = file_info["id"]
+                        self._active_tdlib_downloads[file_hash] = file_id
+                        # Trigger async download
+                        await td_client.download_file_fast(file_id=file_id, priority=32, synchronous=False)
 
-                    # Poll while TDLib is actively downloading or making forward progress (up to 15s stall window)
-                    last_downloaded = 0
-                    stall_count = 0
-                    while stall_count < 30:  # 30 * 0.5s = 15 seconds of stalled progress
-                        f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
-                        local = f_stat.get("local", {})
-                        if local.get("is_downloading_completed"):
-                            local_path = local.get("path")
-                            if local_path and Path(local_path).exists():
-                                shutil.copyfile(local_path, target_path)
-                                self.touch_cache(target_path)
-                                self.prune_lru_cache()
-                                tdlib_success = True
-                                print(f"[StreamCache] TDLib C++ fully cached media {file_hash} ({expected_size} bytes)")
-                            break
+                        # Poll while TDLib is actively downloading or making forward progress (up to 15s stall window)
+                        last_downloaded = 0
+                        stall_count = 0
+                        while stall_count < 30:  # 30 * 0.5s = 15 seconds of stalled progress
+                            f_stat = await td_client.send_request({"@type": "getFile", "file_id": file_id})
+                            local = f_stat.get("local", {})
+                            if local.get("is_downloading_completed"):
+                                local_path = local.get("path")
+                                if local_path and Path(local_path).exists():
+                                    shutil.copyfile(local_path, target_path)
+                                    self.touch_cache(target_path)
+                                    await self.async_prune_lru_cache()
+                                    tdlib_success = True
+                                    print(f"[StreamCache] TDLib C++ fully cached media {file_hash} ({expected_size} bytes)")
+                                break
 
-                        curr_downloaded = local.get("downloaded_size", 0)
-                        if curr_downloaded > last_downloaded or local.get("is_downloading_active"):
-                            if curr_downloaded > last_downloaded:
-                                last_downloaded = curr_downloaded
-                                stall_count = 0
+                            curr_downloaded = local.get("downloaded_size", 0)
+                            if curr_downloaded > last_downloaded or local.get("is_downloading_active"):
+                                if curr_downloaded > last_downloaded:
+                                    last_downloaded = curr_downloaded
+                                    stall_count = 0
+                                else:
+                                    stall_count += 1
                             else:
                                 stall_count += 1
-                        else:
-                            stall_count += 1
-                        await asyncio.sleep(0.5)
-        except Exception as e:
-            print(f"[StreamCache] TDLib C++ download background note: {e}")
+                            await asyncio.sleep(0.5)
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(f"[StreamCache] TDLib C++ download background note: {e}")
 
-        if tdlib_success:
-            self._active_tdlib_downloads.pop(file_hash, None)
-            async with self._lock:
-                current_t = asyncio.current_task()
-                if self._inflight_downloads.get(file_hash) is current_t:
-                    self._inflight_downloads.pop(file_hash, None)
-            return
-
-        # 2. Fallback Engine: Telethon sequential append
-        part_path = self.cache_dir / f"{file_hash}.part"
-        client = get_telegram_client()
-        try:
-            await client.start()
-            entity = await client.get_target_entity(channel_id)
-            message = await client._client.get_messages(entity, ids=message_id)
-            if not message or not message.media:
+            if tdlib_success:
                 return
 
-            start_offset = part_path.stat().st_size if part_path.exists() else 0
-            if start_offset >= expected_size:
-                part_path.replace(target_path)
-                self.touch_cache(target_path)
-                self.prune_lru_cache()
-                return
+            # 2. Fallback Engine: Telethon sequential append
+            part_path = self.cache_dir / f"{file_hash}.part"
+            client = get_telegram_client()
+            try:
+                await client.start()
+                entity = await client.get_target_entity(channel_id)
+                message = await client._client.get_messages(entity, ids=message_id)
+                if not message or not message.media:
+                    return
 
-            align = 4096
-            aligned_offset = (start_offset // align) * align
-
-            with open(part_path, "ab" if start_offset > 0 else "wb") as f:
-                async for chunk in client._client.iter_download(
-                    message.media,
-                    offset=aligned_offset,
-                    chunk_size=chunk_size,
-                    request_size=chunk_size,
-                ):
-                    if not chunk:
-                        break
-                    f.write(chunk)
-                    f.flush()
-
-            if part_path.exists() and part_path.stat().st_size >= expected_size:
-                promoted = False
-                for _ in range(15):
-                    try:
-                        part_path.replace(target_path)
-                        promoted = True
-                        break
-                    except (PermissionError, OSError):
-                        await asyncio.sleep(0.1)
-
-                if promoted:
+                start_offset = part_path.stat().st_size if part_path.exists() else 0
+                if start_offset >= expected_size:
+                    part_path.replace(target_path)
                     self.touch_cache(target_path)
-                    self.prune_lru_cache()
-                    print(f"[StreamCache] Fully cached media {file_hash} ({expected_size} bytes)")
+                    await self.async_prune_lru_cache()
+                    return
+
+                align = 4096
+                aligned_offset = (start_offset // align) * align
+
+                with open(part_path, "ab" if start_offset > 0 else "wb") as f:
+                    async for chunk in client._client.iter_download(
+                        message.media,
+                        offset=aligned_offset,
+                        chunk_size=chunk_size,
+                        request_size=chunk_size,
+                    ):
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        f.flush()
+
+                if part_path.exists() and part_path.stat().st_size >= expected_size:
+                    promoted = False
+                    for _ in range(15):
+                        try:
+                            part_path.replace(target_path)
+                            promoted = True
+                            break
+                        except (PermissionError, OSError):
+                            await asyncio.sleep(0.1)
+
+                    if promoted:
+                        self.touch_cache(target_path)
+                        await self.async_prune_lru_cache()
+                        print(f"[StreamCache] Fully cached media {file_hash} ({expected_size} bytes)")
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                print(f"[StreamCache] Telethon fallback error for {file_hash}: {e}")
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             print(f"[StreamCache] Progressive download error for {file_hash}: {e}")
         finally:
@@ -541,7 +562,7 @@ class StreamCacheManager:
                                 try:
                                     shutil.copyfile(local_p, file_path)
                                     self.touch_cache(file_path)
-                                    self.prune_lru_cache()
+                                    await self.async_prune_lru_cache()
                                 except Exception:
                                     pass
                             with open(local_p, "rb") as f:
@@ -557,12 +578,14 @@ class StreamCacheManager:
                             return
                         # 3. High-Speed TDLib Hardware Slice Stream (12ms - 50ms native delivery)
                         # Proactively kick off background progressive caching if not already running
-                        if expected_total_size and file_hash not in self._inflight_downloads:
-                            self._inflight_downloads[file_hash] = asyncio.create_task(
-                                self._do_progressive_download(
-                                    message_id, channel_id, file_path, file_hash, expected_total_size, chunk_size
-                                )
-                            )
+                        if expected_total_size:
+                            async with self._lock:
+                                if file_hash not in self._inflight_downloads:
+                                    self._inflight_downloads[file_hash] = asyncio.create_task(
+                                        self._do_progressive_download(
+                                            message_id, channel_id, file_path, file_hash, expected_total_size, chunk_size
+                                        )
+                                    )
 
                         # Request high-priority download slice starting at requested offset
                         await td_client.send_request({

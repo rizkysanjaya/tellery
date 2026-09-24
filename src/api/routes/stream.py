@@ -154,7 +154,7 @@ async def stream_media(
                             try:
                                 shutil.copyfile(lp, target_stream_path)
                                 cache_manager.touch_cache(target_stream_path)
-                                cache_manager.prune_lru_cache()
+                                await cache_manager.async_prune_lru_cache()
                             except Exception:
                                 target_stream_path = lp
         except Exception:

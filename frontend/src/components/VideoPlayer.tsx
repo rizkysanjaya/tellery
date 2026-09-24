@@ -64,6 +64,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   const [duration, setDuration] = useState(item.duration_seconds || 0);
 
   const waitingTimerRef = useRef<number | null>(null);
+  const rippleTimerRef = useRef<number | null>(null);
+  const copiedToastTimerRef = useRef<number | null>(null);
+  const activeScrubCleanupRef = useRef<(() => void) | null>(null);
 
   const clearWaitingTimer = useCallback(() => {
     if (waitingTimerRef.current !== null) {
@@ -177,6 +180,31 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     }
   }, [volume, isMuted]);
 
+  // Master unmount cleanup for gesture listeners, animation frames, and timers
+  useEffect(() => {
+    return () => {
+      if (activeScrubCleanupRef.current) {
+        activeScrubCleanupRef.current();
+        activeScrubCleanupRef.current = null;
+      }
+      if (hideControlsTimerRef.current) {
+        window.clearTimeout(hideControlsTimerRef.current);
+      }
+      if (waitingTimerRef.current) {
+        window.clearTimeout(waitingTimerRef.current);
+      }
+      if (rippleTimerRef.current) {
+        window.clearTimeout(rippleTimerRef.current);
+      }
+      if (copiedToastTimerRef.current) {
+        window.clearTimeout(copiedToastTimerRef.current);
+      }
+      if (rafScrubRef.current) {
+        cancelAnimationFrame(rafScrubRef.current);
+      }
+    };
+  }, []);
+
   // Controls auto-hide logic
   const resetHideTimer = useCallback(() => {
     setShowControls(true);
@@ -204,7 +232,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
         setIsEnded(false);
         setIsPlaying(true);
         setCenterRipple("play");
-        setTimeout(() => setCenterRipple(null), 500);
+        if (rippleTimerRef.current) window.clearTimeout(rippleTimerRef.current);
+        rippleTimerRef.current = window.setTimeout(() => setCenterRipple(null), 500);
       })
       .catch((err) => console.error("Replay error:", err));
     resetHideTimer();
@@ -226,14 +255,16 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
           setIsEnded(false);
           setIsPlaying(true);
           setCenterRipple("play");
-          setTimeout(() => setCenterRipple(null), 500);
+          if (rippleTimerRef.current) window.clearTimeout(rippleTimerRef.current);
+          rippleTimerRef.current = window.setTimeout(() => setCenterRipple(null), 500);
         })
         .catch((err) => console.error("Play error:", err));
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
       setCenterRipple("pause");
-      setTimeout(() => setCenterRipple(null), 500);
+      if (rippleTimerRef.current) window.clearTimeout(rippleTimerRef.current);
+      rippleTimerRef.current = window.setTimeout(() => setCenterRipple(null), 500);
     }
     resetHideTimer();
   }, [isEnded, handleReplay, resetHideTimer]);
@@ -315,7 +346,8 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
     const fullUrl = window.location.origin + item.stream_url;
     navigator.clipboard.writeText(fullUrl).then(() => {
       setCopiedToast(true);
-      setTimeout(() => setCopiedToast(false), 2000);
+      if (copiedToastTimerRef.current) window.clearTimeout(copiedToastTimerRef.current);
+      copiedToastTimerRef.current = window.setTimeout(() => setCopiedToast(false), 2000);
     });
     setContextMenu(null);
   };
@@ -427,6 +459,9 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
   };
 
   const handleScrubMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (activeScrubCleanupRef.current) {
+      activeScrubCleanupRef.current();
+    }
     const targetTime = calculateScrubTime(e);
     isScrubbingRef.current = true;
     if (videoRef.current) {
@@ -480,14 +515,19 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       }
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
+      activeScrubCleanupRef.current = null;
       resetHideTimer();
     };
 
+    activeScrubCleanupRef.current = onMouseUp;
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
   };
 
   const handleScrubTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (activeScrubCleanupRef.current) {
+      activeScrubCleanupRef.current();
+    }
     if (!e.touches[0] || !scrubBarRef.current || !videoRef.current) return;
     const touch = e.touches[0];
     const rect = scrubBarRef.current.getBoundingClientRect();
@@ -545,9 +585,11 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ item }) => {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onTouchEnd);
       window.removeEventListener("touchcancel", onTouchEnd);
+      activeScrubCleanupRef.current = null;
       resetHideTimer();
     };
 
+    activeScrubCleanupRef.current = onTouchEnd;
     window.addEventListener("touchmove", onTouchMove, { passive: true });
     window.addEventListener("touchend", onTouchEnd);
     window.addEventListener("touchcancel", onTouchEnd);

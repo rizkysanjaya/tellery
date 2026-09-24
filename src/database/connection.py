@@ -50,15 +50,14 @@ def normalize_channel_id(channel_id: Union[int, str, None]) -> Optional[int]:
 @asynccontextmanager
 async def get_db_connection() -> AsyncIterator[aiosqlite.Connection]:
     """
-    Yields an aiosqlite database connection configured with WAL journal mode,
-    row factory for dictionary-like access, and foreign keys enabled.
+    Yields an aiosqlite database connection configured with dictionary row access,
+    NORMAL synchronous mode, and foreign keys enabled.
     """
     settings = get_settings()
     db_path = settings.db_file_path
 
     async with aiosqlite.connect(db_path, timeout=30.0) as conn:
         conn.row_factory = aiosqlite.Row
-        await conn.execute("PRAGMA journal_mode = WAL;")
         await conn.execute("PRAGMA synchronous = NORMAL;")
         await conn.execute("PRAGMA foreign_keys = ON;")
         await conn.execute("PRAGMA cache_size = -64000;")
@@ -76,6 +75,8 @@ async def init_db() -> None:
 
     # ---------- 1. Lightweight migrations for existing databases before index creation ----------
     async with get_db_connection() as conn:
+        # Enforce WAL journal mode persistently in DB header once during initialization
+        await conn.execute("PRAGMA journal_mode = WAL;")
         # folders table migrations
         cursor = await conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='folders';")
         if await cursor.fetchone():

@@ -33,7 +33,8 @@ export async function fetchTimeline(
   onlyFavorites: boolean = false,
   exifFilters?: ActiveExifFilters,
   channelId?: number | null,
-  cursor?: string | null
+  cursor?: string | null,
+  signal?: AbortSignal
 ): Promise<TimelineResponse> {
   const params = new URLSearchParams({
     offset: offset.toString(),
@@ -83,7 +84,7 @@ export async function fetchTimeline(
     }
   }
 
-  const response = await fetch(`${API_BASE}/api/media?${params.toString()}`);
+  const response = await fetch(`${API_BASE}/api/media?${params.toString()}`, { signal });
   if (!response.ok) {
     throw new Error(`Failed to fetch timeline: ${response.statusText}`);
   }

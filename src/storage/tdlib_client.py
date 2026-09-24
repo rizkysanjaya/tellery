@@ -42,6 +42,7 @@ class TDLibStorageClient:
         self._pending_requests: Dict[str, asyncio.Future] = {}
         self._req_counter = 0
         self._lock = asyncio.Lock()
+        self._startup_task: Optional[asyncio.Task] = None
 
         self._auth_state: Optional[str] = None
         self._auth_state_event = asyncio.Event()
@@ -53,9 +54,19 @@ class TDLibStorageClient:
 
     async def start(self) -> None:
         """Initializes TDLib native instance and starts the background listener thread."""
-        if self.client_id is not None:
-            return
+        async with self._lock:
+            if self.client_id is not None and self._auth_state in [
+                "authorizationStateWaitPhoneNumber",
+                "authorizationStateWaitCode",
+                "authorizationStateWaitPassword",
+                "authorizationStateReady",
+            ]:
+                return
+            if self._startup_task is None or self._startup_task.done():
+                self._startup_task = asyncio.create_task(self._do_start())
+        await self._startup_task
 
+    async def _do_start(self) -> None:
         self._loop = asyncio.get_running_loop()
         self.client_id = tdjson.td_create_client_id()
 
@@ -153,12 +164,13 @@ class TDLibStorageClient:
                 break
             await asyncio.sleep(0.05)
 
-    async def send_request(self, request: dict) -> dict:
+    async def send_request(self, request: dict, timeout: float = 30.0) -> dict:
         """
         Sends a JSON request to the C++ TDLib client and awaits the correlated response.
         
         Args:
             request: TDLib API request dictionary.
+            timeout: Maximum seconds to await TDLib response before timing out.
             
         Returns:
             Correlated response dictionary from TDLib.
@@ -181,7 +193,7 @@ class TDLibStorageClient:
 
         tdjson.td_send(self.client_id, json.dumps(request).encode("utf-8"))
         try:
-            return await fut
+            return await asyncio.wait_for(fut, timeout=timeout)
         finally:
             self._pending_requests.pop(req_id, None)
 
@@ -345,13 +357,21 @@ class TDLibStorageClient:
 
     async def close(self) -> None:
         """Gracefully shuts down the TDLib client instance."""
-        if self.client_id is not None:
-            try:
-                await self.send_request({"@type": "close"})
-            except Exception:
-                pass
-            self._running = False
-            self.client_id = None
+        async with self._lock:
+            if self._startup_task and not self._startup_task.done():
+                self._startup_task.cancel()
+            self._startup_task = None
+            if self.client_id is not None:
+                try:
+                    await self.send_request({"@type": "close"}, timeout=5.0)
+                except Exception:
+                    pass
+                self._running = False
+                for req_id, fut in list(self._pending_requests.items()):
+                    if not fut.done():
+                        fut.cancel()
+                self._pending_requests.clear()
+                self.client_id = None
 
 
 _tdlib_client_instance: Optional[TDLibStorageClient] = None
